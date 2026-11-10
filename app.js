@@ -4,6 +4,12 @@
  */
 'use strict';
 
+// Capturamos o erro antes de o SDK processar/limpar o fragmento da URL.
+const emailConfirmationReturn = new URLSearchParams(location.search).get('email_confirmed') === '1';
+const confirmationFragment = new URLSearchParams(location.hash.slice(1));
+const confirmationError = confirmationFragment.get('error_code') || confirmationFragment.get('error') ||
+  new URLSearchParams(location.search).get('error_code');
+
 const SUPABASE_URL = 'https://tohusfsmpyzipxvitble.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_p7kMjoFwe937a9G3mEGd1g_dRlQ_YCf';
 const db = window.supabase?.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
@@ -25,6 +31,9 @@ const shortDate = (value) => new Intl.DateTimeFormat('pt-BR', {
   day: '2-digit', month: 'short', timeZone: 'America/Sao_Paulo'
 }).format(new Date(value));
 const currentRedirect = () => `${location.origin}${location.pathname}`;
+// Link do cadastro volta a uma página real do GitHub Pages e oferece login.
+// Cadastrar este URL EXATO em Authentication → URL Configuration → Redirect URLs.
+const signupRedirect = () => new URL('./index.html?email_confirmed=1', currentRedirect()).href;
 const categories = [
   ['todos', '✨', 'Todos'], ['festa', '🪩', 'Festas'], ['bar', '🍹', 'Bares'],
   ['balada', '🎶', 'Baladas'], ['rave', '🔊', 'Raves'], ['cinema', '🎬', 'Cinema'],
@@ -77,7 +86,8 @@ function showGate(stage, data = {}) {
       <form id="login-form" class="auth-form"><label>Email<input name="email" type="email" required autocomplete="email"></label>
       <label>Senha<input name="password" type="password" required autocomplete="current-password"></label>
       <button class="btn btn-pink" type="submit">Entrar</button></form>
-      <p class="auth-switch"><button data-auth="forgot">Esqueci a senha</button> · <button data-auth="signup">Criar conta</button></p>`,
+      <p class="auth-switch"><button data-auth="forgot">Esqueci a senha</button> · <button data-auth="signup">Criar conta</button></p>
+      <p class="auth-switch"><button data-auth="resend">Reenviar e-mail de confirmação</button></p>`,
     signup: `<span class="eyebrow">Seu próximo rolê começa aqui</span><h1>Crie sua conta 🪩</h1>
       <form id="signup-form" class="auth-form"><label>Email<input name="email" type="email" required autocomplete="email"></label>
       <label>Senha (mínimo 8 caracteres)<input name="password" type="password" minlength="8" required autocomplete="new-password"></label>
@@ -87,6 +97,9 @@ function showGate(stage, data = {}) {
     forgot: `<h1>Recuperar senha 🔑</h1><p class="small-muted">Enviaremos um link para seu email.</p>
       <form id="forgot-form" class="auth-form"><label>Email<input name="email" type="email" required autocomplete="email"></label>
       <button class="btn btn-pink" type="submit">Enviar link</button></form><p class="auth-switch"><button data-auth="login">Voltar ao login</button></p>`,
+    resend: `<h1>Reenviar confirmação ✉️</h1><p class="small-muted">Não recebeu o link ou ele expirou? Informe o e-mail usado no cadastro.</p>
+      <form id="resend-form" class="auth-form"><label>Email<input name="email" type="email" required autocomplete="email"></label>
+      <button class="btn btn-pink" type="submit">Reenviar confirmação</button></form><p class="auth-switch"><button data-auth="login">Voltar ao login</button></p>`,
     reset: `<h1>Defina uma nova senha</h1><form id="reset-form" class="auth-form">
       <label>Nova senha<input name="password" type="password" minlength="8" autocomplete="new-password" required></label>
       <button class="btn btn-pink" type="submit">Alterar senha</button></form>`,
@@ -125,6 +138,8 @@ async function assertOk(promise) {
 
 async function authAction(kind, form) {
   try {
+    // Botões de troca de tela não são submissões de formulário.
+    if (!form && ['login','signup','forgot','resend'].includes(kind)) return showGate(kind);
     feedback('Processando…', false);
     const data = form ? Object.fromEntries(new FormData(form)) : {};
     if (kind === 'login') {
@@ -132,9 +147,14 @@ async function authAction(kind, form) {
       await syncSession();
     } else if (kind === 'signup') {
       const signup = await assertOk(db.auth.signUp({email: data.email, password: data.password,
-        options: { emailRedirectTo: currentRedirect() }}));
+        options: { emailRedirectTo: signupRedirect() }}));
       if (!signup.session) { showGate('login'); feedback('Confira seu email para confirmar a conta e depois faça login.', false); }
       else await syncSession();
+    } else if (kind === 'resend') {
+      await assertOk(db.auth.resend({type: 'signup', email: data.email,
+        options: {emailRedirectTo: signupRedirect()}}));
+      showGate('login');
+      feedback('Se há uma confirmação pendente, enviaremos um novo link. Verifique sua caixa de entrada e spam.', false);
     } else if (kind === 'forgot') {
       await assertOk(db.auth.resetPasswordForEmail(data.email, {redirectTo: currentRedirect()}));
       showGate('login'); feedback('Se o email estiver cadastrado, você receberá instruções para redefinir a senha.', false);
@@ -1184,7 +1204,7 @@ document.addEventListener('click', (event) => {
 });
 
 document.addEventListener('submit', (event) => {
-  const key = ({'login-form':'login','signup-form':'signup','forgot-form':'forgot',
+  const key = ({'login-form':'login','signup-form':'signup','forgot-form':'forgot','resend-form':'resend',
     'reset-form':'reset','birth-form':'birth','onboard-profile-form':'profile','legal-form':'legal'})[event.target.id];
   if (key) { event.preventDefault(); authAction(key, event.target); }
 });
@@ -1225,14 +1245,40 @@ showGate('loading');
 if (!db) showGate('offline');
 else {
   let recoveringPassword = false;
+  let confirmingEmail = emailConfirmationReturn;
   db.auth.onAuthStateChange((event) => {
+    if (confirmingEmail) return; // Não abrir automaticamente a área social durante a confirmação.
     if (event === 'PASSWORD_RECOVERY') { recoveringPassword = true; return showGate('reset'); }
     if (recoveringPassword && event !== 'SIGNED_OUT' && event !== 'USER_UPDATED') return;
     if (event === 'USER_UPDATED') recoveringPassword = false;
     if (event === 'TOKEN_REFRESHED' && state.opened) return;
     setTimeout(() => syncSession().catch((err) => { showGate('blocked'); feedback(err.message); }), 0);
   });
-  syncSession().catch((err) => { showGate('blocked'); feedback(err.message); });
+  if (confirmingEmail) {
+    // O Supabase confirma o e-mail ANTES de voltar ao Pages e entrega a sessão no fragmento.
+    // Depois de o SDK processá-la, encerramos a sessão e mostramos o formulário de login.
+    (async () => {
+      try {
+        if (confirmationError) throw Error('Este link de confirmação é inválido ou expirou. Solicite um novo link.');
+        const session = await assertOk(db.auth.getSession());
+        if (!session?.session) throw Error('Não foi possível concluir a confirmação. Solicite um novo link se necessário.');
+        const identity = await assertOk(db.auth.getUser());
+        if (!identity?.user?.email_confirmed_at) throw Error('O e-mail ainda não consta como confirmado. Solicite um novo link.');
+        await assertOk(db.auth.signOut());
+        confirmingEmail = false;
+        history.replaceState(history.state, '', currentRedirect());
+        showGate('login');
+        feedback('E-mail confirmado com sucesso! Agora entre com seu e-mail e senha.', false);
+      } catch (err) {
+        confirmingEmail = false;
+        history.replaceState(history.state, '', currentRedirect());
+        showGate('login');
+        feedback(err.message || 'Não foi possível confirmar seu e-mail. Solicite um novo link.');
+      }
+    })();
+  } else {
+    syncSession().catch((err) => { showGate('blocked'); feedback(err.message); });
+  }
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden && Date.now() - state.lastSessionCheck > 180000) {
       syncSession().catch(() => toast('Não foi possível atualizar sua sessão. Confira a conexão.'));
