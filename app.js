@@ -319,7 +319,7 @@ function renderEvents() {
       <div class="card-body"><h3>${html(event.title)}</h3>
       <div class="meta"><i data-lucide="map-pin"></i>${html(event.venue || event.address)} · ${html(event.city)}</div>
       <div class="meta"><i data-lucide="clock-3"></i>${html(displayDate(event.date))}</div>
-      <div class="card-foot">${pending ? '<span class="badge">Aguardando moderação</span>' : `<span class="badge green">✓ ${eventCount(event.id)} confirmados</span>`}<span class="arrow"><i data-lucide="arrow-up-right"></i></span></div></div></article>`;
+      <div class="card-foot">${pending ? '<span class="badge">Em análise de segurança</span>' : `<span class="badge green">✓ ${eventCount(event.id)} confirmados</span>`}<span class="arrow"><i data-lucide="arrow-up-right"></i></span></div></div></article>`;
   }).join('') : '<div class="empty">Ainda não há rolês publicados nessa busca. Tente outra categoria ou aguarde novos eventos!</div>';
   $('results-count').textContent = `${events.length} rolê${events.length !== 1 ? 's' : ''} encontrado${events.length !== 1 ? 's' : ''}`;
   renderPins(events.filter(isPublished));
@@ -431,7 +431,7 @@ async function openDetails(id) {
   showModal(event.title, `<div class="event-details">
     ${eventImage(event) ? `<img class="dialog-photo" src="${html(eventImage(event))}" alt="Capa do evento ${html(event.title)}">` : '<div class="detail-cover-fallback">🪩</div>'}
     <span class="badge pink">${html(catLabel(event.category))}</span>
-    ${!active ? '<span class="badge">Aguardando aprovação da moderação</span>' : ''}
+    ${!active ? '<span class="badge">Em análise de segurança</span>' : ''}
     <h3 class="details-heading">Informações do rolê</h3>
     <dl class="event-facts">
       <div><dt>🎉 Nome do evento</dt><dd>${html(event.title)}</dd></div>
@@ -499,7 +499,7 @@ function renderMine() {
 }
 
 function openCreate() {
-  showModal('Criar um rolê ✨', `<p class="small-muted">O evento será enviado à moderação. Ele só aparecerá para outros usuários após aprovação.</p>
+  showModal('Criar um rolê ✨', `<p class="small-muted">Seu rolê será publicado assim que os dados forem salvos. Anúncios com sinais de risco poderão ser encaminhados para análise de segurança.</p>
     <form id="event-form" class="create-form"><div class="field"><label for="new-title">Nome do rolê *</label><input id="new-title" maxlength="100" minlength="5" required placeholder="Ex.: Cine + café no sábado"></div>
     <div class="fields"><div class="field"><label for="new-category">Categoria *</label><select id="new-category">${categories.slice(1).map((c) => `<option value="${c[0]}">${c[1]} ${c[2]}</option>`).join('')}</select></div>
     <div class="field"><label for="new-venue">Nome do local</label><input id="new-venue" maxlength="120" placeholder="Ex.: Cinemark Shopping"></div></div>
@@ -514,7 +514,7 @@ function openCreate() {
     <div id="map-picker" class="map-picker"></div><div id="picker-location" class="small-muted">Nenhum local marcado.</div>
     <label class="check-label"><input id="new-verified" type="checkbox"> Este rolê exige verificação etária independente (além da data declarada)</label>
     <p class="legal-note">Nunca publique endereços residenciais, dados de terceiros ou convites a práticas ilegais. O app pode recusar conteúdos e eventos inadequados.</p>
-    <button type="submit" class="btn btn-pink" style="width:100%">Enviar para moderação</button></form>`);
+    <button type="submit" class="btn btn-pink" style="width:100%">Publicar rolê</button></form>`);
   const start = $('new-start');
   start.min = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0,16);
   state.pickedCoords = null;
@@ -588,9 +588,14 @@ async function submitEvent(event) {
         await assertOk(db.from('events').update({cover_path: path}).eq('id', uid));
       } catch (err) { toast(`Rolê criado, mas a capa não foi salva: ${err.message}`); }
     }
+    // A capa é enviada ANTES da publicação: as permissões de Storage só permitem upload enquanto pendente.
+    // A função no banco decide se publica ou encaminha para análise, sem confiar na classificação do navegador.
+    const publication = await assertOk(db.rpc('bora_publish_event', {_event: uid}));
     closeModal();
     await loadEvents();
-    toast('Rolê enviado para moderação. Ele ainda não aparece para outras pessoas.');
+    toast(publication?.needs_review
+      ? 'O rolê foi salvo e encaminhado para análise de segurança.'
+      : 'Seu rolê já está publicado! 🎉');
   } catch (err) { toast(`Não foi possível criar o rolê: ${err.message}`); }
   finally { button.disabled = false; }
 }
@@ -1093,7 +1098,7 @@ async function openModeration() {
   if (!state.isModerator) return toast('Acesso reservado à moderação.');
   try {
     const [events,reports,privacy] = await Promise.all([
-      assertOk(db.from('events').select('id,title,description,category,starts_at,venue_name,address,city,state_code,cover_path,venue_instagram,ticket_url,creator_id,requires_verified_age').eq('status','pending').order('created_at',{ascending:true}).limit(25)),
+      assertOk(db.from('events').select('id,title,description,category,starts_at,venue_name,address,city,state_code,cover_path,venue_instagram,ticket_url,creator_id,requires_verified_age,screening_reason').eq('status','pending').eq('needs_review',true).order('created_at',{ascending:true}).limit(25)),
       assertOk(db.from('reports').select('id,target_kind,target_id,reason,details,evidence_snapshot,status,created_at').in('status',['pending','reviewing']).order('created_at',{ascending:true}).limit(40)),
       assertOk(db.from('privacy_requests').select('id,requester_id,kind,details,status,created_at').in('status',['pending','in_progress']).order('created_at',{ascending:true}).limit(30))
     ]);
@@ -1106,12 +1111,13 @@ async function openModeration() {
     reports.sort((a,b)=>(priority[a.reason] ?? 9)-(priority[b.reason] ?? 9));
     const risk = {minor:'URGENTE · Menor de idade',illegal:'URGENTE · Conteúdo ilegal',harassment:'Assédio/violência',
       discrimination:'Discriminação',fraud:'Golpe',privacy:'Privacidade',other:'Outro'};
-    showModal('Central de moderação 🛡️', `<p class="legal-note">Área restrita. Revise integralmente cada relato, imagem, anúncio e link antes de decidir. Denúncias urgentes exigem avaliação prioritária; o painel não substitui autoridades nem acompanhamento humano.</p>
+    showModal('Central de moderação 🛡️', `<p class="legal-note">Área restrita. Eventos comuns são publicados automaticamente; esta fila recebe sinais de risco. O filtro por palavras não examina imagens nem substitui denúncias e avaliação humana. Denúncias urgentes exigem prioridade; o painel não substitui autoridades.</p>
       <h3>⏳ Eventos aguardando análise (${events.length})</h3><div class="mod-list">${events.length ? events.map(row => `<article class="mod-card">
         ${row.coverUrl ? `<img src="${html(row.coverUrl)}" alt="Capa a revisar" class="mod-cover">` : ''}
         <strong>${html(row.title)}</strong><small>${html(displayDate(row.starts_at))} · ${html(row.category)}</small>
         <p>${html(row.description)}</p><p>📍 ${html(row.venue_name || '')} · ${html(row.address)} · ${html(row.city)} / ${html(row.state_code)}</p>
         <p>Organizador: ${html(row.creator_id)} ${row.requires_verified_age ? ' · EXIGE VERIFICAÇÃO INDEPENDENTE' : ''}</p>
+        ${row.screening_reason ? `<p><strong>Alerta automático:</strong> ${html(row.screening_reason)}</p>` : ''}
         ${safeHttps(row.ticket_url) ? `<a href="${html(safeHttps(row.ticket_url))}" target="_blank" rel="noopener noreferrer">Revisar ingressos ↗</a>` : ''}
         ${row.venue_instagram ? `<p>Instagram informado: ${html(row.venue_instagram)}</p>` : ''}
         ${safeHttps(row.venue_instagram) ? `<a href="${html(safeHttps(row.venue_instagram))}" target="_blank" rel="noopener noreferrer">Revisar Instagram ↗</a>` : ''}
