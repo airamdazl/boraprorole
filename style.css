@@ -74,3 +74,39 @@
   .profile-panel{padding-left:13px;padding-right:13px}
   .home-music{min-width:0}.home-music-intro{min-width:0}.home-music h2{font-size:22px}
 }
+
+/* 2026 · Bora Pro Rolê: interface jovem, segura e mobile-first */
+.logo strong{font-family:Outfit,sans-serif;font-weight:900;letter-spacing:-.9px;line-height:.91;font-size:17px;text-transform:uppercase;font-style:italic;transform:skewX(-4deg);text-shadow:0 1px 0 #b35eae36}
+.logo strong span{font-size:12px;letter-spacing:3.5px;font-style:normal;margin-top:5px;color:#ff567f}
+.auth-panel{max-width:min(580px,100%)}
+.auth-panel .auth-form label{min-width:0}
+.auth-panel .auth-form input,.auth-panel .auth-form select{width:100%;min-width:0;max-width:100%;box-sizing:border-box}
+.auth-panel .auth-form .check-label input{width:18px;min-width:18px;max-width:18px}
+.auth-panel #auth-feedback.error{font-size:14px;line-height:1.5;font-weight:900;color:#fff;background:#941e42;border:2px solid #ff99b0;padding:15px;border-radius:13px;margin:2px 0 13px;box-shadow:0 0 0 3px #ff487726}
+.auth-panel #auth-feedback:not(.error):not(:empty){padding:13px;background:#23483b;color:#eaffed;border-radius:12px;margin:10px 0}
+.signup-identity{border:1px solid #62516c;border-radius:15px;padding:15px;display:grid;gap:12px;background:#2a2137}
+.signup-identity strong{font:900 16px Outfit,sans-serif}.signup-identity p{margin:0}
+.confirmation-tip{font-size:16px;line-height:1.7;background:#3d2b50;border:1px solid #ff88ab;border-radius:15px;padding:18px}
+.dialog,.dialog-content,.event-details,.event-facts,.event-facts div,.event-facts dd{min-width:0;max-width:100%;overflow-wrap:anywhere;box-sizing:border-box}
+.dialog{overflow-x:hidden}.dialog-content>*,.create-form>*{min-width:0;max-width:100%}
+.dialog-actions{flex-wrap:wrap}.dialog-actions .btn{min-width:150px;white-space:normal}
+.pin-emoji{width:39px;height:39px;display:grid;place-items:center;font-size:23px;border-radius:50% 50% 50% 8px;background:#6d2b9c;color:#fff;border:2px solid #fff;box-shadow:0 5px 16px #17042183}
+.bora-cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;min-width:0;margin-top:18px}
+.cal-week{text-align:center;font-size:11px;font-weight:900;color:var(--muted);padding:6px}
+.cal-date{background:var(--surface2);border:1px solid var(--line);border-radius:13px;min-height:88px;padding:8px;min-width:0;overflow:hidden;display:flex;flex-direction:column;gap:5px}
+.cal-date.has-events{border-color:#a651b3}.cal-date>strong{font:900 15px Outfit,sans-serif}.cal-date>small{color:var(--muted);font-size:9px}
+.cal-event{display:block;width:100%;background:#753b8b30;color:var(--text);border:0;border-radius:7px;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:5px;font-size:10px;font-weight:800}
+.cal-event:hover{background:#a655c652}.cal-empty{min-height:55px}
+.photo-form{display:grid;gap:12px;padding:13px;border-radius:13px;background:var(--surface2)}
+.photo-form label{display:grid;gap:6px;font-weight:800;font-size:12px;color:var(--muted)}
+.photo-form input{min-width:0;width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--text)}
+.photo-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:14px}
+.photo-card{border:1px solid var(--line);background:var(--surface2);border-radius:15px;overflow:hidden;padding:8px;min-width:0;display:grid;gap:7px}
+.photo-card img{width:100%;height:155px;object-fit:cover;border-radius:11px}.photo-card small{overflow-wrap:anywhere;color:var(--muted)}
+.poll-card{padding:15px;margin:14px 0;background:var(--surface2);border:1px solid var(--line);border-radius:16px;display:grid;gap:10px}
+.poll-card>strong{font:900 17px Outfit,sans-serif;line-height:1.3}.poll-card>small,.poll-answer small{font-size:11px;color:var(--muted)}
+.poll-answer{display:grid;gap:5px}.poll-answer button{justify-content:flex-start!important;max-width:100%;text-align:left;white-space:normal}
+.poll-progress{height:7px;background:var(--surface3);border-radius:10px;overflow:hidden}.poll-progress span{height:100%;display:block;background:linear-gradient(90deg,#fb3783,#9a65da);border-radius:10px}
+.bubble.system{align-self:center;background:#f6a93b1c;color:var(--text);border:1px solid #e6a04f;font-weight:800;width:100%;max-width:100%;text-align:center;border-radius:13px}
+@media(max-width:760px){.view-switch{flex-wrap:wrap}.view-switch button{font-size:11px}.bora-cal-grid{gap:2px}.cal-date{padding:4px;border-radius:8px;min-height:70px}.cal-date>strong{font-size:12px}.cal-week{font-size:9px}.cal-event{font-size:9px;padding:4px}.dialog-actions .btn{width:100%;flex:auto;min-width:0}}
+@media(max-width:420px){.view-switch button{padding:7px 8px}.photo-grid{grid-template-columns:1fr}.cal-date{min-height:64px}.cal-event{font-size:0}.cal-event::first-letter{font-size:16px}.cal-week{font-size:8px}}

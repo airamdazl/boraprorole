@@ -62,7 +62,8 @@ const state = {
   activeSquad: null, activeRoom: null, activeEvent: null, category: 'todos',
   search: '', view: 'mapa', map: null, markers: null, pickerMap: null,
   chatChannel: null, membersCache: new Map(), sessionVersion: 0, opened: false,
-  lastFocus: null, lastAppRefresh: 0, lastSessionCheck: 0, isModerator: false
+  lastFocus: null, lastAppRefresh: 0, lastSessionCheck: 0, isModerator: false,
+  photoUrls: []
 };
 
 function toast(message) {
@@ -80,7 +81,9 @@ function feedback(message, error = true) {
 
 function showGate(stage, data = {}) {
   $('auth-gate').classList.remove('hidden');
-  $('auth-feedback').textContent = '';
+  const authMessage = $('auth-feedback');
+  if (authMessage && $('auth-stage').contains(authMessage)) $('auth-stage').after(authMessage);
+  authMessage.textContent = '';
   const parts = {
     loading: '<h1>Preparando seu rolê…</h1><p class="small-muted">Validando sua sessão com segurança.</p>',
     login: `<span class="eyebrow">Bem-vindo de volta</span><h1>Entra, a galera tá te esperando. ✌️</h1>
@@ -89,12 +92,28 @@ function showGate(stage, data = {}) {
       <button class="btn btn-pink" type="submit">Entrar</button></form>
       <p class="auth-switch"><button data-auth="forgot">Esqueci a senha</button> · <button data-auth="signup">Criar conta</button></p>
       <p class="auth-switch"><button data-auth="resend">Reenviar e-mail de confirmação</button></p>`,
-    signup: `<span class="eyebrow">Seu próximo rolê começa aqui</span><h1>Crie sua conta 🪩</h1>
-      <form id="signup-form" class="auth-form"><label>Email<input name="email" type="email" required autocomplete="email"></label>
-      <label>Senha (mínimo 8 caracteres)<input name="password" type="password" minlength="8" required autocomplete="new-password"></label>
-      <p class="small-muted">Enviaremos um link de confirmação ao seu e-mail. Depois, você informará sua data de nascimento (18+), completará o perfil e aceitará os documentos da comunidade.</p>
-      <button class="btn btn-pink" type="submit">Continuar</button></form>
+    signup: `<span class="eyebrow">Uma conta, vários encontros</span><h1>Vem pro Bora Pro Rolê 🪩</h1>
+      <form id="signup-form" class="auth-form">
+      <label>Como podemos te chamar?<input name="display_name" minlength="2" maxlength="60" autocomplete="nickname" required placeholder="Seu nome de exibição"></label>
+      <label>Seu @nickname<input name="username" minlength="3" maxlength="24" pattern="[a-z0-9_.]{3,24}" autocapitalize="none" required placeholder="seu.nick"></label>
+      <label>Data de nascimento (uso privado, 18+)<input name="birthdate" type="date" required></label>
+      <label>Cidade<input name="city" maxlength="90" placeholder="Ex.: São Paulo"></label>
+      <label>Um pouco sobre você (opcional)<textarea name="bio" maxlength="300" rows="2" placeholder="Qual é a sua vibe?"></textarea></label>
+      <label>Instagram pessoal (opcional)<input name="instagram" maxlength="140" placeholder="@seuperfil"></label>
+      <div class="signup-identity"><strong>Identificação opcional e privada</strong><p class="small-muted">Serve apenas para participar de rolês com público direcionado. Você pode deixar em branco e escolher depois.</p>
+        <label>Identidade de gênero<select name="gender"><option value="">Prefiro não informar</option><option value="woman">Mulher</option><option value="man">Homem</option><option value="nonbinary">Pessoa não binária</option><option value="other">Outra identificação</option></select></label>
+        <label>Você se identifica como LGBTQIA+?<select name="lgbtq"><option value="">Prefiro não informar</option><option value="yes">Sim</option><option value="no">Não</option></select></label>
+        <label class="check-label"><input type="checkbox" name="sensitive_consent"> Autorizo o uso dessas identificações apenas para controlar minha entrada em rolês direcionados. Posso revogar depois.</label></div>
+      <label>Senha (mínimo 8 caracteres)<input name="password" type="password" minlength="8" autocomplete="new-password" required></label>
+      <label class="check-label"><input type="checkbox" name="truth_acknowledged" required> Declaro que tenho 18 anos ou mais, que a data é verdadeira e sei que poderemos solicitar comprovação futuramente.</label>
+      <label class="check-label"><input type="checkbox" name="legal_acknowledged" required> Li e aceito os <a href="./termos.html" target="_blank" rel="noopener noreferrer">Termos de Uso</a> e as <a href="./comunidade.html" target="_blank" rel="noopener noreferrer">Regras da Comunidade</a>. Estou ciente da <a href="./privacidade.html" target="_blank" rel="noopener noreferrer">Política de Privacidade</a>.</label>
+      <label>Seu e-mail (último passo)<input name="email" type="email" required autocomplete="email" placeholder="nome@exemplo.com"></label>
+      <button class="btn btn-pink" type="submit">Criar conta e receber confirmação ✉️</button></form>
       <p class="auth-switch"><button data-auth="login">Já tenho conta</button></p>`,
+    'check-email': `<span class="eyebrow">Quase lá!</span><h1>Confirma seu e-mail pra começar 💌</h1>
+      <p class="confirmation-tip">📬 Verifique sua <strong>caixa de entrada e spam</strong>. Clique no link de confirmação e depois entre no Bora Pro Rolê pra conhecer seu próximo rolê!</p>
+      <button class="btn btn-pink" data-auth="login">Ir para o login</button>
+      <p class="auth-switch"><button data-auth="resend">Não recebi o e-mail</button></p>`,
     forgot: `<h1>Recuperar senha 🔑</h1><p class="small-muted">Enviaremos um link para seu email.</p>
       <form id="forgot-form" class="auth-form"><label>Email<input name="email" type="email" required autocomplete="email"></label>
       <button class="btn btn-pink" type="submit">Enviar link</button></form><p class="auth-switch"><button data-auth="login">Voltar ao login</button></p>`,
@@ -135,6 +154,7 @@ function showGate(stage, data = {}) {
       <button class="btn btn-pink" onclick="location.reload()">Tentar novamente</button>`
   };
   $('auth-stage').innerHTML = parts[stage] || parts.loading;
+  if (stage === 'login') $('login-form')?.querySelector('button[type="submit"]')?.before(authMessage);
   icons();
 }
 
@@ -155,9 +175,27 @@ async function authAction(kind, form) {
       await assertOk(db.auth.signInWithPassword({ email: data.email, password: data.password }));
       await syncSession();
     } else if (kind === 'signup') {
+      const birth = String(data.birthdate || '');
+      const birthday = new Date(`${birth}T12:00:00`);
+      const adultDate = new Date(); adultDate.setFullYear(adultDate.getFullYear() - 18);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(birth) || !Number.isFinite(birthday.getTime()) || birthday > adultDate)
+        throw Error('O cadastro é exclusivo para maiores de 18 anos. Confira sua data de nascimento.');
+      const nickname = String(data.username || '').toLowerCase().trim();
+      if (!/^[a-z0-9_.]{3,24}$/.test(nickname)) throw Error('Nickname: use de 3 a 24 letras minúsculas, números, . ou _.');
+      if ((data.gender || data.lgbtq) && data.sensitive_consent !== 'on')
+        throw Error('Para salvar a identificação opcional, autorize seu uso ou deixe os campos em branco.');
+      if (data.truth_acknowledged !== 'on' || data.legal_acknowledged !== 'on')
+        throw Error('Confirme sua idade declarada e leia os documentos para continuar.');
       const signup = await assertOk(db.auth.signUp({email: data.email, password: data.password,
-        options: { emailRedirectTo: signupRedirect() }}));
-      if (!signup.session) { showGate('login'); feedback('Confira seu email para confirmar a conta e depois faça login.', false); }
+        options: { emailRedirectTo: signupRedirect(), data: {bora_signup: {
+          birthdate: birth, display_name: String(data.display_name || '').trim().slice(0,60),
+          username: nickname, city: String(data.city || '').trim().slice(0,90),
+          bio:String(data.bio || '').trim().slice(0,300),instagram:String(data.instagram || '').trim().slice(0,140),
+          gender: data.sensitive_consent === 'on' ? data.gender || null : null,
+          lgbtq: data.sensitive_consent === 'on' ? (data.lgbtq === 'yes' ? true : data.lgbtq === 'no' ? false : null) : null,
+          sensitive_consent: data.sensitive_consent === 'on'
+        }}}}));
+      if (!signup.session) showGate('check-email');
       else await syncSession();
     } else if (kind === 'resend') {
       await assertOk(db.auth.resend({type: 'signup', email: data.email,
@@ -200,7 +238,9 @@ async function authAction(kind, form) {
       await syncSession();
     }
   } catch (err) {
-    feedback(err.message || 'Não foi possível concluir. Tente novamente.');
+    const invalid = kind === 'login' && /invalid login credentials|invalid credentials/i.test(err.message || '');
+    feedback(invalid ? '❌ E-mail ou senha incorretos. Confira os dados e tente novamente.' : (err.message || 'Não foi possível concluir. Tente novamente.'));
+    if (kind === 'login') form?.querySelector('input[name="password"]')?.focus();
   }
 }
 
@@ -223,9 +263,24 @@ async function syncSession() {
   state.user = session.session.user;
   if (!sameUser) showGate('loading');
   try {
-    const raw = await assertOk(db.rpc('my_onboarding_status'));
+    let raw = await assertOk(db.rpc('my_onboarding_status'));
     if (version !== state.sessionVersion) return;
-    const status = Array.isArray(raw) ? raw[0] : raw;
+    let status = Array.isArray(raw) ? raw[0] : raw;
+    const signup = state.user.user_metadata?.bora_signup;
+    if (signup && status && !status.can_use_app) {
+      try {
+        if (!status.adult_declared) await assertOk(db.rpc('declare_adulthood', {_birthdate:signup.birthdate}));
+        if (!status.has_profile) await assertOk(db.from('profiles').insert({id:state.user.id,
+          username:signup.username,display_name:signup.display_name,city:signup.city || null,
+          bio:signup.bio || '',instagram:signup.instagram || null}));
+        if (signup.sensitive_consent) await assertOk(db.rpc('set_audience_preferences', {
+          _gender:signup.gender,_lgbtq:signup.lgbtq,_consent:true}));
+        if (!status.legal_accepted) await assertOk(db.rpc('accept_current_documents'));
+        raw = await assertOk(db.rpc('my_onboarding_status'));
+        status = Array.isArray(raw) ? raw[0] : raw;
+        if (status?.can_use_app) await db.auth.updateUser({data:{bora_signup:null}});
+      } catch (err) { console.warn('Cadastro necessita confirmação dos dados:',err.message); }
+    }
     if (!status?.adult_declared) return showGate('birth');
     if (!status.has_profile) return showGate('profile');
     if (!status.legal_accepted) {
@@ -293,8 +348,55 @@ function setView(view) {
   state.view = view;
   document.querySelectorAll('[data-view]').forEach((button) => button.classList.toggle('active', button.dataset.view === view));
   $('map-frame').classList.toggle('hidden', view !== 'mapa');
+  $('home-calendar').classList.toggle('hidden', view !== 'calendario');
+  $('events-grid').classList.toggle('hidden', view === 'calendario');
+  if (view === 'calendario') renderHomeCalendar();
   if (view === 'mapa') setTimeout(() => state.map?.invalidateSize(), 100);
 }
+
+const heroMessages = [
+  ['⚡ COM GENTE É MELHOR','A vida acontece<br>fora do feed.','Do cinema à rave, das boas conversas às amizades que ficam.'],
+  ['🤝 RESPEITO SEMPRE','Toda vibe merece<br>respeito.','Aqui ninguém precisa esconder quem é. Diversidade e consentimento vêm primeiro.'],
+  ['🛡️ ROLÊ SEGURO','Curta a noite.<br>Cuide da galera.','Marque encontros em locais públicos e denuncie assédio, preconceito e golpes.'],
+  ['💜 AMIZADE REAL','Seu jeito.<br>Sua turma.','Converse, combine e compartilhe bons momentos sem pressão.']
+];
+let heroIndex = 0;
+setInterval(() => {
+  if (document.hidden || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  heroIndex = (heroIndex + 1) % heroMessages.length;
+  const [tag,heading,copy] = heroMessages[heroIndex];
+  if ($('hero-kicker')) $('hero-kicker').textContent = tag;
+  if ($('hero-headline')) $('hero-headline').innerHTML = heading;
+  if ($('hero-message')) $('hero-message').textContent = copy;
+}, 8500);
+
+function renderHomeCalendar() {
+  const input = $('home-calendar-month');
+  const target = $('home-calendar-days');
+  if (!input || !target) return;
+  if (!input.value) input.value = new Date().toISOString().slice(0,7);
+  const [year,month] = input.value.split('-').map(Number);
+  if (!year || !(month >= 1 && month <= 12)) return;
+  const days = new Date(year,month,0).getDate();
+  const firstDay = new Date(year,month-1,1).getDay();
+  const matches = filteredEvents().filter(isPublished);
+  const eventDays = new Map();
+  for (const event of matches) {
+    const date = new Date(event.date);
+    const local = new Intl.DateTimeFormat('sv-SE',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).format(date);
+    if (!local.startsWith(input.value)) continue;
+    const day = Number(local.slice(-2));
+    if (!eventDays.has(day)) eventDays.set(day,[]);
+    eventDays.get(day).push(event);
+  }
+  target.innerHTML = `<div class="bora-cal-grid"><div class="cal-week">Dom</div><div class="cal-week">Seg</div><div class="cal-week">Ter</div><div class="cal-week">Qua</div><div class="cal-week">Qui</div><div class="cal-week">Sex</div><div class="cal-week">Sáb</div>` +
+    Array.from({length:firstDay},()=>'<div class="cal-empty"></div>').join('') +
+    Array.from({length:days},(_,i)=> { const day=i+1; const events=eventDays.get(day) || [];
+      return `<div class="cal-date ${events.length ? 'has-events' : ''}"><strong>${day}</strong>${events.slice(0,3).map(e=>
+        `<button class="cal-event" data-event="${html(e.id)}" title="${html(e.title)}">${html(categories.find(c=>c[0]===e.category)?.[1] || '✨')} ${html(e.title)}</button>`).join('')}${events.length>3?`<small>+${events.length-3} rolês</small>`:''}</div>`;
+    }).join('') + '</div>';
+}
+$('home-calendar-month')?.addEventListener('change',renderHomeCalendar);
 
 function renderChips() {
   $('category-chips').innerHTML = categories.map((c) => `<button class="chip ${state.category === c[0] ? 'active' : ''}" data-category="${c[0]}">${c[1]} ${c[2]}</button>`).join('');
@@ -319,10 +421,11 @@ function renderEvents() {
       <div class="card-body"><h3>${html(event.title)}</h3>
       <div class="meta"><i data-lucide="map-pin"></i>${html(event.venue || event.address)} · ${html(event.city)}</div>
       <div class="meta"><i data-lucide="clock-3"></i>${html(displayDate(event.date))}</div>
-      <div class="card-foot">${pending ? '<span class="badge">Em análise de segurança</span>' : `<span class="badge green">✓ ${eventCount(event.id)} confirmados</span>`}<span class="arrow"><i data-lucide="arrow-up-right"></i></span></div></div></article>`;
+      <div class="card-foot">${pending ? '<span class="badge">Não disponível</span>' : `<span class="badge green">✓ ${eventCount(event.id)} confirmados</span>`}<span class="arrow"><i data-lucide="arrow-up-right"></i></span></div></div></article>`;
   }).join('') : '<div class="empty">Ainda não há rolês publicados nessa busca. Tente outra categoria ou aguarde novos eventos!</div>';
   $('results-count').textContent = `${events.length} rolê${events.length !== 1 ? 's' : ''} encontrado${events.length !== 1 ? 's' : ''}`;
   renderPins(events.filter(isPublished));
+  if (state.view === 'calendario') renderHomeCalendar();
   icons();
 }
 
@@ -343,9 +446,9 @@ function renderPins(events) {
   state.markers.clearLayers();
   for (const event of events) {
     if (!Number.isFinite(event.lat) || !Number.isFinite(event.lng)) continue;
-    const isCarnaval = event.category === 'carnaval';
-    const icon = L.divIcon({className: '', html: isCarnaval ? '<div class="season-truck" aria-label="Bloco de carnaval">🚛</div>' : '<div class="pin-dot"><span>✦</span></div>',
-      iconSize: isCarnaval ? [42, 39] : [36, 40], iconAnchor: isCarnaval ? [21, 36] : [18, 38]});
+    const mark = event.category === 'carnaval' ? '🚛' : (categories.find(c=>c[0]===event.category)?.[1] || '📍');
+    const icon = L.divIcon({className: '', html: `<div class="pin-emoji" aria-label="${html(catLabel(event.category))}">${html(mark)}</div>`,
+      iconSize:[40,44],iconAnchor:[20,42]});
     const marker = L.marker([event.lat, event.lng], { icon }).addTo(state.markers);
     const box = document.createElement('div');
     const title = document.createElement('strong'); title.textContent = event.title;
@@ -364,7 +467,9 @@ function normalizeEvent(row) {
     lng: row.longitude == null ? null : Number(row.longitude), image: '',
     coverPath: row.cover_path, instagram: row.venue_instagram || '',
     ticket: row.ticket_url || '', playlist: row.spotify_playlist_url || '', status: row.status, creatorId: row.creator_id,
-    requiresVerifiedAge: row.requires_verified_age};
+    requiresVerifiedAge: row.requires_verified_age, audience: row.audience || 'all', venueChecksId: !!row.venue_checks_id,
+    estimatedSpend:row.estimated_spend_brl == null ? null : Number(row.estimated_spend_brl),
+    spendNotes:row.spend_notes || ''};
 }
 
 async function refreshCounts(ids) {
@@ -375,7 +480,7 @@ async function refreshCounts(ids) {
 }
 
 async function loadEvents() {
-  const rows = await assertOk(db.from('events').select('id,creator_id,title,description,category,starts_at,ends_at,venue_name,address,city,state_code,latitude,longitude,cover_path,venue_instagram,ticket_url,spotify_playlist_url,status,requires_verified_age')
+  const rows = await assertOk(db.from('events').select('id,creator_id,title,description,category,starts_at,ends_at,venue_name,address,city,state_code,latitude,longitude,cover_path,venue_instagram,ticket_url,spotify_playlist_url,status,requires_verified_age,audience,venue_checks_id,estimated_spend_brl,spend_notes')
     .gte('ends_at', new Date(Date.now() - 7 * 86400000).toISOString()).order('starts_at', { ascending: true }).limit(50));
   state.events = (rows || []).map(normalizeEvent);
   const covers = state.events.filter((event) => event.coverPath);
@@ -428,24 +533,38 @@ async function openDetails(id) {
   const ticketUrl = safeHttps(event.ticket);
   const active = isPublished(event);
   const joined = state.joined.has(id);
+  const owner = event.creatorId === state.user.id;
+  const audiences = {all:'🌎 Aberto a todos',women:'👩 Para mulheres',men:'👨 Para homens',lgbtq:'🏳️‍🌈 Para pessoas LGBTQIA+'};
+  const mapsTarget = Number.isFinite(event.lat) && Number.isFinite(event.lng)
+    ? `${event.lat},${event.lng}` : `${event.address}, ${event.city}, ${event.stateCode}, Brasil`;
+  const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(mapsTarget)}`;
+  const spendText = event.estimatedSpend == null ? 'Organizador não soube informar' :
+    `Aproximadamente ${new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(event.estimatedSpend)} por pessoa`;
   showModal(event.title, `<div class="event-details">
     ${eventImage(event) ? `<img class="dialog-photo" src="${html(eventImage(event))}" alt="Capa do evento ${html(event.title)}">` : '<div class="detail-cover-fallback">🪩</div>'}
     <span class="badge pink">${html(catLabel(event.category))}</span>
-    ${!active ? '<span class="badge">Em análise de segurança</span>' : ''}
+    ${!active ? '<span class="badge">Este rolê não está disponível</span>' : ''}
     <h3 class="details-heading">Informações do rolê</h3>
     <dl class="event-facts">
       <div><dt>🎉 Nome do evento</dt><dd>${html(event.title)}</dd></div>
       <div><dt>📆 Data e hora</dt><dd>${html(displayDate(event.date))}</dd></div>
       <div><dt>🏢 Local</dt><dd>${html(event.venue || 'Local informado no endereço')}</dd></div>
       <div><dt>📍 Endereço</dt><dd>${html(event.address)}, ${html(event.city)} - ${html(event.stateCode)}</dd></div>
+      <div><dt>🧭 Rota</dt><dd><a href="${html(mapsUrl)}" target="_blank" rel="noopener noreferrer">Abrir no Google Maps →</a></dd></div>
+      <div><dt>💸 Média de gasto</dt><dd>${html(spendText)}${event.spendNotes ? `<p>${html(event.spendNotes)}</p>` : ''}<small>Estimativa informada pelo organizador; confirme preços e inclusões no estabelecimento.</small></dd></div>
       <div><dt>✅ Pessoas confirmadas</dt><dd><strong class="confirmed-count">${active ? eventCount(id) : '—'}</strong> ${active ? 'integrantes no grupo do rolê' : 'Evento ainda não publicado'}</dd></div>
+      <div><dt>🫶 Público do encontro</dt><dd>${html(audiences[event.audience] || audiences.all)} (identificação autodeclarada)</dd></div>
+      ${event.venueChecksId ? '<div><dt>🔞 Regra do estabelecimento</dt><dd>O local exige documento e aceita somente maiores de 18 anos.</dd></div>' : ''}
     </dl>
     <h3 class="details-heading">Sobre o encontro</h3><p class="detail-desc">${html(event.description)}</p>
     <div class="event-links"><div><strong>Instagram do evento/local</strong>${instaUrl ? `<a href="${html(instaUrl)}" target="_blank" rel="noopener noreferrer">Ver Instagram ↗</a>` : '<span>Não informado</span>'}</div>
     <div><strong>Compra de ingresso</strong>${ticketUrl ? `<a href="${html(ticketUrl)}" target="_blank" rel="noopener noreferrer">Abrir link oficial informado ↗</a>` : '<span>Sem link informado (confirme se é gratuito)</span>'}</div></div>
     ${spotifyEmbed(event.playlist) ? `<section class="event-spotify"><h3 class="details-heading">🎵 Playlist deste rolê</h3>${spotifyEmbed(event.playlist)}<p class="small-muted">A lista de sugestões dos participantes aparece depois de entrar no grupo. As músicas sugeridas no app não são adicionadas automaticamente ao Spotify.</p></section>` : ''}
     <div class="meeting-tip">🛡️ <strong>Combinado seguro:</strong> encontre o grupo em um local público, avise alguém de confiança sobre seu destino e confirme a procedência dos ingressos. <button data-action="safety" class="inline-button">Ver orientações</button></div>
-    <div class="dialog-actions"><button class="btn btn-pink" data-action="join" data-id="${html(id)}" ${!active ? 'disabled' : ''}>${joined ? 'Abrir grupo do rolê 💬' : 'Confirmar participação e entrar no grupo 💬'}</button>
+    <div class="dialog-actions"><button class="btn btn-pink" data-action="join" data-id="${html(id)}" ${!active ? 'disabled' : ''}>${joined ? 'Abrir grupo do rolê 💬' : 'Confirmar presença e abrir grupo 💬'}</button>
+    <button class="btn btn-ghost" data-action="detail-save" data-id="${html(id)}">${state.saved.has(id) ? '💗 Salvo' : '🤍 Salvar rolê'}</button>
+    <button class="btn btn-ghost" data-action="close-modal">← Ver outros rolês</button>
+    ${owner && active ? `<button class="btn btn-ghost" data-action="edit-event" data-id="${html(id)}">✏️ Editar rolê</button><button class="btn btn-ghost" data-action="cancel-event" data-id="${html(id)}">Cancelar rolê</button>` : ''}
     <button class="btn btn-ghost" data-action="report" data-kind="event" data-id="${html(id)}">Denunciar anúncio</button></div>
     <p class="small-muted">Antes de confirmar, você vê somente informações do evento e a quantidade de participantes. Dados pessoais permanecem protegidos pelas regras de privacidade.</p>
   </div>`);
@@ -466,6 +585,67 @@ async function joinEvent(id) {
     closeModal();
     await openRoom('event', id);
   } catch (err) { toast(`Não foi possível entrar no grupo: ${err.message}`); }
+}
+
+function eventFormValues(event) {
+  const toInput = (value) => { const d=new Date(value);return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,16); };
+  return {title:event.title,description:event.description,category:event.category,venue:event.venue,
+    start:toInput(event.date),end:toInput(event.endsAt),address:event.address,city:event.city,
+    state:event.stateCode,instagram:event.instagram,ticket:event.ticket,playlist:event.playlist,
+    audience:event.audience,venueChecksId:event.venueChecksId,spend:event.estimatedSpend,spendNotes:event.spendNotes};
+}
+
+async function editEvent(id) {
+  const event = state.events.find(item=>item.id===id && item.creatorId===state.user.id && isPublished(item));
+  if (!event) return toast('Você não pode editar este rolê.');
+  const v=eventFormValues(event);
+  showModal('Editar rolê ✏️', `<p class="legal-note">Se houver confirmados, a edição será avisada automaticamente no chat do evento.</p>
+    <form id="edit-event-form" class="create-form">
+      <label>Nome<input name="title" required minlength="5" maxlength="100" value="${html(v.title)}"></label>
+      <label>Categoria<select name="category">${categories.slice(1).map(c=>`<option value="${c[0]}" ${c[0]===v.category?'selected':''}>${c[1]} ${c[2]}</option>`).join('')}</select></label>
+      <div class="fields"><label>Início<input type="datetime-local" name="starts_at" value="${html(v.start)}" required></label>
+      <label>Término<input type="datetime-local" name="ends_at" value="${html(v.end)}" required></label></div>
+      <label>Nome do local<input name="venue_name" maxlength="120" value="${html(v.venue)}"></label>
+      <label>Endereço<input name="address" required maxlength="220" value="${html(v.address)}"></label>
+      <div class="fields"><label>Cidade<input name="city" required maxlength="90" value="${html(v.city)}"></label>
+      <label>UF<input name="state_code" required maxlength="2" value="${html(v.state)}"></label></div>
+      <label>Descrição<textarea name="description" required minlength="10" maxlength="2000">${html(v.description)}</textarea></label>
+      <label>Público do rolê<select name="audience">${[['all','Para todos'],['women','Para mulheres'],['men','Para homens'],['lgbtq','Para LGBTQIA+']].map(([k,label])=>`<option value="${k}" ${k===v.audience?'selected':''}>${label}</option>`).join('')}</select></label>
+      <label class="check-label"><input type="checkbox" name="venue_checks_id" ${v.venueChecksId?'checked':''}> O local exige documento e aceita somente maiores de 18 anos.</label>
+      <label>Instagram<input name="venue_instagram" value="${html(v.instagram)}"></label>
+      <label>Link de ingresso<input name="ticket_url" type="url" value="${html(v.ticket)}"></label>
+      <label>Playlist Spotify<input name="spotify_playlist_url" type="url" value="${html(v.playlist)}"></label>
+      <label>Estimativa de gasto por pessoa em R$ (vazio = não sei informar)<input name="estimated_spend_brl" type="number" min="0" max="100000" step="0.01" value="${v.spend==null?'':v.spend}"></label>
+      <label>Observações sobre custos<input name="spend_notes" maxlength="250" value="${html(v.spendNotes)}" placeholder="Ex.: ingresso inclui open bar"></label>
+      <p class="small-muted">O pino do mapa e a capa não são alterados nesta edição.</p>
+      <button class="btn btn-pink" type="submit">Salvar alterações e avisar confirmados</button>
+    </form>`);
+  $('edit-event-form').addEventListener('submit',async(ev)=>{
+    ev.preventDefault();
+    const payload=Object.fromEntries(new FormData(ev.target));
+    const start=new Date(payload.starts_at),end=new Date(payload.ends_at);
+    if (!(start>new Date()) || !(end>start)) return toast('Confira as datas do rolê.');
+    payload.starts_at=start.toISOString();payload.ends_at=end.toISOString();
+    payload.venue_checks_id=!!ev.target.querySelector('[name="venue_checks_id"]').checked;
+    payload.estimated_spend_brl=payload.estimated_spend_brl==='' ? null : Number(payload.estimated_spend_brl);
+    if (payload.ticket_url && !safeHttps(payload.ticket_url)) return toast('O ingresso precisa usar https://');
+    if (payload.spotify_playlist_url && !spotifyId(payload.spotify_playlist_url,'playlist')) return toast('Playlist Spotify inválida.');
+    const button=ev.submitter; button.disabled=true;
+    try { await assertOk(db.rpc('bora_edit_event',{_event:id,_changes:payload}));
+      closeModal();await loadEvents();toast('Rolê atualizado. Participantes notificados!');
+    } catch(err){toast(err.message);} finally{button.disabled=false;}
+  });
+}
+
+async function cancelEvent(id) {
+  const reason=prompt('Por que precisa cancelar? Os participantes serão avisados (mínimo 8 caracteres).');
+  if (reason===null) return;
+  if (reason.trim().length<8) return toast('Descreva brevemente o motivo do cancelamento.');
+  if (!confirm('Confirmar pedido de cancelamento? Até 5 confirmados, o cancelamento é imediato; acima disso, a moderação precisa autorizar.')) return;
+  try { const result=await assertOk(db.rpc('bora_cancel_event',{_event:id,_reason:reason.trim()}));
+    closeModal();await loadEvents();renderMine();
+    toast(result.approval_required?'Pedido enviado à moderação; o rolê continua publicado até a decisão.':'Rolê cancelado; integrantes notificados.');
+  } catch(err){toast(err.message);}
 }
 
 async function saveEvent(id) {
@@ -496,10 +676,12 @@ function renderMine() {
     '<p class="small-muted">Ainda não confirmou nenhum rolê.</p>';
   $('saved-list').innerHTML = state.events.filter((event) => state.saved.has(event.id)).map(item).join('') ||
     '<p class="small-muted">Salve eventos pelo coração para encontrá-los aqui.</p>';
+  $('created-list').innerHTML = state.events.filter(event=>event.creatorId===state.user.id).map(item).join('') ||
+    '<p class="small-muted">Você ainda não publicou um rolê.</p>';
 }
 
 function openCreate() {
-  showModal('Criar um rolê ✨', `<p class="small-muted">Seu rolê será publicado assim que os dados forem salvos. Anúncios com sinais de risco poderão ser encaminhados para análise de segurança.</p>
+  showModal('Criar um rolê ✨', `<p class="small-muted">Seu rolê será publicado após o envio. Os usuários poderão denunciar anúncios suspeitos e a equipe poderá agir depois da publicação.</p>
     <form id="event-form" class="create-form"><div class="field"><label for="new-title">Nome do rolê *</label><input id="new-title" maxlength="100" minlength="5" required placeholder="Ex.: Cine + café no sábado"></div>
     <div class="fields"><div class="field"><label for="new-category">Categoria *</label><select id="new-category">${categories.slice(1).map((c) => `<option value="${c[0]}">${c[1]} ${c[2]}</option>`).join('')}</select></div>
     <div class="field"><label for="new-venue">Nome do local</label><input id="new-venue" maxlength="120" placeholder="Ex.: Cinemark Shopping"></div></div>
@@ -509,12 +691,15 @@ function openCreate() {
     <div class="field"><label for="new-description">Descrição e combinados *</label><textarea id="new-description" minlength="10" maxlength="2000" required placeholder="Como será? Tem ingresso? Qual será o ponto de encontro?"></textarea></div>
     <div class="fields"><div class="field"><label for="new-insta">Instagram do local</label><input id="new-insta" placeholder="@local ou https://..."></div><div class="field"><label for="new-ticket">Link do ingresso</label><input id="new-ticket" type="url" placeholder="https://..."></div></div>
     <div class="field"><label for="new-playlist">Playlist do rolê no Spotify (opcional)</label><input id="new-playlist" type="url" placeholder="https://open.spotify.com/playlist/..."></div>
+    <div class="field"><label for="new-spend">💸 Média de gasto por pessoa no local (R$)</label><input id="new-spend" type="number" min="0" max="100000" step="0.01" placeholder="Deixe vazio se não souber"><small class="small-muted">Estimativa opcional, além do ingresso. Vazio significa “Não sei informar”.</small></div>
+    <div class="field"><label for="new-spend-notes">O que está incluído? (opcional)</label><input id="new-spend-notes" maxlength="250" placeholder="Ex.: ingresso já inclui open bar; consumo à parte"></div>
     <div class="field"><label for="new-cover">Foto de capa (WebP/JPG/PNG, opcional)</label><input id="new-cover" type="file" accept="image/*"></div>
     <p class="small-muted">📍 Toque no mapa para marcar o local exato do evento. A localização não é a da sua residência.</p>
     <div id="map-picker" class="map-picker"></div><div id="picker-location" class="small-muted">Nenhum local marcado.</div>
-    <label class="check-label"><input id="new-verified" type="checkbox"> Este rolê exige verificação etária independente (além da data declarada)</label>
+    <div class="field"><label for="new-audience">Quem pode confirmar presença?</label><select id="new-audience"><option value="all">🌎 Todas as pessoas</option><option value="women">👩 Somente mulheres</option><option value="men">👨 Somente homens</option><option value="lgbtq">🏳️‍🌈 Somente pessoas LGBTQIA+</option></select><small class="small-muted">A participação em rolês direcionados usa a identificação autodeclarada e privada do perfil. A convivência deve respeitar as regras antidiscriminação.</small></div>
+    <label class="check-label"><input id="new-verified" type="checkbox"> O local exige documento para entrada e só aceita maiores de 18 anos.</label>
     <p class="legal-note">Nunca publique endereços residenciais, dados de terceiros ou convites a práticas ilegais. O app pode recusar conteúdos e eventos inadequados.</p>
-    <button type="submit" class="btn btn-pink" style="width:100%">Publicar rolê</button></form>`);
+    <button type="submit" class="btn btn-pink" style="width:100%">Publicar evento agora</button></form>`);
   const start = $('new-start');
   start.min = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0,16);
   state.pickedCoords = null;
@@ -577,7 +762,10 @@ async function submitEvent(event) {
       latitude: state.pickedCoords.lat, longitude: state.pickedCoords.lng,
       venue_instagram: $('new-insta').value.trim() || null,
       ticket_url: ticket || null, spotify_playlist_url: playlist || null,
-      requires_verified_age: $('new-verified').checked};
+      estimated_spend_brl:$('new-spend').value===''?null:Number($('new-spend').value),
+      spend_notes:$('new-spend-notes').value.trim() || null,
+      venue_checks_id: $('new-verified').checked,audience:$('new-audience').value,
+      requires_verified_age:false};
     await assertOk(db.from('events').insert(row));
     const file = $('new-cover').files?.[0];
     if (file) {
@@ -588,14 +776,11 @@ async function submitEvent(event) {
         await assertOk(db.from('events').update({cover_path: path}).eq('id', uid));
       } catch (err) { toast(`Rolê criado, mas a capa não foi salva: ${err.message}`); }
     }
-    // A capa é enviada ANTES da publicação: as permissões de Storage só permitem upload enquanto pendente.
-    // A função no banco decide se publica ou encaminha para análise, sem confiar na classificação do navegador.
-    const publication = await assertOk(db.rpc('bora_publish_event', {_event: uid}));
+    // A capa é enviada ANTES de publicar, por causa das permissões no Storage.
+    await assertOk(db.rpc('bora_publish_event', {_event: uid}));
     closeModal();
     await loadEvents();
-    toast(publication?.needs_review
-      ? 'O rolê foi salvo e encaminhado para análise de segurança.'
-      : 'Seu rolê já está publicado! 🎉');
+    toast('Seu rolê já está publicado! 🎉');
   } catch (err) { toast(`Não foi possível criar o rolê: ${err.message}`); }
   finally { button.disabled = false; }
 }
@@ -677,10 +862,7 @@ async function saveProfile() {
   if (!display || !/^[a-z0-9_.]{3,24}$/.test(username)) return toast('Confira seu nome e @nickname.');
   const switches = document.querySelectorAll('#screen-perfil .profile-panel .two-col .switch-line input');
   const payload = {display_name: display, username, city: $('edit-city').value.trim() || null,
-    bio: $('edit-bio').value.trim(), instagram: $('edit-insta').value.trim() || null,
-    avatar_visibility: switches[0]?.checked ? 'friends' : 'same_event',
-    details_visibility: switches[1]?.checked ? 'friends' : 'same_event',
-    show_age: Boolean(switches[2]?.checked), allow_nickname_lookup: Boolean(switches[3]?.checked)};
+    bio: $('edit-bio').value.trim(), instagram: $('edit-insta').value.trim() || null};
   try {
     const profile = await assertOk(db.from('profiles').update(payload).eq('id', state.user.id).select('*').single());
     state.profile = profile;
@@ -726,7 +908,7 @@ async function loadSquads() {
   state.squadRoles = new Map((members || []).map((item) => [item.squad_id,item.role]));
   state.squadInvites = invites || [];
   const ids = (members || []).map((item) => item.squad_id);
-  state.squads = ids.length ? await assertOk(db.from('squads').select('id,name,description,origin_event_id,cover_path,created_at,status').in('id', ids).limit(60)) : [];
+  state.squads = ids.length ? await assertOk(db.from('squads').select('id,name,description,origin_event_id,cover_path,created_at,status,album_url').in('id', ids).limit(60)) : [];
   if (!state.activeSquad && state.squads.length) state.activeSquad = state.squads[0].id;
   renderSquads();
 }
@@ -740,10 +922,10 @@ function renderSquads() {
       <button class="btn btn-ghost btn-small" data-action="decline-invite" data-id="${html(state.squadInvites[0].id)}">Recusar</button></div>`;
   }
   const list = document.querySelector('#screen-squad .two-col');
-  list.innerHTML = `<div class="panel"><h3>Meus SQUADs</h3>
+  list.innerHTML = `<div class="panel"><div class="squad-extras-head"><h3>Meus SQUADs</h3><button class="btn btn-pink btn-small" data-action="create-independent-squad">+ Criar SQUAD</button></div>
     ${state.squads.length ? state.squads.map((squad) => `<div class="list-row"><div class="icon-disc">🫶</div><div class="grow"><strong>${html(squad.name)}</strong><p>${html(squad.description || 'Comunidade de amigos')}</p></div>
-      <button class="btn btn-pink btn-small" data-action="open-squad" data-id="${html(squad.id)}">Abrir</button></div>`).join('') : '<p class="small-muted">Você ainda não participa de nenhum SQUAD. Depois de um rolê, a galera pode criar um.</p>'}</div>
-    <div class="panel"><h3>O que é um SQUAD?</h3><p class="small-muted">Um espaço para continuar conversando, compartilhar informações no mural, convidar amigos por @nickname e organizar encontros futuros.</p>
+      <button class="btn btn-pink btn-small" data-action="open-squad" data-id="${html(squad.id)}">Abrir</button></div>`).join('') : '<p class="small-muted">Ainda não participa de SQUAD. Você já pode criar um, sem precisar ir a um rolê antes.</p>'}</div>
+    <div class="panel"><h3>O que é um SQUAD?</h3><p class="small-muted">Uma galera organizada com chat, enquetes, álbum privado, mural, convites por @nickname e até 3 administradores.</p>
       <div class="list-row"><div class="icon-disc">🔐</div><div class="grow"><strong>Só entra quem aceitar</strong><p>Convites individuais, sem inclusão automática.</p></div></div>
       <div class="list-row"><div class="icon-disc">🎂</div><div class="grow"><strong>Aniversários opcionais</strong><p>Quem permite, compartilha apenas dia e mês.</p></div></div></div>`;
   const extras = $('squad-live-extras');
@@ -757,7 +939,9 @@ function renderSquads() {
   $('squad-live-extras').innerHTML = current ? `<div class="squad-extras-head"><div><span class="eyebrow">Comunidade selecionada</span><h3>${html(current.name)}</h3></div>
       <div class="squad-actions"><button class="btn btn-pink btn-small" data-action="open-squad" data-id="${html(current.id)}">Abrir conversa</button>
       ${['owner','moderator'].includes(state.squadRoles.get(current.id)) ? `<button class="btn btn-ghost btn-small" data-action="rename-squad" data-id="${html(current.id)}">Renomear</button>` : ''}
+      ${['owner','moderator'].includes(state.squadRoles.get(current.id)) ? `<button class="btn btn-ghost btn-small" data-action="edit-album-link" data-id="${html(current.id)}">Link de álbum externo</button>` : ''}
       ${state.squadRoles.get(current.id) !== 'owner' ? `<button class="btn btn-ghost btn-small" data-action="leave-squad" data-id="${html(current.id)}">Sair do SQUAD</button>` : ''}</div></div>
+      <div class="legal-note">🔐 <strong>Álbum do app:</strong> privado aos integrantes. ${current.album_url ? `<a href="${html(safeHttps(current.album_url))}" target="_blank" rel="noopener noreferrer">Abrir álbum externo (permissões do provedor) ↗</a>` : 'O link externo é opcional e só deve ser usado com acesso restrito no serviço de nuvem.'}</div>
       <div class="two-col"><div><h3>Convidar pelo @nickname</h3><p class="small-muted">Somente dono ou moderador do SQUAD pode enviar convites.</p>
       <form id="squad-invite-form" class="friend-finder"><input id="squad-nick" placeholder="@amigo" aria-label="Nickname do convidado" maxlength="24"><button class="btn btn-ghost btn-small">Convidar</button></form>
       <p class="small-muted" id="squad-invite-result"></p></div>
@@ -786,6 +970,27 @@ async function createSquad(eventId) {
   } catch (err) { toast(err.message); }
 }
 
+async function createIndependentSquad() {
+  const name=prompt('Nome do SQUAD (3–65 caracteres). Você pode criar antes de participar de qualquer rolê:');
+  if (!name) return;
+  if (name.trim().length<3 || name.trim().length>65) return toast('Nome precisa ter de 3 a 65 caracteres.');
+  try {
+    const row=await assertOk(db.from('squads').insert({creator_id:state.user.id,name:name.trim(),origin_event_id:null}).select('id').single());
+    state.activeSquad=row.id;await loadSquads();navigate('squad');toast('SQUAD criado! Convide a galera por @nickname.');
+  } catch(err){toast(err.message);}
+}
+
+async function editAlbumLink(squadId) {
+  const squad=state.squads.find(item=>item.id===squadId);
+  if (!squad) return;
+  const next=prompt('Link HTTPS de álbum externo (opcional). O link só será privado se as permissões do provedor estiverem limitadas aos integrantes. Apague para remover:',squad.album_url || '');
+  if (next===null) return;
+  if (next.trim() && !safeHttps(next.trim())) return toast('Informe um link seguro https:// ou deixe vazio.');
+  try {await assertOk(db.from('squads').update({album_url:next.trim() || null}).eq('id',squadId));
+    await loadSquads();toast('Link do álbum externo atualizado. Confira as permissões na nuvem.');
+  }catch(err){toast(err.message);}
+}
+
 async function renameSquad(id) {
   const current = state.squads.find((row) => row.id === id);
   if (!current) return;
@@ -812,6 +1017,8 @@ function leaveRoom() {
   if (state.chatChannel && db) db.removeChannel(state.chatChannel);
   state.chatChannel = null;
   state.activeRoom = null;
+  for (const url of state.photoUrls) URL.revokeObjectURL(url);
+  state.photoUrls=[];
 }
 
 async function openRoom(type, id) {
@@ -822,8 +1029,10 @@ async function openRoom(type, id) {
   state.activeRoom = {type,id};
   if (type === 'squad') state.activeSquad = id;
   showModal(`${title || 'Grupo'} 💬`, `<div class="room-topline"><span>🔒 Apenas integrantes têm acesso a esta conversa.</span><button class="btn btn-ghost btn-small" data-action="room-members">Integrantes</button></div>
-    <div class="chat-tabs"><button class="active" data-room-tab="chat">Chat</button><button data-room-tab="mural">Mural 📌</button>
+    <div class="chat-tabs"><button class="active" data-room-tab="chat">Chat</button><button data-room-tab="mural">Informações 📌</button>
+    <button data-room-tab="polls">Enquetes 📊</button>
     ${type === 'event' ? '<button data-room-tab="music">Músicas 🎵</button>' : ''}
+    ${type === 'squad' ? '<button data-room-tab="album">Fotos 🔒</button>' : ''}
     <button data-action="report" data-kind="${type}" data-id="${html(id)}">Denunciar</button></div>
     <div id="room-content" class="room-content"></div>`);
   $('dialog-body').className = 'dialog-content room-panel';
@@ -854,6 +1063,18 @@ async function changeRoomTab(tab) {
       <input name="link_url" type="url" placeholder="Link https:// (opcional)"><button class="btn btn-ghost" type="submit">📌 Fixar informação</button></form>`;
     $('pin-form').addEventListener('submit', addPin);
     await refreshRoomPins();
+  } else if (tab === 'polls') {
+    target.innerHTML = `<p class="small-muted">📊 Faça uma pergunta com 2 a 6 alternativas. Só integrantes votam; a identidade dos votantes não aparece.</p>
+      <button class="btn btn-ghost btn-small" data-action="create-poll">+ Criar enquete</button><div id="poll-list"></div>`;
+    await refreshPolls();
+  } else if (tab === 'album' && room.type === 'squad') {
+    target.innerHTML = `<p class="legal-note">🔐 Fotos guardadas em espaço privado. Só integrantes autenticados podem baixá-las; fotos não aparecem em links públicos. Respeite o consentimento de quem aparece nas imagens.</p>
+      <form id="squad-photo-form" class="photo-form"><label>Adicionar foto ao SQUAD (até 1 MB depois de otimizada)<input type="file" name="photo" accept="image/*" required></label>
+      <label>Legenda (opcional)<input name="caption" maxlength="180" placeholder="Que rolê foi esse? ✨"></label>
+      <button class="btn btn-pink" type="submit">📸 Compartilhar só com o SQUAD</button></form>
+      <div id="squad-gallery" class="photo-grid"></div>`;
+    $('squad-photo-form').addEventListener('submit',uploadSquadPhoto);
+    await refreshSquadPhotos();
   } else if (tab === 'music' && room.type === 'event') {
     const event = state.events.find((row) => row.id === room.id);
     target.innerHTML = `<p class="small-muted">🎵 Cada participante pode indicar músicas do Spotify para animar o encontro. A lista de sugestões abaixo pertence ao Bora Pro Rolê. <strong>Ela não altera automaticamente a playlist no Spotify.</strong></p>
@@ -874,14 +1095,14 @@ async function refreshRoomChat() {
   const table = room.type === 'event' ? 'event_messages' : 'squad_messages';
   const key = room.type === 'event' ? 'event_id' : 'squad_id';
   try {
-    const list = await assertOk(db.from(table).select('id,author_id,body,created_at').eq(key,room.id)
+    const list = await assertOk(db.from(table).select(room.type==='event'?'id,author_id,body,created_at,system_notice':'id,author_id,body,created_at').eq(key,room.id)
       .order('created_at',{ascending:false}).limit(50));
     if (!state.activeRoom || state.activeRoom.id !== room.id || !$('chat-messages')) return;
     const messages = (list || []).reverse();
-    target.innerHTML = messages.length ? messages.map((message) => `<div class="bubble ${message.author_id === state.user.id ? 'mine' : ''}">
+    target.innerHTML = messages.length ? messages.map((message) => `<div class="bubble ${message.system_notice ? 'system' : message.author_id === state.user.id ? 'mine' : ''}">
       <small>${message.author_id === state.user.id ? 'Você' : 'Integrante'} · ${html(new Intl.DateTimeFormat('pt-BR',{hour:'2-digit',minute:'2-digit'}).format(new Date(message.created_at)))}</small>
       <span>${html(message.body)}</span>
-      ${message.author_id !== state.user.id ? `<button class="bubble-report" title="Denunciar mensagem" data-action="report" data-kind="${room.type}_message" data-id="${message.id}">Denunciar</button>` : ''}</div>`).join('') :
+      ${!message.system_notice && message.author_id !== state.user.id ? `<button class="bubble-report" title="Denunciar mensagem" data-action="report" data-kind="${room.type}_message" data-id="${message.id}">Denunciar</button>` : ''}</div>`).join('') :
       '<p class="small-muted">A conversa ainda está vazia. Que tal mandar um “oi”? 💜</p>';
     target.scrollTop = target.scrollHeight;
   } catch (err) { target.textContent = `Chat indisponível: ${err.message}`; }
@@ -900,6 +1121,101 @@ async function sendMessage(event) {
     $('chat-text').value = '';
     await refreshRoomChat();
   } catch (err) { toast(err.message); }
+}
+
+async function refreshPolls() {
+  const room=state.activeRoom, target=$('poll-list');
+  if (!room || !target) return;
+  const args={_event:room.type==='event'?room.id:null,_squad:room.type==='squad'?room.id:null};
+  try {
+    const rows=await assertOk(db.rpc('bora_get_polls',args));
+    if (!$('poll-list') || state.activeRoom?.id!==room.id) return;
+    target.innerHTML=(rows || []).length ? rows.map(p=>{
+      const total=p.options.reduce((n,o)=>n+Number(o.votes),0);
+      const closed=new Date(p.closes_at)<=new Date();
+      return `<section class="poll-card"><strong>📊 ${html(p.question)}</strong><small>${closed?'Encerrada':'Até '+html(displayDate(p.closes_at))}${p.multiple?' · Múltiplas escolhas':''}</small>
+      ${p.options.map(o=>`<div class="poll-answer"><button class="btn btn-ghost btn-small" ${closed?'disabled':''} data-action="vote-poll" data-poll="${html(p.id)}" data-option="${html(o.id)}">${o.mine?'✅':'◯'} ${html(o.label)}</button><div class="poll-progress"><span style="width:${total?Math.round(Number(o.votes)*100/total):0}%"></span></div><small>${o.votes} voto(s) · ${total?Math.round(Number(o.votes)*100/total):0}%</small></div>`).join('')}
+      </section>`;
+    }).join(''):'<p class="small-muted">Ainda não há enquetes. Crie a primeira pra combinar com a galera!</p>';
+  } catch(err){target.textContent=`Não foi possível carregar as enquetes: ${err.message}`;}
+}
+
+function createPoll() {
+  const room=state.activeRoom;if (!room) return;
+  const initial=new Date(Date.now()+86400000);
+  const local=new Date(initial.getTime()-initial.getTimezoneOffset()*60000).toISOString().slice(0,16);
+  showModal('Nova enquete 📊',`<p class="small-muted">A enquete fica visível somente para quem participa do grupo.</p>
+    <form id="poll-form" class="create-form"><label>Pergunta<input name="question" minlength="8" maxlength="180" required placeholder="Qual dia a gente se encontra?"></label>
+    ${Array.from({length:4},(_,i)=>`<label>Opção ${i+1}${i<2?' *':''}<input name="option${i+1}" maxlength="90" ${i<2?'required':''} placeholder="Resposta ${i+1}"></label>`).join('')}
+    <label>Encerra em<input name="closes" type="datetime-local" value="${local}" required></label>
+    <label class="check-label"><input type="checkbox" name="multiple"> Permitir votar em mais de uma opção</label>
+    <button class="btn btn-pink" type="submit">Publicar enquete</button></form>`);
+  $('poll-form').addEventListener('submit',async(ev)=>{
+    ev.preventDefault();const data=Object.fromEntries(new FormData(ev.target));
+    const options=[1,2,3,4].map(i=>String(data[`option${i}`] || '').trim()).filter(Boolean);
+    const ends=new Date(data.closes);if(!Number.isFinite(ends.getTime()))return toast('Informe encerramento válido.');
+    try {await assertOk(db.rpc('bora_create_poll',{
+      _event:room.type==='event'?room.id:null,_squad:room.type==='squad'?room.id:null,
+      _question:data.question.trim(),_options:options,_multiple:data.multiple==='on',_closes_at:ends.toISOString()}));
+      closeModal();await openRoom(room.type,room.id);await changeRoomTab('polls');toast('Enquete publicada!');
+    }catch(err){toast(err.message);}
+  });
+}
+
+async function votePoll(pollId,optionId) {
+  try {await assertOk(db.rpc('bora_vote_poll',{_poll:pollId,_option:optionId}));
+    await refreshPolls();toast('Voto registrado!');}catch(err){toast(err.message);}
+}
+
+async function refreshSquadPhotos() {
+  const room=state.activeRoom,target=$('squad-gallery');
+  if (!room || room.type!=='squad' || !target) return;
+  target.innerHTML='<p class="small-muted">Carregando fotos privadas…</p>';
+  for(const url of state.photoUrls)URL.revokeObjectURL(url);
+  state.photoUrls=[];
+  try {
+    const rows=await assertOk(db.from('squad_photos').select('id,path,caption,uploaded_by,created_at')
+      .eq('squad_id',room.id).order('created_at',{ascending:false}).limit(36));
+    const photos=await Promise.all((rows || []).map(async(row)=>{
+      const result=await db.storage.from('squad-albums').download(row.path);
+      if(result.error || !result.data) return {...row,url:''};
+      return {...row,url:URL.createObjectURL(result.data)};
+    }));
+    if(state.activeRoom?.id!==room.id || !$('squad-gallery')){
+      photos.forEach(photo=>{if(photo.url)URL.revokeObjectURL(photo.url);});return;
+    }
+    state.photoUrls=photos.map(p=>p.url).filter(Boolean);
+    const isManager=['owner','moderator'].includes(state.squadRoles.get(room.id));
+    target.innerHTML=photos.length?photos.map(photo=>`<article class="photo-card">
+      ${photo.url?`<img loading="lazy" src="${html(photo.url)}" alt="Foto compartilhada no SQUAD">`:'<div>Foto indisponível</div>'}
+      <small>${html(photo.caption || 'Momento da galera 📸')}</small>
+      ${(isManager || photo.uploaded_by===state.user.id)?`<button class="btn btn-ghost btn-small" data-action="delete-squad-photo" data-id="${html(photo.id)}" data-path="${html(photo.path)}">Remover</button>`:''}
+      <button class="inline-button" data-action="report" data-kind="squad" data-id="${html(room.id)}">Denunciar conteúdo</button></article>`).join(''):
+      '<p class="small-muted">O álbum ainda está vazio. Compartilhe a primeira lembrança do SQUAD!</p>';
+  }catch(err){target.textContent=`Galeria indisponível: ${err.message}`;}
+}
+
+async function uploadSquadPhoto(ev) {
+  ev.preventDefault();const room=state.activeRoom;
+  if(!room || room.type!=='squad')return;
+  const file=ev.target.elements.photo.files?.[0];if(!file)return;
+  const caption=String(ev.target.elements.caption.value || '').trim();
+  const id=crypto.randomUUID(),path=`${room.id}/${id}.webp`,button=ev.submitter;
+  button.disabled=true;
+  try {
+    const blob=await compressWebp(file,1048576);
+    await assertOk(db.storage.from('squad-albums').upload(path,blob,{contentType:'image/webp',upsert:false}));
+    try {await assertOk(db.from('squad_photos').insert({id,squad_id:room.id,uploaded_by:state.user.id,path,caption}));}
+    catch(err){await db.storage.from('squad-albums').remove([path]);throw err;}
+    ev.target.reset();await refreshSquadPhotos();toast('Foto compartilhada apenas com o SQUAD. 🔐');
+  }catch(err){toast(`Falha ao adicionar foto: ${err.message}`);}finally{button.disabled=false;}
+}
+
+async function deleteSquadPhoto(id,path) {
+  if(!confirm('Remover esta foto do álbum privado do SQUAD?'))return;
+  try {await assertOk(db.storage.from('squad-albums').remove([path]));
+    await assertOk(db.from('squad_photos').delete().eq('id',id));
+    await refreshSquadPhotos();toast('Foto removida.');}catch(err){toast(err.message);}
 }
 
 async function refreshRoomPins() {
@@ -967,16 +1283,29 @@ async function addSongSuggestion(event) {
 async function openRoomMembers() {
   const room = state.activeRoom;
   if (!room) return;
+  if (room.type==='squad') {
+    try {
+      const roster=await assertOk(db.rpc('bora_squad_roster',{_squad:room.id}));
+      const owner=state.squadRoles.get(room.id)==='owner';
+      showModal('Integrantes e administradores 🛡️',`<p class="small-muted">O SQUAD pode ter até três administradores: o criador e até dois integrantes promovidos. Só integrantes podem consultar esta lista.</p>
+        ${(roster || []).map(profile=>`<div class="list-row"><div class="icon-disc">${profile.role==='owner'?'⭐':profile.role==='moderator'?'🛡️':'👤'}</div>
+          <div class="grow"><strong>${html(profile.display_name)} · @${html(profile.username)}</strong><p>${html(profile.role==='owner'?'Criador do SQUAD':profile.role==='moderator'?'Admin do SQUAD':'Integrante')}</p></div>
+          ${owner && profile.role!=='owner'?`<button class="btn btn-ghost btn-small" data-action="set-squad-admin" data-id="${html(profile.user_id)}" data-squad="${html(room.id)}" data-promote="${profile.role==='moderator'?'false':'true'}">${profile.role==='moderator'?'Remover admin':'Promover'}</button>`:''}
+        </div>`).join('') || '<p>Nenhum integrante disponível.</p>'}
+        <button class="btn btn-ghost" data-action="close-modal">Fechar</button>`);
+      leaveRoom();return;
+    } catch(err){return toast(`Falha ao consultar participantes: ${err.message}`);}
+  }
   const table = room.type === 'event' ? 'event_members' : 'squad_members';
   const key = room.type === 'event' ? 'event_id' : 'squad_id';
   try {
-    const query = db.from(table).select('user_id').eq(key,room.id).limit(20);
+    const query = db.from(table).select(room.type==='squad'?'user_id,role':'user_id').eq(key,room.id).limit(30);
     if (room.type === 'event') query.eq('status','joined');
     const rows = await assertOk(query);
     const profiles = await Promise.all(rows.map(async (row) => {
       try {
         const card = await assertOk(db.rpc('get_profile_card',{_target:row.user_id}));
-        return card?.[0] || null;
+        return card?.[0] ? {...card[0],role:row.role || 'member'} : null;
       } catch { return null; }
     }));
     const visible = profiles.filter(Boolean);
@@ -985,9 +1314,11 @@ async function openRoomMembers() {
       const signed = await db.storage.from('avatars').createSignedUrls(withAvatar.map((p) => p.avatar_path),90);
       if (!signed.error) withAvatar.forEach((profile,i) => {profile.avatarUrl=safeHttps(signed.data[i]?.signedUrl);});
     }
-    showModal('Participantes deste grupo', `<p class="small-muted">Exibindo até 20 perfis. Dados e fotos aparecem somente conforme as permissões de cada usuário.</p>
+    showModal('Participantes deste grupo', `<p class="small-muted">Exibindo até 30 perfis. Dados e fotos aparecem somente conforme as permissões de cada usuário. SQUAD: até três administradores (criador + dois moderadores).</p>
       ${visible.map((profile) => `<div class="list-row"><div class="icon-disc">${profile.avatarUrl ? `<img src="${html(profile.avatarUrl)}" alt="Foto de @${html(profile.username)}" class="member-photo">` : '👤'}</div><div class="grow"><strong>@${html(profile.username)}</strong>
-        <p>${html(profile.bio || 'Perfil privado')}${profile.city ? ` · ${html(profile.city)}` : ''}</p></div>
+        <p>${html(profile.bio || 'Perfil privado')}${profile.city ? ` · ${html(profile.city)}` : ''}${room.type==='squad' ? ` · ${html(profile.role==='owner'?'⭐ Dono':profile.role==='moderator'?'🛡️ Administrador':'Integrante')}` : ''}</p></div>
+        ${room.type==='squad' && state.squadRoles.get(room.id)==='owner' && profile.role!=='owner'
+        ? `<button class="btn btn-ghost btn-small" data-action="set-squad-admin" data-id="${html(profile.user_id)}" data-squad="${html(room.id)}" data-promote="${profile.role==='moderator'?'false':'true'}">${profile.role==='moderator'?'Remover admin':'Tornar admin'}</button>`:''}
         ${profile.user_id !== state.user.id ? `<div class="member-actions"><button class="btn btn-ghost btn-small" data-action="report" data-kind="user" data-id="${html(profile.user_id)}">Denunciar</button>
           <button class="btn btn-ghost btn-small" data-action="block-user" data-id="${html(profile.user_id)}">Bloquear</button></div>` : ''}</div>`).join('') || '<p class="small-muted">Nenhum perfil pode ser exibido com suas permissões atuais.</p>'}
       <button class="btn btn-ghost" data-action="close-modal">Fechar</button>`);
@@ -1050,7 +1381,9 @@ async function openAccount() {
   showModal('Senha e segurança 🔐', `<p class="small-muted">Sua senha pode ser alterada com segurança pelo Supabase Auth. Para recuperar uma senha esquecida, saia da conta e use “Esqueci a senha”.</p>
     <form id="account-password-form"><div class="field"><label>Nova senha<input name="password" type="password" minlength="8" autocomplete="new-password" required></label></div>
     <button class="btn btn-pink" type="submit">Alterar minha senha</button></form>
-    <p class="legal-note">Nunca compartilhe seu código de recuperação, senha ou links de acesso. A exclusão completa de conta ainda depende de um canal seguro de suporte.</p>`);
+    <p class="legal-note">Nunca compartilhe seu código de recuperação, senha ou links de acesso.</p>
+    <button class="btn btn-ghost" data-action="delete-account-request">🗑️ Solicitar exclusão definitiva da conta</button>
+    <p class="small-muted">A solicitação será analisada e executada com confirmação de identidade. Não remove automaticamente os dados.</p>`);
   $('account-password-form').addEventListener('submit', async (event) => {
     event.preventDefault();
     try {
@@ -1059,6 +1392,30 @@ async function openAccount() {
       closeModal(); toast('Senha atualizada.');
     } catch (err) { toast(err.message); }
   });
+}
+
+async function openAudiencePreferences() {
+  try {
+    const prefs=await assertOk(db.from('private_profile_data')
+      .select('gender_identity,lgbtq_identifies,audience_consent_at').eq('user_id',state.user.id).maybeSingle());
+    showModal('Suas identificações 🔐',`<p class="legal-note">Estes dados são opcionais, sensíveis e <strong>privados</strong>. Servem para você confirmar presença em rolês direcionados. Mulheres trans são mulheres; homens trans são homens. A escolha é autodeclarada e pode ser removida a qualquer momento.</p>
+      <form id="audience-preferences-form" class="create-form">
+        <label>Identidade de gênero<select name="gender"><option value="">Não informar</option>
+          ${[['woman','Mulher'],['man','Homem'],['nonbinary','Pessoa não binária'],['other','Outra'],['prefer_not','Prefiro não dizer']].map(([value,label])=>`<option value="${value}" ${value===prefs?.gender_identity?'selected':''}>${label}</option>`).join('')}</select></label>
+        <label>Você se identifica como LGBTQIA+?<select name="lgbtq"><option value="">Não informar</option><option value="yes" ${prefs?.lgbtq_identifies===true?'selected':''}>Sim</option><option value="no" ${prefs?.lgbtq_identifies===false?'selected':''}>Não</option></select></label>
+        <label class="check-label"><input name="consent" type="checkbox" ${prefs?.audience_consent_at?'checked':''}> Autorizo o tratamento destas identificações para elegibilidade nos rolês direcionados. Posso revogar a qualquer momento.</label>
+        <button class="btn btn-pink" type="submit">Salvar minhas escolhas</button>
+        <button class="btn btn-ghost" type="button" data-action="revoke-audience">Apagar minhas identificações</button></form>`);
+    $('audience-preferences-form').addEventListener('submit',async(event)=>{
+      event.preventDefault();const data=Object.fromEntries(new FormData(event.target));
+      if ((data.gender||data.lgbtq) && data.consent!=='on')return toast('Marque o consentimento ou apague as identificações.');
+      try {await assertOk(db.rpc('set_audience_preferences',{
+        _gender:data.consent==='on'?(data.gender||null):null,
+        _lgbtq:data.consent==='on'?(data.lgbtq==='yes'?true:data.lgbtq==='no'?false:null):null,
+        _consent:data.consent==='on'}));closeModal();toast('Identificações atualizadas com privacidade.');
+      }catch(err){toast(err.message);}
+    });
+  }catch(err){toast(err.message);}
 }
 
 async function openPrivacyRequests() {
@@ -1097,10 +1454,11 @@ async function openPrivacyRequests() {
 async function openModeration() {
   if (!state.isModerator) return toast('Acesso reservado à moderação.');
   try {
-    const [events,reports,privacy] = await Promise.all([
-      assertOk(db.from('events').select('id,title,description,category,starts_at,venue_name,address,city,state_code,cover_path,venue_instagram,ticket_url,creator_id,requires_verified_age,screening_reason').eq('status','pending').eq('needs_review',true).order('created_at',{ascending:true}).limit(25)),
+    const [events,reports,privacy,cancellations] = await Promise.all([
+      assertOk(db.from('events').select('id,title,description,category,starts_at,venue_name,address,city,state_code,cover_path,venue_instagram,ticket_url,creator_id,requires_verified_age,screening_reason').eq('status','published').eq('needs_review',true).order('created_at',{ascending:true}).limit(25)),
       assertOk(db.from('reports').select('id,target_kind,target_id,reason,details,evidence_snapshot,status,created_at').in('status',['pending','reviewing']).order('created_at',{ascending:true}).limit(40)),
-      assertOk(db.from('privacy_requests').select('id,requester_id,kind,details,status,created_at').in('status',['pending','in_progress']).order('created_at',{ascending:true}).limit(30))
+      assertOk(db.from('privacy_requests').select('id,requester_id,kind,details,status,created_at').in('status',['pending','in_progress']).order('created_at',{ascending:true}).limit(30)),
+      assertOk(db.from('event_cancel_requests').select('id,event_id,requester_id,reason,created_at').eq('status','pending').order('created_at',{ascending:true}).limit(30))
     ]);
     const covers = (events || []).filter(row => row.cover_path);
     if (covers.length) {
@@ -1112,7 +1470,7 @@ async function openModeration() {
     const risk = {minor:'URGENTE · Menor de idade',illegal:'URGENTE · Conteúdo ilegal',harassment:'Assédio/violência',
       discrimination:'Discriminação',fraud:'Golpe',privacy:'Privacidade',other:'Outro'};
     showModal('Central de moderação 🛡️', `<p class="legal-note">Área restrita. Eventos comuns são publicados automaticamente; esta fila recebe sinais de risco. O filtro por palavras não examina imagens nem substitui denúncias e avaliação humana. Denúncias urgentes exigem prioridade; o painel não substitui autoridades.</p>
-      <h3>⏳ Eventos aguardando análise (${events.length})</h3><div class="mod-list">${events.length ? events.map(row => `<article class="mod-card">
+      <h3>🔎 Alertas de eventos já publicados (${events.length})</h3><div class="mod-list">${events.length ? events.map(row => `<article class="mod-card">
         ${row.coverUrl ? `<img src="${html(row.coverUrl)}" alt="Capa a revisar" class="mod-cover">` : ''}
         <strong>${html(row.title)}</strong><small>${html(displayDate(row.starts_at))} · ${html(row.category)}</small>
         <p>${html(row.description)}</p><p>📍 ${html(row.venue_name || '')} · ${html(row.address)} · ${html(row.city)} / ${html(row.state_code)}</p>
@@ -1121,8 +1479,11 @@ async function openModeration() {
         ${safeHttps(row.ticket_url) ? `<a href="${html(safeHttps(row.ticket_url))}" target="_blank" rel="noopener noreferrer">Revisar ingressos ↗</a>` : ''}
         ${row.venue_instagram ? `<p>Instagram informado: ${html(row.venue_instagram)}</p>` : ''}
         ${safeHttps(row.venue_instagram) ? `<a href="${html(safeHttps(row.venue_instagram))}" target="_blank" rel="noopener noreferrer">Revisar Instagram ↗</a>` : ''}
-        <div class="mod-actions"><button class="btn btn-ghost btn-small" data-action="mod-event" data-decision="rejected" data-id="${html(row.id)}">Rejeitar</button>
-        <button class="btn btn-pink btn-small" data-action="mod-event" data-decision="published" data-id="${html(row.id)}">Aprovar após conferir</button></div></article>`).join('') : '<p class="small-muted">Nenhum evento pendente.</p>'}</div>
+        <div class="mod-actions"><button class="btn btn-ghost btn-small" data-action="mod-remove" data-kind="event" data-id="${html(row.id)}">Remover anúncio ilícito</button>
+        <button class="btn btn-pink btn-small" data-action="mod-event" data-decision="published" data-id="${html(row.id)}">Revisado sem violação</button></div></article>`).join('') : '<p class="small-muted">Nenhum alerta novo.</p>'}</div>
+      <h3>🗓️ Pedidos de cancelamento (${cancellations.length})</h3><div class="mod-list">${cancellations.length ? cancellations.map(row=>`<article class="mod-card"><strong>Rolê ${html(row.event_id)}</strong><small>Solicitado em ${html(displayDate(row.created_at))}</small>
+        <p>Motivo: ${html(row.reason)}</p><div class="mod-actions"><button class="btn btn-pink btn-small" data-action="mod-cancel" data-decision="approve" data-id="${html(row.id)}">Autorizar cancelamento</button>
+        <button class="btn btn-ghost btn-small" data-action="mod-cancel" data-decision="deny" data-id="${html(row.id)}">Negar com justificativa</button></div></article>`).join(''):'<p class="small-muted">Sem pedidos de cancelamento.</p>'}</div>
       <h3>🚩 Denúncias abertas (${reports.length})</h3><div class="mod-list">${reports.length ? reports.map(row => `<article class="mod-card">
         <strong>${html(risk[row.reason] || row.reason)}</strong><small>${html(displayDate(row.created_at))} · ${html(row.status)}</small>
         <p>Tipo: ${html(row.target_kind)} · ID: ${html(row.target_id)}</p><p>${html(row.details || 'Sem detalhes adicionais.')}</p>
@@ -1153,6 +1514,7 @@ async function performModeration(action, el) {
     if (action === 'mod-remove') await assertOk(db.rpc('moderation_remove_content',{_kind:el.dataset.kind,_target:el.dataset.id,_reason:reason.trim()}));
     if (action === 'mod-suspend') await assertOk(db.rpc('moderation_set_account',{_user:el.dataset.id,_status:'suspended',_reason:reason.trim()}));
     if (action === 'mod-privacy') await assertOk(db.rpc('moderation_review_privacy_request',{_request:el.dataset.id,_decision:el.dataset.decision,_response:reason.trim()}));
+    if (action === 'mod-cancel') await assertOk(db.rpc('bora_review_cancel',{_request:el.dataset.id,_approve:el.dataset.decision==='approve',_reason:reason.trim()}));
     toast('Ação registrada com auditoria.');
     await openModeration();
     if (action === 'mod-event') await loadEvents();
@@ -1175,23 +1537,48 @@ async function handleAction(action, element) {
       }
       case 'create': return openCreate();
       case 'join': return await joinEvent(id);
+      case 'detail-save': await saveEvent(id);return await openDetails(id);
+      case 'edit-event': return await editEvent(id);
+      case 'cancel-event': return await cancelEvent(id);
       case 'safety': closeAndLeaveRoom(); return navigate('seguranca');
       case 'save-profile': return await saveProfile();
       case 'notifications': return await openNotifications();
       case 'account': return await openAccount();
+      case 'audience-preferences': return await openAudiencePreferences();
+      case 'revoke-audience': {
+        if(!confirm('Apagar suas identificações opcionais? Você deixará de confirmar presença em rolês de público direcionado.'))return;
+        await assertOk(db.rpc('set_audience_preferences',{_gender:null,_lgbtq:null,_consent:false}));
+        closeModal();return toast('Identificações privadas apagadas.');
+      }
       case 'privacy-requests': return await openPrivacyRequests();
+      case 'delete-account-request': {
+        if (!confirm('Deseja registrar uma solicitação de exclusão da conta? O processo não é imediato e dependerá de confirmação pela equipe.'))return;
+        await assertOk(db.from('privacy_requests').insert({kind:'deletion',details:'Solicito exclusão definitiva da minha conta e dados, ressalvadas obrigações legais de retenção.'}));
+        toast('Pedido de exclusão registrado para atendimento.');return await openPrivacyRequests();
+      }
       case 'moderation': return await openModeration();
-      case 'mod-event': case 'mod-report': case 'mod-remove': case 'mod-suspend': case 'mod-privacy':
+      case 'mod-event': case 'mod-report': case 'mod-remove': case 'mod-suspend': case 'mod-privacy': case 'mod-cancel':
         return await performModeration(action, element);
       case 'logout': return await authAction('logout');
       case 'open-squad': return await openRoom('squad', id);
       case 'create-squad': return await createSquad(id);
+      case 'create-independent-squad': return await createIndependentSquad();
       case 'rename-squad': return await renameSquad(id);
+      case 'edit-album-link': return await editAlbumLink(id);
+      case 'set-squad-admin': {
+        if(!confirm(element.dataset.promote==='true'?'Promover este integrante a administrador do SQUAD?':'Remover o cargo de administrador?'))return;
+        await assertOk(db.rpc('bora_set_squad_admin',{_squad:element.dataset.squad,_member:id,_promote:element.dataset.promote==='true'}));
+        toast('Permissão do integrante atualizada.');
+        await openRoom('squad',element.dataset.squad);return await openRoomMembers();
+      }
       case 'leave-squad': return await leaveSquad(id);
       case 'accept-invite': return await respondInvite(id, true);
       case 'decline-invite': return await respondInvite(id, false);
       case 'add-calendar': return openCalendarForm(id);
       case 'room-members': return await openRoomMembers();
+      case 'create-poll': return createPoll();
+      case 'vote-poll': return await votePoll(element.dataset.poll,element.dataset.option);
+      case 'delete-squad-photo': return await deleteSquadPhoto(id,element.dataset.path);
       case 'delete-pin': return await deletePin(id);
       case 'remove-song': return await removeSong(id);
       case 'block-user': return await blockUser(id);
