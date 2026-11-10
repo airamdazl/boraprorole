@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#171425">
+  <meta name="description" content="Bora Pro Rolê: descubra experiências, encontre sua galera e faça amizades reais.">
+  <title>Bora Pro Rolê — Sua galera tá por aí</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./icon-192.png">
+  <link rel="apple-touch-icon" href="./icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script defer src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <div class="auth-gate" id="auth-gate" role="region" aria-label="Acesso ao Bora Pro Rolê">
+    <section class="auth-panel">
+      <div class="auth-brand"><span class="logo-mark">✦</span><div><strong>BORA PRO ROLÊ</strong><small>Sua galera tá por aí.</small></div></div>
+      <div id="auth-stage"><p class="small-muted">Preparando seu acesso seguro…</p></div>
+      <p class="auth-support">O Bora Pro Rolê é exclusivo para maiores de 18 anos. A data de nascimento informada é uma declaração, não uma verificação documental.</p>
+      <p id="auth-feedback" role="status" aria-live="polite"></p>
+    </section>
+  </div>
+  <div class="demo-banner hidden" id="app-status" role="status"></div>
+  <div class="shell">
+    <aside class="sidebar" aria-label="Navegação principal">
+      <a href="#explorar" class="logo" data-screen-link="explorar"><span class="logo-mark"><i data-lucide="flame"></i></span><strong>BORA PRO<span>ROLÊ</span></strong></a>
+      <nav class="navset">
+        <button class="nav-link active" data-nav="explorar"><i data-lucide="compass"></i><span>Explorar</span></button>
+        <button class="nav-link" data-nav="meus"><i data-lucide="calendar-heart"></i><span>Meus rolês</span></button>
+        <button class="nav-link" data-nav="criar"><i data-lucide="circle-plus"></i><span>Criar rolê</span></button>
+        <button class="nav-link" data-nav="squad"><i data-lucide="users-round"></i><span>SQUAD</span><span class="count">1</span></button>
+        <button class="nav-link" data-nav="perfil"><i data-lucide="user-round"></i><span>Meu perfil</span></button>
+      </nav>
+      <div class="sidebar-spacer"></div>
+      <div class="side-card"><div class="star">✨</div><strong>Juntos é outro rolê.</strong><p>Conheça pessoas novas, combine passeios e encontre a sua galera pela cidade.</p><button data-action="create">+ Publicar um rolê</button></div>
+      <div class="side-foot">🔒 Uma comunidade para maiores de 18 anos.<br><a href="#seguranca" data-action="safety">Segurança e comunidade</a></div>
+    </aside>
+    <div class="main-wrap">
+      <header class="topbar"><span class="top-title">Bora Pro Rolê</span><div class="searchbox"><i data-lucide="search" style="width:18px"></i><input id="global-search" aria-label="Buscar rolês" placeholder="Busque um rolê, bairro ou lugar..." autocomplete="off"><span style="font-size:11px">⌘ K</span></div><div class="topbar-right"><span class="location-tag" id="user-city-label"><i data-lucide="map-pin"></i> Brasil</span><button class="icon-btn" id="theme-toggle" title="Alternar modo claro e escuro" aria-label="Alternar tema"><i data-lucide="moon"></i></button><button class="icon-btn" data-action="notifications" title="Notificações" aria-label="Notificações"><i data-lucide="bell"></i></button><button class="avatar-btn" data-nav="perfil" aria-label="Abrir perfil">A</button></div></header>
+      <main class="main">
+        <section class="screen active" id="screen-explorar" aria-label="Descobrir rolês">
+          <div class="welcome"><div><span class="eyebrow">O seu rolê começa aqui</span><h1>Pra onde a gente vai? <span aria-hidden="true">✌️</span></h1><p>Descubra planos incríveis e encontre companhia pra ir junto.</p></div><button class="btn btn-pink" data-action="create"><i data-lucide="plus"></i> Criar rolê</button></div>
+          <div class="hero"><div class="hero-copy"><span class="kicker">⚡ COM GENTE É MELHOR</span><h2>A vida acontece<br>fora do feed.</h2><p>Do cinema à rave, das boas conversas às amizades que ficam.</p></div><div class="hero-stickers" aria-hidden="true"><div class="sticker one"><i data-lucide="smile"></i></div><div class="sticker two"><i data-lucide="party-popper"></i></div></div></div>
+          <section class="home-music" aria-label="Música para animar o rolê"><div class="home-music-intro"><div class="music-icon">♫</div><div><span class="eyebrow">Aquece o som</span><h2>Bora de playlist? 🎧</h2><p>Escolha a trilha sonora enquanto descobre seu próximo rolê. O Spotify toca no próprio aplicativo, quando a playlist estiver configurada.</p></div></div><div id="home-spotify-embed" class="home-spotify-embed"><p class="small-muted">A playlist oficial ainda será vinculada.</p></div></section>
+          <div class="season-strip" aria-label="Datas especiais"><button class="season-card carnaval" data-season="carnaval"><div><strong>Carnaval</strong><small>Blocos & trios</small></div><span>🎭</span></button><button class="season-card reveillon" data-season="reveillon"><div><strong>Réveillon</strong><small>Virada com a galera</small></div><span>🎆</span></button><button class="season-card sao-joao" data-season="sao-joao"><div><strong>São João</strong><small>Arraiás & forró</small></div><span>🌽</span></button></div>
+          <div class="section-top"><div><h2>Encontre seu próximo rolê</h2><p>De perto, do seu jeito e com a sua vibe.</p></div><div class="view-switch" aria-label="Visualização"><button class="active" data-view="mapa"><i data-lucide="map"></i> Mapa</button><button data-view="lista"><i data-lucide="layout-grid"></i> Lista</button></div></div>
+          <div class="pill-line" id="category-chips" aria-label="Filtrar categoria"></div>
+          <div class="map-frame" id="map-frame"><div class="map-hint">📍 Rolês por São Paulo<small>Toque em um alfinete para conhecer</small></div><div class="map" id="map"></div><div class="map-legend">🩷 Rolês disponíveis</div></div>
+          <div class="section-top" style="margin-top:22px"><div><h2>Na sua vibe <span aria-hidden="true">✨</span></h2><p id="results-count">Explore os eventos</p></div><span class="badge">Rolês cadastrados</span></div>
+          <div class="events-grid" id="events-grid"></div>
+          <div class="safety-teaser"><div class="safety-teaser-mark"><i data-lucide="shield-check"></i></div><div><strong>Rolê bom é rolê seguro.</strong><p>Respeito às diferenças, encontros em locais públicos e proteção de crianças e adolescentes são compromissos desta comunidade.</p></div><button class="btn btn-ghost btn-small" data-action="safety">Segurança e ajuda <i data-lucide="arrow-right"></i></button></div>
+        </section>
+        <section class="screen" id="screen-meus"><div class="page-heading"><span class="eyebrow">Agenda social</span><h1>Meus rolês 🎟️</h1><p>Todos os encontros em que você confirmou presença ou salvou para depois.</p></div><div class="two-col"><div class="panel"><h3>✨ Vou participar</h3><div id="joined-list"></div></div><div class="panel"><h3>💗 Rolês salvos</h3><div id="saved-list"></div></div></div></section>
+        <section class="screen" id="screen-squad"><div class="page-heading"><span class="eyebrow">Amizades que continuam</span><h1>A sua galera. Seu SQUAD. 💜</h1><p>O rolê termina, mas as conexões boas continuam. Participe apenas dos grupos que escolher.</p></div><div class="squad-pending" id="squad-invite"><div><strong>💌 Você tem um convite de SQUAD</strong><p>Uma galera do último rolê quer continuar o papo.</p></div><div class="squad-actions"><button class="btn btn-lime btn-small" data-action="accept-squad">Aceitar convite</button><button class="btn btn-ghost btn-small" data-action="decline-squad">Recusar</button></div></div><div class="two-col" style="margin-top:20px"><article class="squad-card"><div class="squad-head" aria-hidden="true">🪩</div><div class="squad-body"><span class="badge green">COMUNIDADE</span><h3 style="margin-top:9px" id="squad-name">Galera da Augusta</h3><p>Boa música, conversas sem pressa e novos rolês pela cidade.</p><div class="attendees"><span class="mini-avatar" style="background:#f8a0bd">B</span><span class="mini-avatar" style="background:#a8c7ff">L</span><span class="mini-avatar" style="background:#c8f977">M</span><small>3 integrantes de exemplo</small></div><div class="squad-actions" style="margin-top:21px"><button class="btn btn-pink" data-action="open-squad"><i data-lucide="messages-square"></i> Abrir chat</button><button class="btn btn-ghost" data-action="rename-squad"><i data-lucide="pencil"></i></button></div></div></article><div class="panel"><h3>💡 O que é um SQUAD?</h3><p class="small-muted">É um grupo permanente criado depois de um rolê. Todos recebem um convite e decidem se querem entrar. O grupo tem chat próprio, mural de informações e espaço para compartilhar o link de um álbum de fotos.</p><div class="list-row"><div class="icon-disc">🔐</div><div class="grow"><strong>Convites, nunca inclusão automática</strong><p>Você escolhe com quem quer continuar.</p></div></div><div class="list-row"><div class="icon-disc">📌</div><div class="grow"><strong>Mural fixo</strong><p>Links e combinados importantes ficam salvos.</p></div></div><div class="list-row"><div class="icon-disc">🛡️</div><div class="grow"><strong>Proteção e moderação</strong><p>É possível sair, bloquear e denunciar.</p></div></div></div></div></section>
+        <section class="screen" id="screen-perfil"><div class="page-heading"><span class="eyebrow">Seu espaço</span><h1>Seu perfil, suas regras.</h1><p>Escolha como se apresentar. Você controla o que os outros conseguem ver.</p></div><div class="profile-cover"></div><div class="profile-panel"><div class="profile-avatar">A</div><div class="profile-title"><div><h2 id="profile-display">Alex</h2><p id="profile-handle">@alexnosp</p></div><span class="badge green">🔒 Privacidade primeiro</span></div><p class="profile-bio" id="profile-bio">Cinema, música boa, rolês tranquilos e novas amizades pela cidade. ✨</p><div class="two-col"><div class="panel"><h3>✏️ Editar perfil <span class="badge">Prévia local</span></h3><div class="fields"><div class="field"><label for="edit-name">Nome de exibição</label><input id="edit-name" value="Alex" maxlength="45"></div><div class="field"><label for="edit-handle">Nome de usuário</label><input id="edit-handle" value="alexnosp" maxlength="24"></div></div><div class="field"><label for="edit-city">Cidade</label><input id="edit-city" value="São Paulo, SP" maxlength="70"></div><div class="field"><label for="edit-bio">Sobre você</label><textarea id="edit-bio" maxlength="240">Cinema, música boa, rolês tranquilos e novas amizades pela cidade. ✨</textarea></div><div class="fields"><div class="field"><label for="edit-birth">Data de nascimento (privada)</label><input id="edit-birth" type="date"></div><div class="field"><label for="edit-insta">Instagram (opcional)</label><input id="edit-insta" placeholder="@seuperfil"></div></div><button class="btn btn-pink" data-action="save-profile">Salvar prévia do perfil</button></div><div class="panel"><h3>🔐 Privacidade e conta</h3><div class="switch-line"><div><strong>Foto só para amigos</strong><small>Amizade recíproca</small></div><input type="checkbox" checked aria-label="Foto só para amigos"></div><div class="switch-line"><div><strong>Detalhes só para amigos</strong><small>Bio, cidade e Instagram</small></div><input type="checkbox" checked aria-label="Detalhes só para amigos"></div><div class="switch-line"><div><strong>Mostrar minha idade</strong><small>A data de nascimento nunca é pública</small></div><input type="checkbox" aria-label="Mostrar idade"></div><div class="switch-line"><div><strong>Permitir convites de amizade</strong><small>De pessoas que participaram dos mesmos rolês</small></div><input type="checkbox" checked aria-label="Permitir convites de amizade"></div><div style="margin-top:22px;display:grid;gap:9px"><button class="btn btn-ghost" data-action="account"><i data-lucide="key-round"></i> Senha e segurança da conta</button><button class="btn btn-ghost" data-action="safety"><i data-lucide="shield-check"></i> Regras e denúncias</button></div></div></div></div></section>
+        <section class="screen" id="screen-seguranca" aria-label="Segurança e comunidade">
+          <div class="page-heading"><span class="eyebrow">Nossa comunidade, nossas responsabilidades</span><h1>Se cuidar também faz parte do rolê. 🛡️</h1><p>O Bora Pro Rolê nasceu para aproximar pessoas, sem abrir espaço para violência, discriminação ou exposição indevida.</p></div>
+          <div class="safety-principles">
+            <article class="panel safety-principle"><span>🔞</span><h3>Proteção de crianças e adolescentes</h3><p>Plataforma destinada exclusivamente a maiores de 18 anos. Suspeitas de menores na plataforma, aliciamento, exploração e conteúdos ilegais devem ser denunciados imediatamente. A autodeclaração de idade, sozinha, não é verificação confiável.</p></article>
+            <article class="panel safety-principle"><span>🤝</span><h3>Respeito é inegociável</h3><p>Não toleramos racismo, LGBTfobia, misoginia, assédio, ameaças, coerção ou divulgação de informações íntimas sem consentimento. Respeite identidades, orientações e limites pessoais.</p></article>
+            <article class="panel safety-principle"><span>📍</span><h3>Encontros com segurança</h3><p>Combine o primeiro encontro em lugar público e movimentado. Avise alguém de confiança sobre o destino, verifique o endereço do evento e tenha seu próprio meio de voltar. Nunca se sinta obrigado a sair com ninguém.</p></article>
+          </div>
+          <div class="panel safety-emergency"><div><span class="eyebrow">Em caso de perigo imediato</span><h2>Não espere pelo chat do aplicativo.</h2><p>Acione o serviço público adequado. As ferramentas internas de denúncia não substituem polícia, serviços médicos ou redes de proteção.</p></div><div class="emergency-buttons"><a class="btn btn-pink" href="tel:190">📞 190 — Polícia</a><a class="btn btn-ghost" href="tel:192">📞 192 — SAMU</a></div></div>
+          <div class="section-top" style="margin-top:28px"><div><h2>Canais oficiais de apoio</h2><p>Números nacionais, gratuitos e disponíveis 24 horas.</p></div></div>
+          <div class="support-grid">
+            <article class="support-card"><div class="support-number">180</div><div><h3>Violência contra a mulher</h3><p>Orientação, acolhimento e denúncias. Também atende pessoas que testemunharam violência.</p><div class="support-links"><a href="tel:180">Ligar 180</a><a href="https://www.gov.br/mulheres/pt-br/ligue180" target="_blank" rel="noopener noreferrer">Fonte oficial ↗</a></div></div></article>
+            <article class="support-card"><div class="support-number">100</div><div><h3>Direitos humanos</h3><p>Denúncias de racismo, LGBTfobia, violações contra crianças e adolescentes e outras violências.</p><div class="support-links"><a href="tel:100">Ligar 100</a><a href="https://www.gov.br/mdh/pt-br/assuntos/noticias/2026/defeso-eleitoral/julho/saiba-quando-e-como-acionar-o-disque-100" target="_blank" rel="noopener noreferrer">Fonte oficial ↗</a></div></div></article>
+            <article class="support-card"><div class="support-number">190</div><div><h3>Emergência policial</h3><p>Para crime em andamento, ameaça, agressão ou risco imediato à integridade física.</p><div class="support-links"><a href="tel:190">Ligar 190</a><a href="https://www.gov.br/mcom/pt-br/noticias/2026/setembro/emergencia-voce-sabe-para-quem-ligar" target="_blank" rel="noopener noreferrer">Fonte oficial ↗</a></div></div></article>
+          </div>
+          <div class="safety-checklist panel"><h3>Antes de marcar um encontro, lembre-se:</h3><ul><li>Prefira espaços públicos e com circulação de pessoas.</li><li>Não informe endereço residencial, rotina ou documentos pessoais no chat.</li><li>Confirme horário, endereço, classificação indicativa e regras do estabelecimento.</li><li>Não aceite pressão para consumir bebidas, substâncias ou compartilhar fotos.</li><li>Se alguém desrespeitar seus limites, afaste-se e busque apoio.</li><li>Denuncie condutas perigosas na plataforma quando o canal de moderação estiver habilitado; em emergência, ligue 190.</li></ul></div>
+          <p class="small-muted" style="margin-top:20px">Os canais acima pertencem aos órgãos públicos. A triagem interna de denúncias do Bora Pro Rolê só estará disponível após a implantação do painel de moderação. Para orientação urgente, use os canais oficiais.</p>
+          <button class="btn btn-ghost" data-nav="explorar"><i data-lucide="arrow-left"></i> Voltar a explorar</button>
+        </section>
+      </main>
+    </div>
+  </div>
+  <nav class="mobile-nav" aria-label="Navegação mobile"><button class="nav-link active" data-nav="explorar"><i data-lucide="compass"></i><span>Explorar</span></button><button class="nav-link" data-nav="meus"><i data-lucide="calendar-heart"></i><span>Meus rolês</span></button><button class="nav-link" data-nav="criar"><i data-lucide="circle-plus"></i><span>Criar</span></button><button class="nav-link" data-nav="squad"><i data-lucide="users-round"></i><span>SQUAD</span></button><button class="nav-link" data-nav="perfil"><i data-lucide="user-round"></i><span>Perfil</span></button></nav>
+  <div class="overlay hidden" id="modal" role="presentation"><div class="dialog" role="dialog" aria-modal="true" aria-labelledby="dialog-title"><div class="dialog-top"><h2 id="dialog-title">Detalhes</h2><button class="icon-btn" id="modal-close" aria-label="Fechar"><i data-lucide="x"></i></button></div><div id="dialog-body" class="dialog-content"></div></div></div>
+  <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+  
+
+
+  <script defer src="./app.js"></script>
+</body>
+</html>
