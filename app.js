@@ -34,6 +34,7 @@ const currentRedirect = () => `${location.origin}${location.pathname}`;
 // Link do cadastro volta a uma página real do GitHub Pages e oferece login.
 // Cadastrar este URL EXATO em Authentication → URL Configuration → Redirect URLs.
 const signupRedirect = () => new URL('./index.html?email_confirmed=1', currentRedirect()).href;
+let pendingBirthdate = null; // Somente em memória, até a confirmação explícita.
 const categories = [
   ['todos', '✨', 'Todos'], ['festa', '🪩', 'Festas'], ['bar', '🍹', 'Bares'],
   ['balada', '🎶', 'Baladas'], ['rave', '🔊', 'Raves'], ['cinema', '🎬', 'Cinema'],
@@ -107,8 +108,15 @@ function showGate(stage, data = {}) {
       <p class="small-muted">Informe sua data de nascimento verdadeira. Esta informação fica privada e não pode ser alterada livremente depois.</p>
       <form id="birth-form" class="auth-form"><label>Data de nascimento<input name="birthdate" type="date" required max="${new Date().toISOString().slice(0,10)}"></label>
       <button class="btn btn-pink" type="submit">Verificar data declarada</button></form>
-      <p class="legal-note">A conferência desta data bloqueia menores de idade declarados, mas não comprova identidade nem substitui verificação etária independente.</p>
+      <p class="legal-note">Este espaço é exclusivo para maiores de 18 anos. A data informada é uma declaração, não uma verificação documental.</p>
       <p class="auth-switch"><button data-auth="logout">Sair da conta</button></p>`,
+    'birth-confirm': `<span class="eyebrow">Confirmação de idade declarada</span><h1>Vamos confirmar sua informação 🔞</h1>
+      <p>Você informou a data de nascimento <strong>${html(data.birthdate || '')}</strong>.</p>
+      <p class="legal-note">O Bora Pro Rolê é exclusivo para pessoas com 18 anos ou mais. Não verificamos sua identidade nesta etapa; futuramente poderemos solicitar uma comprovação confiável da data informada. Dados falsos podem resultar em suspensão da conta.</p>
+      <form id="birth-confirm-form" class="auth-form"><label class="check-label"><input name="truth_acknowledged" type="checkbox" required>
+        Confirmo que tenho pelo menos 18 anos e que a data de nascimento informada é verdadeira.</label>
+        <button class="btn btn-pink" type="submit">Confirmar declaração e continuar</button></form>
+      <p class="auth-switch"><button data-auth="restart-birth">Corrigir data</button> · <button data-auth="logout">Sair</button></p>`,
     profile: `<span class="eyebrow">Etapa 2 de 3</span><h1>Como vamos te chamar?</h1>
       <form id="onboard-profile-form" class="auth-form"><label>Nome de exibição<input name="display_name" maxlength="60" required placeholder="Como quer aparecer no app"></label>
       <label>@nickname único<input name="username" maxlength="24" minlength="3" pattern="[a-z0-9_.]{3,24}" required placeholder="seu.nick" autocapitalize="none"></label>
@@ -138,6 +146,7 @@ async function assertOk(promise) {
 
 async function authAction(kind, form) {
   try {
+    if (kind === 'restart-birth') { pendingBirthdate = null; return showGate('birth'); }
     // Botões de troca de tela não são submissões de formulário.
     if (!form && ['login','signup','forgot','resend'].includes(kind)) return showGate(kind);
     feedback('Processando…', false);
@@ -163,6 +172,7 @@ async function authAction(kind, form) {
       feedback('Senha alterada. Continuando…', false);
       await syncSession();
     } else if (kind === 'logout') {
+      pendingBirthdate = null;
       await db.auth.signOut();
       state.user = null;
       state.opened = false;
@@ -171,7 +181,13 @@ async function authAction(kind, form) {
       leaveRoom();
       showGate('login');
     } else if (kind === 'birth') {
-      await assertOk(db.rpc('declare_adulthood', { _birthdate: data.birthdate }));
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(String(data.birthdate || ''))) throw Error('Informe uma data de nascimento válida.');
+      pendingBirthdate = data.birthdate;
+      return showGate('birth-confirm', {birthdate: new Date(`${data.birthdate}T12:00:00`).toLocaleDateString('pt-BR')});
+    } else if (kind === 'confirm-birth') {
+      if (!pendingBirthdate || data.truth_acknowledged !== 'on') throw Error('Confirme que a informação é verdadeira para continuar.');
+      await assertOk(db.rpc('declare_adulthood', { _birthdate: pendingBirthdate }));
+      pendingBirthdate = null;
       await syncSession();
     } else if (kind === 'profile') {
       const username = String(data.username || '').toLowerCase().trim().replace(/^@/, '');
@@ -194,6 +210,7 @@ async function syncSession() {
   const session = await assertOk(db.auth.getSession());
   if (version !== state.sessionVersion) return;
   if (!session?.session?.user) {
+    pendingBirthdate = null;
     state.user = null;
     state.opened = false;
     state.isModerator = false;
@@ -1205,7 +1222,7 @@ document.addEventListener('click', (event) => {
 
 document.addEventListener('submit', (event) => {
   const key = ({'login-form':'login','signup-form':'signup','forgot-form':'forgot','resend-form':'resend',
-    'reset-form':'reset','birth-form':'birth','onboard-profile-form':'profile','legal-form':'legal'})[event.target.id];
+    'reset-form':'reset','birth-form':'birth','birth-confirm-form':'confirm-birth','onboard-profile-form':'profile','legal-form':'legal'})[event.target.id];
   if (key) { event.preventDefault(); authAction(key, event.target); }
 });
 

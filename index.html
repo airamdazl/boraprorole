@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#171425">
+  <meta name="theme-color" content="#41105c">
   <meta name="description" content="Bora Pro Rolê: descubra experiências, encontre sua galera e faça amizades reais.">
   <title>Bora Pro Rolê — Sua galera tá por aí</title>
   <script>try { document.documentElement.dataset.theme = localStorage.getItem('bora_theme') === 'light' ? 'light' : 'dark'; } catch (_) { document.documentElement.dataset.theme = 'dark'; }</script>
@@ -23,7 +23,7 @@
 <body>
   <div class="auth-gate" id="auth-gate" role="region" aria-label="Acesso ao Bora Pro Rolê">
     <section class="auth-panel">
-      <div class="auth-brand"><span class="logo-mark">✦</span><div><strong>BORA PRO ROLÊ</strong><small>Sua galera tá por aí.</small></div></div>
+      <div class="auth-brand"><img src="./icon-192.png" class="brand-symbol" alt=""><div><strong>BORA PRO ROLÊ</strong><small>Sua galera tá por aí.</small></div></div>
       <div id="auth-stage"><p class="small-muted">Preparando seu acesso seguro…</p></div>
       <p class="auth-support">O Bora Pro Rolê é exclusivo para maiores de 18 anos. A data de nascimento informada é uma declaração, não uma verificação documental.</p>
       <p class="auth-support legal-entry-links"><a href="./termos.html" target="_blank" rel="noopener noreferrer">Termos de Uso</a> · <a href="./privacidade.html" target="_blank" rel="noopener noreferrer">Privacidade</a> · <a href="./comunidade.html" target="_blank" rel="noopener noreferrer">Regras da Comunidade</a></p>
@@ -31,15 +31,15 @@
       <p id="auth-feedback" role="status" aria-live="polite"></p>
     </section>
   </div>
-  <div class="demo-banner hidden" id="app-status" role="status"></div>
+  <div class="hidden" id="app-status" role="status"></div>
   <div class="shell">
     <aside class="sidebar" aria-label="Navegação principal">
-      <a href="#explorar" class="logo" data-screen-link="explorar"><span class="logo-mark"><i data-lucide="flame"></i></span><strong>BORA PRO<span>ROLÊ</span></strong></a>
+      <a href="#explorar" class="logo" data-screen-link="explorar"><img src="./icon-192.png" class="brand-symbol" alt=""><strong>BORA PRO<span>ROLÊ</span></strong></a>
       <nav class="navset">
         <button class="nav-link active" data-nav="explorar"><i data-lucide="compass"></i><span>Explorar</span></button>
         <button class="nav-link" data-nav="meus"><i data-lucide="calendar-heart"></i><span>Meus rolês</span></button>
         <button class="nav-link" data-nav="criar"><i data-lucide="circle-plus"></i><span>Criar rolê</span></button>
-        <button class="nav-link" data-nav="squad"><i data-lucide="users-round"></i><span>SQUAD</span><span class="count">1</span></button>
+        <button class="nav-link" data-nav="squad"><i data-lucide="users-round"></i><span>SQUAD</span></button>
         <button class="nav-link" data-nav="perfil"><i data-lucide="user-round"></i><span>Meu perfil</span></button>
       </nav>
       <div class="sidebar-spacer"></div>
@@ -47,13 +47,13 @@
       <div class="side-foot">🔒 Uma comunidade para maiores de 18 anos.<br><a href="#seguranca" data-action="safety">Segurança e comunidade</a><br><a href="https://www.instagram.com/boraprorole.app/" target="_blank" rel="noopener noreferrer">📸 @boraprorole.app ↗</a></div>
     </aside>
     <div class="main-wrap">
-      <header class="topbar"><span class="top-title">Bora Pro Rolê</span><div class="searchbox"><i data-lucide="search" style="width:18px"></i><input id="global-search" aria-label="Buscar rolês" placeholder="Busque um rolê, bairro ou lugar..." autocomplete="off"><span style="font-size:11px">⌘ K</span></div><div class="topbar-right"><span class="location-tag" id="user-city-label"><i data-lucide="map-pin"></i> Brasil</span><button class="icon-btn" id="theme-toggle" title="Alternar modo claro e escuro" aria-label="Alternar tema"><i data-lucide="moon"></i></button><button class="icon-btn" data-action="notifications" title="Notificações" aria-label="Notificações"><i data-lucide="bell"></i></button><button class="avatar-btn" data-nav="perfil" aria-label="Abrir perfil">A</button></div></header>
+      <header class="topbar"><span class="top-title"><img src="./icon-192.png" class="top-title-icon" alt=""> Bora Pro Rolê</span><div class="searchbox"><i data-lucide="search" style="width:18px"></i><input id="global-search" aria-label="Buscar rolês" placeholder="Busque um rolê, bairro ou lugar..." autocomplete="off"><span style="font-size:11px">⌘ K</span></div><div class="topbar-right"><span class="location-tag" id="user-city-label"><i data-lucide="map-pin"></i> Brasil</span><button class="icon-btn" id="theme-toggle" title="Alternar modo claro e escuro" aria-label="Alternar tema"><i data-lucide="moon"></i></button><button class="icon-btn" data-action="notifications" title="Notificações" aria-label="Notificações"><i data-lucide="bell"></i></button><button class="avatar-btn" data-nav="perfil" aria-label="Abrir perfil">A</button></div></header>
       <main class="main">
         <section class="screen active" id="screen-explorar" aria-label="Descobrir rolês">
           <div class="welcome"><div><span class="eyebrow">O seu rolê começa aqui</span><h1>Pra onde a gente vai? <span aria-hidden="true">✌️</span></h1><p>Descubra planos incríveis e encontre companhia pra ir junto.</p></div><button class="btn btn-pink" data-action="create"><i data-lucide="plus"></i> Criar rolê</button></div>
-          <div class="hero"><div class="hero-copy"><span class="kicker">⚡ COM GENTE É MELHOR</span><h2>A vida acontece<br>fora do feed.</h2><p>Do cinema à rave, das boas conversas às amizades que ficam.</p></div><div class="hero-stickers" aria-hidden="true"><div class="sticker one"><i data-lucide="smile"></i></div><div class="sticker two"><i data-lucide="party-popper"></i></div></div></div>
+          <div class="hero"><div class="hero-copy"><span class="kicker">⚡ COM GENTE É MELHOR</span><h2>A vida acontece<br>fora do feed.</h2><p>Do cinema à rave, das boas conversas às amizades que ficam.</p></div><div class="hero-stickers"><img class="hero-brand-logo" src="./logo-boraprorole.png" alt="Identidade visual Bora Pro Rolê" loading="lazy"></div></div>
           <a class="instagram-spotlight" href="https://www.instagram.com/boraprorole.app/" target="_blank" rel="noopener noreferrer" aria-label="Seguir o Instagram oficial do Bora Pro Rolê, @boraprorole.app"><span class="instagram-spotlight-icon"><i data-lucide="instagram" aria-hidden="true"></i></span><span class="instagram-spotlight-copy"><strong>A galera também se encontra no Insta ✨</strong><small>Siga <b>@boraprorole.app</b> para acompanhar as novidades e os próximos rolês.</small></span><span class="instagram-spotlight-action">Seguir <i data-lucide="arrow-up-right" aria-hidden="true"></i></span></a>
-          <section class="home-music" aria-label="Música para animar o rolê"><div class="home-music-intro"><div class="music-icon">♫</div><div><span class="eyebrow">Aquece o som</span><h2>Bora de playlist? 🎧</h2><p>Escolha a trilha sonora enquanto descobre seu próximo rolê. O Spotify toca no próprio aplicativo, quando a playlist estiver configurada.</p></div></div><div id="home-spotify-embed" class="home-spotify-embed"><p class="small-muted">A playlist oficial ainda será vinculada.</p></div></section>
+          <section class="home-music" aria-label="Música para animar o rolê"><div class="home-music-intro"><div class="music-icon">♫</div><div><span class="eyebrow">Aquece o som</span><h2>Bora de playlist? 🎧</h2><p>Escolha a trilha sonora enquanto descobre seu próximo rolê. Toque no player para ouvir a playlist oficial do Bora Pro Rolê.</p></div></div><div id="home-spotify-embed" class="home-spotify-embed"><p class="small-muted">Carregando playlist…</p></div></section>
           <div class="season-strip" aria-label="Datas especiais"><button class="season-card carnaval" data-season="carnaval"><div><strong>Carnaval</strong><small>Blocos & trios</small></div><span>🎭</span></button><button class="season-card reveillon" data-season="reveillon"><div><strong>Réveillon</strong><small>Virada com a galera</small></div><span>🎆</span></button><button class="season-card sao-joao" data-season="sao-joao"><div><strong>São João</strong><small>Arraiás & forró</small></div><span>🌽</span></button></div>
           <div class="section-top"><div><h2>Encontre seu próximo rolê</h2><p>De perto, do seu jeito e com a sua vibe.</p></div><div class="view-switch" aria-label="Visualização"><button class="active" data-view="mapa"><i data-lucide="map"></i> Mapa</button><button data-view="lista"><i data-lucide="layout-grid"></i> Lista</button></div></div>
           <div class="pill-line" id="category-chips" aria-label="Filtrar categoria"></div>
@@ -79,7 +79,7 @@
             <article class="support-card"><div class="support-number">100</div><div><h3>Direitos humanos</h3><p>Denúncias de racismo, LGBTfobia, violações contra crianças e adolescentes e outras violências.</p><div class="support-links"><a href="tel:100">Ligar 100</a><a href="https://www.gov.br/mdh/pt-br/assuntos/noticias/2026/defeso-eleitoral/julho/saiba-quando-e-como-acionar-o-disque-100" target="_blank" rel="noopener noreferrer">Fonte oficial ↗</a></div></div></article>
             <article class="support-card"><div class="support-number">190</div><div><h3>Emergência policial</h3><p>Para crime em andamento, ameaça, agressão ou risco imediato à integridade física.</p><div class="support-links"><a href="tel:190">Ligar 190</a><a href="https://www.gov.br/mcom/pt-br/noticias/2026/setembro/emergencia-voce-sabe-para-quem-ligar" target="_blank" rel="noopener noreferrer">Fonte oficial ↗</a></div></div></article>
           </div>
-          <div class="safety-checklist panel"><h3>Antes de marcar um encontro, lembre-se:</h3><ul><li>Prefira espaços públicos e com circulação de pessoas.</li><li>Não informe endereço residencial, rotina ou documentos pessoais no chat.</li><li>Confirme horário, endereço, classificação indicativa e regras do estabelecimento.</li><li>Não aceite pressão para consumir bebidas, substâncias ou compartilhar fotos.</li><li>Se alguém desrespeitar seus limites, afaste-se e busque apoio.</li><li>Denuncie condutas perigosas na plataforma quando o canal de moderação estiver habilitado; em emergência, ligue 190.</li></ul></div>
+          <div class="safety-checklist panel"><h3>Antes de marcar um encontro, lembre-se:</h3><ul><li>Prefira espaços públicos e com circulação de pessoas.</li><li>Não informe endereço residencial, rotina ou documentos pessoais no chat.</li><li>Confirme horário, endereço, classificação indicativa e regras do estabelecimento.</li><li>Não aceite pressão para consumir bebidas, substâncias ou compartilhar fotos.</li><li>Se alguém desrespeitar seus limites, afaste-se e busque apoio.</li><li>Denuncie condutas perigosas na plataforma; em emergência, ligue 190.</li></ul></div>
           <p class="small-muted" style="margin-top:20px">Os canais acima pertencem aos órgãos públicos. As denúncias do Bora Pro Rolê são registradas e precisam de acompanhamento humano; não constituem serviço de emergência nem garantia de atendimento imediato. Para situações urgentes, use os canais oficiais.</p>
           <p class="safety-contact">🛡️ Para denúncias à equipe, recursos e solicitações de privacidade: <a href="mailto:moderacao.boraprorole@gmail.com">moderacao.boraprorole@gmail.com</a>. O contato por e-mail não substitui o botão de denúncia dentro do aplicativo nem serviços de emergência.</p>
           <p class="safety-legal-links"><a href="./termos.html" target="_blank" rel="noopener noreferrer">Termos de Uso</a> · <a href="./privacidade.html" target="_blank" rel="noopener noreferrer">Política de Privacidade</a> · <a href="./comunidade.html" target="_blank" rel="noopener noreferrer">Regras da Comunidade</a></p>

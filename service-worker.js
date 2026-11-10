@@ -1,6 +1,7 @@
-const CACHE = 'bora-pro-role-email-lgpd-v4';
+const CACHE = 'bora-pro-role-launch-v5';
 const APP_SHELL = ['./', './index.html', './app.js', './style.css', './manifest.webmanifest',
-  './icon-192.png', './icon-512.png', './termos.html', './privacidade.html', './comunidade.html'];
+  './icon-192.png', './icon-512.png', './logo-boraprorole.png',
+  './termos.html', './privacidade.html', './comunidade.html'];
 
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(APP_SHELL)));
