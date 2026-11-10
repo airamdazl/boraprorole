@@ -52,7 +52,7 @@ const state = {
   activeSquad: null, activeRoom: null, activeEvent: null, category: 'todos',
   search: '', view: 'mapa', map: null, markers: null, pickerMap: null,
   chatChannel: null, membersCache: new Map(), sessionVersion: 0, opened: false,
-  lastFocus: null
+  lastFocus: null, lastAppRefresh: 0, lastSessionCheck: 0, isModerator: false
 };
 
 function toast(message) {
@@ -77,14 +77,12 @@ function showGate(stage, data = {}) {
       <form id="login-form" class="auth-form"><label>Email<input name="email" type="email" required autocomplete="email"></label>
       <label>Senha<input name="password" type="password" required autocomplete="current-password"></label>
       <button class="btn btn-pink" type="submit">Entrar</button></form>
-      <button class="btn btn-google" data-auth="google"><span>G</span> Continuar com Google</button>
       <p class="auth-switch"><button data-auth="forgot">Esqueci a senha</button> · <button data-auth="signup">Criar conta</button></p>`,
     signup: `<span class="eyebrow">Seu próximo rolê começa aqui</span><h1>Crie sua conta 🪩</h1>
       <form id="signup-form" class="auth-form"><label>Email<input name="email" type="email" required autocomplete="email"></label>
       <label>Senha (mínimo 8 caracteres)<input name="password" type="password" minlength="8" required autocomplete="new-password"></label>
-      <p class="small-muted">O acesso ao app exige declaração de 18+, perfil e aceite das políticas. Não usamos a data declarada como prova de idade.</p>
+      <p class="small-muted">Enviaremos um link de confirmação ao seu e-mail. Depois, você informará sua data de nascimento (18+), completará o perfil e aceitará os documentos da comunidade.</p>
       <button class="btn btn-pink" type="submit">Continuar</button></form>
-      <button class="btn btn-google" data-auth="google"><span>G</span> Continuar com Google</button>
       <p class="auth-switch"><button data-auth="login">Já tenho conta</button></p>`,
     forgot: `<h1>Recuperar senha 🔑</h1><p class="small-muted">Enviaremos um link para seu email.</p>
       <form id="forgot-form" class="auth-form"><label>Email<input name="email" type="email" required autocomplete="email"></label>
@@ -137,8 +135,6 @@ async function authAction(kind, form) {
         options: { emailRedirectTo: currentRedirect() }}));
       if (!signup.session) { showGate('login'); feedback('Confira seu email para confirmar a conta e depois faça login.', false); }
       else await syncSession();
-    } else if (kind === 'google') {
-      await assertOk(db.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: currentRedirect() } }));
     } else if (kind === 'forgot') {
       await assertOk(db.auth.resetPasswordForEmail(data.email, {redirectTo: currentRedirect()}));
       showGate('login'); feedback('Se o email estiver cadastrado, você receberá instruções para redefinir a senha.', false);
@@ -150,6 +146,8 @@ async function authAction(kind, form) {
       await db.auth.signOut();
       state.user = null;
       state.opened = false;
+      state.isModerator = false;
+      $('moderation-entry')?.classList.add('hidden');
       leaveRoom();
       showGate('login');
     } else if (kind === 'birth') {
@@ -172,16 +170,21 @@ async function authAction(kind, form) {
 
 async function syncSession() {
   const version = ++state.sessionVersion;
+  state.lastSessionCheck = Date.now();
   const session = await assertOk(db.auth.getSession());
   if (version !== state.sessionVersion) return;
   if (!session?.session?.user) {
     state.user = null;
     state.opened = false;
+    state.isModerator = false;
+    state.lastAppRefresh = 0;
+    $('moderation-entry')?.classList.add('hidden');
     showGate('login');
     return;
   }
+  const sameUser = state.opened && state.user?.id === session.session.user.id;
   state.user = session.session.user;
-  showGate('loading');
+  if (!sameUser) showGate('loading');
   try {
     const raw = await assertOk(db.rpc('my_onboarding_status'));
     if (version !== state.sessionVersion) return;
@@ -199,14 +202,22 @@ async function syncSession() {
     $('auth-gate').classList.add('hidden');
     $('app-status').classList.add('hidden');
     hydrateProfile();
-    await loadAppData();
+    if (!sameUser || Date.now() - state.lastAppRefresh > 180000) {
+      await loadAppData();
+      state.lastAppRefresh = Date.now();
+    }
     if (!state.opened) {
       state.opened = true;
       navigate('explorar');
     }
   } catch (err) {
-    showGate('blocked');
-    feedback(`Falha ao consultar seu cadastro: ${err.message}`);
+    if (!navigator.onLine || /network|fetch|timeout|failed to fetch/i.test(err?.message || '')) {
+      if (!state.opened) showGate('offline');
+      else toast('Sem conexão. Seus dados serão atualizados quando a internet voltar.');
+    } else {
+      showGate('blocked');
+      feedback(`Falha ao consultar seu cadastro: ${err.message}`);
+    }
   }
 }
 
@@ -592,6 +603,10 @@ function hydrateProfile() {
       <div class="switch-line"><div><strong>🎂 Avisar aniversário aos SQUADs</strong><small>Somente dia e mês, se você permitir.</small></div><input type="checkbox" id="birthday-consent"></div>
       <h3>🔎 Seguir alguém pelo @nickname</h3><form id="friend-form" class="friend-finder"><input id="friend-nick" placeholder="@nickname" maxlength="24" aria-label="Nickname"><button class="btn btn-pink btn-small" type="submit">Seguir</button></form>
       <p class="small-muted" id="friend-result">Seguir alguém não revela seus dados privados. Amizade é recíproca.</p>
+      <h3>🛡️ Meus dados e direitos</h3>
+      <p class="small-muted">Consulte e solicite acesso, correção, portabilidade ou exclusão dos seus dados pessoais.</p>
+      <button class="btn btn-ghost" data-action="privacy-requests">Solicitações LGPD</button>
+      <button class="btn btn-ghost hidden" id="moderation-entry" data-action="moderation">Painel de moderação</button>
       <button class="btn btn-ghost" data-action="logout">Sair da conta</button>`;
     document.querySelector('.profile-panel').append(extra);
     $('avatar-form').addEventListener('submit', saveAvatar);
@@ -606,6 +621,12 @@ function hydrateProfile() {
       toast(birthConsent.checked ? 'Aniversário compartilhado somente com seus SQUADs.' : 'Aviso de aniversário desativado.');
     } catch (err) { birthConsent.checked = !birthConsent.checked; toast(err.message); }
   };
+  const currentUid = state.user.id;
+  db.rpc('moderation_is_staff').then(({data,error}) => {
+    if (state.user?.id !== currentUid) return;
+    state.isModerator = !error && data === true;
+    $('moderation-entry')?.classList.toggle('hidden', !state.isModerator);
+  }).catch(() => { state.isModerator = false; });
 }
 
 async function saveProfile() {
@@ -998,6 +1019,103 @@ async function openAccount() {
   });
 }
 
+async function openPrivacyRequests() {
+  try {
+    const rows = await assertOk(db.from('privacy_requests')
+      .select('id,kind,details,status,staff_response,created_at,updated_at')
+      .eq('requester_id',state.user.id).order('created_at',{ascending:false}).limit(20));
+    const labels = {access:'Acesso aos dados',correction:'Correção de dados',portability:'Portabilidade',
+      deletion:'Exclusão da conta/dados',opposition:'Oposição ao tratamento',other:'Outra solicitação'};
+    showModal('Seus dados e direitos — LGPD', `<p class="small-muted">Este canal registra seu pedido para análise humana. Não exclui a conta automaticamente. Solicitações não são públicas; algumas informações podem exigir retenção legal. O atendimento será registrado aqui.</p>
+      <form id="privacy-request-form" class="privacy-form"><label>O que deseja solicitar?
+        <select name="kind" required>${Object.entries(labels).map(([key,label]) => `<option value="${key}">${label}</option>`).join('')}</select></label>
+        <label>Detalhes do pedido (opcional)<textarea name="details" maxlength="2000" rows="3" placeholder="Explique o que você deseja. Não inclua documentos ou informações sensíveis de terceiros."></textarea></label>
+        <button class="btn btn-pink" type="submit">Registrar solicitação</button></form>
+      <h3 style="margin-top:20px">Histórico de pedidos</h3><div class="mod-list">
+        ${rows.length ? rows.map(row => `<article class="mod-card"><strong>${html(labels[row.kind] || row.kind)}</strong>
+        <small>${html(displayDate(row.created_at))} · ${html(row.status)}</small>
+        ${row.details ? `<p>${html(row.details)}</p>` : ''}
+        ${row.staff_response ? `<p><strong>Resposta:</strong> ${html(row.staff_response)}</p>` : ''}</article>`).join('') : '<p class="small-muted">Nenhum pedido registrado.</p>'}
+      </div>`);
+    $('privacy-request-form').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const data = Object.fromEntries(new FormData(event.target));
+      const submitter = event.submitter;
+      submitter.disabled = true;
+      try {
+        await assertOk(db.from('privacy_requests').insert({kind:data.kind,details:String(data.details || '').trim()}));
+        toast('Solicitação registrada. Acompanhe o andamento neste painel.');
+        await openPrivacyRequests();
+      } catch (err) { toast(`Não foi possível registrar: ${err.message}`); }
+      finally { submitter.disabled = false; }
+    });
+  } catch (err) { toast(err.message); }
+}
+
+async function openModeration() {
+  if (!state.isModerator) return toast('Acesso reservado à moderação.');
+  try {
+    const [events,reports,privacy] = await Promise.all([
+      assertOk(db.from('events').select('id,title,description,category,starts_at,venue_name,address,city,state_code,cover_path,venue_instagram,ticket_url,creator_id,requires_verified_age').eq('status','pending').order('created_at',{ascending:true}).limit(25)),
+      assertOk(db.from('reports').select('id,target_kind,target_id,reason,details,evidence_snapshot,status,created_at').in('status',['pending','reviewing']).order('created_at',{ascending:true}).limit(40)),
+      assertOk(db.from('privacy_requests').select('id,requester_id,kind,details,status,created_at').in('status',['pending','in_progress']).order('created_at',{ascending:true}).limit(30))
+    ]);
+    const covers = (events || []).filter(row => row.cover_path);
+    if (covers.length) {
+      const {data} = await db.storage.from('event-covers').createSignedUrls(covers.map(row=>row.cover_path),90);
+      if (data) covers.forEach((row,i)=>{row.coverUrl=safeHttps(data[i]?.signedUrl);});
+    }
+    const priority = {minor:0,illegal:1,harassment:2,discrimination:3,fraud:4,privacy:5,other:6};
+    reports.sort((a,b)=>(priority[a.reason] ?? 9)-(priority[b.reason] ?? 9));
+    const risk = {minor:'URGENTE · Menor de idade',illegal:'URGENTE · Conteúdo ilegal',harassment:'Assédio/violência',
+      discrimination:'Discriminação',fraud:'Golpe',privacy:'Privacidade',other:'Outro'};
+    showModal('Central de moderação 🛡️', `<p class="legal-note">Área restrita. Revise integralmente cada relato, imagem, anúncio e link antes de decidir. Denúncias urgentes exigem avaliação prioritária; o painel não substitui autoridades nem acompanhamento humano.</p>
+      <h3>⏳ Eventos aguardando análise (${events.length})</h3><div class="mod-list">${events.length ? events.map(row => `<article class="mod-card">
+        ${row.coverUrl ? `<img src="${html(row.coverUrl)}" alt="Capa a revisar" class="mod-cover">` : ''}
+        <strong>${html(row.title)}</strong><small>${html(displayDate(row.starts_at))} · ${html(row.category)}</small>
+        <p>${html(row.description)}</p><p>📍 ${html(row.venue_name || '')} · ${html(row.address)} · ${html(row.city)} / ${html(row.state_code)}</p>
+        <p>Organizador: ${html(row.creator_id)} ${row.requires_verified_age ? ' · EXIGE VERIFICAÇÃO INDEPENDENTE' : ''}</p>
+        ${safeHttps(row.ticket_url) ? `<a href="${html(safeHttps(row.ticket_url))}" target="_blank" rel="noopener noreferrer">Revisar ingressos ↗</a>` : ''}
+        ${row.venue_instagram ? `<p>Instagram informado: ${html(row.venue_instagram)}</p>` : ''}
+        ${safeHttps(row.venue_instagram) ? `<a href="${html(safeHttps(row.venue_instagram))}" target="_blank" rel="noopener noreferrer">Revisar Instagram ↗</a>` : ''}
+        <div class="mod-actions"><button class="btn btn-ghost btn-small" data-action="mod-event" data-decision="rejected" data-id="${html(row.id)}">Rejeitar</button>
+        <button class="btn btn-pink btn-small" data-action="mod-event" data-decision="published" data-id="${html(row.id)}">Aprovar após conferir</button></div></article>`).join('') : '<p class="small-muted">Nenhum evento pendente.</p>'}</div>
+      <h3>🚩 Denúncias abertas (${reports.length})</h3><div class="mod-list">${reports.length ? reports.map(row => `<article class="mod-card">
+        <strong>${html(risk[row.reason] || row.reason)}</strong><small>${html(displayDate(row.created_at))} · ${html(row.status)}</small>
+        <p>Tipo: ${html(row.target_kind)} · ID: ${html(row.target_id)}</p><p>${html(row.details || 'Sem detalhes adicionais.')}</p>
+        ${row.evidence_snapshot ? `<p><strong>Registro preservado:</strong> ${html(row.evidence_snapshot)}</p>` : ''}
+        <div class="mod-actions"><button class="btn btn-ghost btn-small" data-action="mod-report" data-decision="reviewing" data-id="${html(row.id)}">Em análise</button>
+        ${row.target_kind!=='user' ? `<button class="btn btn-ghost btn-small" data-action="mod-remove" data-kind="${html(row.target_kind)}" data-id="${html(row.target_id)}">Remover conteúdo</button>` : ''}
+        ${row.target_kind==='user' ? `<button class="btn btn-ghost btn-small" data-action="mod-suspend" data-id="${html(row.target_id)}">Suspender conta (admin)</button>` : ''}
+        <button class="btn btn-pink btn-small" data-action="mod-report" data-decision="resolved" data-id="${html(row.id)}">Concluir análise</button>
+        <button class="btn btn-ghost btn-small" data-action="mod-report" data-decision="dismissed" data-id="${html(row.id)}">Improcedente</button></div></article>`).join('') : '<p class="small-muted">Nenhuma denúncia pendente.</p>'}</div>
+      <h3>🔐 Pedidos LGPD (${privacy.length})</h3><div class="mod-list">${privacy.length ? privacy.map(row => `<article class="mod-card">
+        <strong>${html(row.kind)}</strong><small>${html(displayDate(row.created_at))} · ${html(row.status)}</small>
+        <p>Usuário: ${html(row.requester_id || 'Conta removida')}</p><p>${html(row.details || 'Sem observações.')}</p>
+        <div class="mod-actions"><button class="btn btn-ghost btn-small" data-action="mod-privacy" data-decision="in_progress" data-id="${html(row.id)}">Em atendimento</button>
+        <button class="btn btn-pink btn-small" data-action="mod-privacy" data-decision="completed" data-id="${html(row.id)}">Concluído após atender</button>
+        <button class="btn btn-ghost btn-small" data-action="mod-privacy" data-decision="declined" data-id="${html(row.id)}">Indeferir justificando</button></div></article>`).join('') : '<p class="small-muted">Nenhum pedido LGPD pendente.</p>'}</div>
+      <button class="btn btn-ghost" data-action="moderation">Atualizar filas</button>`);
+  } catch (err) { toast(`Falha ao carregar moderação: ${err.message}`); }
+}
+
+async function performModeration(action, el) {
+  if (!state.isModerator) return;
+  const reason = prompt('Informe o motivo detalhado e objetivo (mínimo 8 caracteres). Essa decisão ficará registrada:');
+  if (reason === null) return;
+  if (reason.trim().length < 8) return toast('O motivo precisa ter pelo menos 8 caracteres.');
+  try {
+    if (action === 'mod-event') await assertOk(db.rpc('moderation_review_event',{_event:el.dataset.id,_decision:el.dataset.decision,_reason:reason.trim()}));
+    if (action === 'mod-report') await assertOk(db.rpc('moderation_review_report',{_report:el.dataset.id,_decision:el.dataset.decision,_reason:reason.trim()}));
+    if (action === 'mod-remove') await assertOk(db.rpc('moderation_remove_content',{_kind:el.dataset.kind,_target:el.dataset.id,_reason:reason.trim()}));
+    if (action === 'mod-suspend') await assertOk(db.rpc('moderation_set_account',{_user:el.dataset.id,_status:'suspended',_reason:reason.trim()}));
+    if (action === 'mod-privacy') await assertOk(db.rpc('moderation_review_privacy_request',{_request:el.dataset.id,_decision:el.dataset.decision,_response:reason.trim()}));
+    toast('Ação registrada com auditoria.');
+    await openModeration();
+    if (action === 'mod-event') await loadEvents();
+  } catch (err) { toast(`Não foi possível concluir: ${err.message}`); }
+}
+
 function closeAndLeaveRoom() { leaveRoom(); closeModal(); }
 
 async function handleAction(action, element) {
@@ -1018,6 +1136,10 @@ async function handleAction(action, element) {
       case 'save-profile': return await saveProfile();
       case 'notifications': return await openNotifications();
       case 'account': return await openAccount();
+      case 'privacy-requests': return await openPrivacyRequests();
+      case 'moderation': return await openModeration();
+      case 'mod-event': case 'mod-report': case 'mod-remove': case 'mod-suspend': case 'mod-privacy':
+        return await performModeration(action, element);
       case 'logout': return await authAction('logout');
       case 'open-squad': return await openRoom('squad', id);
       case 'create-squad': return await createSquad(id);
@@ -1083,13 +1205,18 @@ $('global-search').addEventListener('input', (event) => {
 });
 
 function applyTheme(theme) {
+  theme = theme === 'light' ? 'light' : 'dark';
   document.documentElement.dataset.theme = theme;
-  localStorage.setItem('bora_theme', theme);
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content',theme === 'light' ? '#f8f7fa' : '#12101d');
+  try { localStorage.setItem('bora_theme', theme); } catch (_) { /* Navegação privada pode bloquear armazenamento. */ }
   $('theme-toggle').innerHTML = theme === 'dark' ? '<i data-lucide="sun"></i>' : '<i data-lucide="moon"></i>';
   icons();
 }
 $('theme-toggle').addEventListener('click', () => applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'));
-applyTheme(localStorage.getItem('bora_theme') || 'dark');
+applyTheme(document.documentElement.dataset.theme || 'dark');
+window.addEventListener('storage', (event) => {
+  if (event.key === 'bora_theme') applyTheme(event.newValue || 'dark');
+});
 
 const debugBanner = $('app-status');
 debugBanner.textContent = '';
@@ -1102,9 +1229,20 @@ else {
     if (event === 'PASSWORD_RECOVERY') { recoveringPassword = true; return showGate('reset'); }
     if (recoveringPassword && event !== 'SIGNED_OUT' && event !== 'USER_UPDATED') return;
     if (event === 'USER_UPDATED') recoveringPassword = false;
+    if (event === 'TOKEN_REFRESHED' && state.opened) return;
     setTimeout(() => syncSession().catch((err) => { showGate('blocked'); feedback(err.message); }), 0);
   });
   syncSession().catch((err) => { showGate('blocked'); feedback(err.message); });
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && Date.now() - state.lastSessionCheck > 180000) {
+      syncSession().catch(() => toast('Não foi possível atualizar sua sessão. Confira a conexão.'));
+    }
+  });
+  window.addEventListener('online', () => {
+    if (Date.now() - state.lastSessionCheck > 180000) {
+      syncSession().catch(() => {});
+    }
+  });
 }
 
 if ('serviceWorker' in navigator && location.protocol === 'https:') {

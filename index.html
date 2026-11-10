@@ -6,6 +6,7 @@
   <meta name="theme-color" content="#171425">
   <meta name="description" content="Bora Pro Rolê: descubra experiências, encontre sua galera e faça amizades reais.">
   <title>Bora Pro Rolê — Sua galera tá por aí</title>
+  <script>try { document.documentElement.dataset.theme = localStorage.getItem('bora_theme') === 'light' ? 'light' : 'dark'; } catch (_) { document.documentElement.dataset.theme = 'dark'; }</script>
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icon-192.png">
   <link rel="apple-touch-icon" href="./icon-192.png">
@@ -25,6 +26,7 @@
       <div class="auth-brand"><span class="logo-mark">✦</span><div><strong>BORA PRO ROLÊ</strong><small>Sua galera tá por aí.</small></div></div>
       <div id="auth-stage"><p class="small-muted">Preparando seu acesso seguro…</p></div>
       <p class="auth-support">O Bora Pro Rolê é exclusivo para maiores de 18 anos. A data de nascimento informada é uma declaração, não uma verificação documental.</p>
+      <p class="auth-support legal-entry-links"><a href="./termos.html" target="_blank" rel="noopener noreferrer">Termos de Uso</a> · <a href="./privacidade.html" target="_blank" rel="noopener noreferrer">Privacidade</a> · <a href="./comunidade.html" target="_blank" rel="noopener noreferrer">Regras da Comunidade</a></p>
       <p id="auth-feedback" role="status" aria-live="polite"></p>
     </section>
   </div>
@@ -76,7 +78,8 @@
             <article class="support-card"><div class="support-number">190</div><div><h3>Emergência policial</h3><p>Para crime em andamento, ameaça, agressão ou risco imediato à integridade física.</p><div class="support-links"><a href="tel:190">Ligar 190</a><a href="https://www.gov.br/mcom/pt-br/noticias/2026/setembro/emergencia-voce-sabe-para-quem-ligar" target="_blank" rel="noopener noreferrer">Fonte oficial ↗</a></div></div></article>
           </div>
           <div class="safety-checklist panel"><h3>Antes de marcar um encontro, lembre-se:</h3><ul><li>Prefira espaços públicos e com circulação de pessoas.</li><li>Não informe endereço residencial, rotina ou documentos pessoais no chat.</li><li>Confirme horário, endereço, classificação indicativa e regras do estabelecimento.</li><li>Não aceite pressão para consumir bebidas, substâncias ou compartilhar fotos.</li><li>Se alguém desrespeitar seus limites, afaste-se e busque apoio.</li><li>Denuncie condutas perigosas na plataforma quando o canal de moderação estiver habilitado; em emergência, ligue 190.</li></ul></div>
-          <p class="small-muted" style="margin-top:20px">Os canais acima pertencem aos órgãos públicos. A triagem interna de denúncias do Bora Pro Rolê só estará disponível após a implantação do painel de moderação. Para orientação urgente, use os canais oficiais.</p>
+          <p class="small-muted" style="margin-top:20px">Os canais acima pertencem aos órgãos públicos. As denúncias do Bora Pro Rolê são registradas e precisam de acompanhamento humano; não constituem serviço de emergência nem garantia de atendimento imediato. Para situações urgentes, use os canais oficiais.</p>
+          <p class="safety-legal-links"><a href="./termos.html" target="_blank" rel="noopener noreferrer">Termos de Uso</a> · <a href="./privacidade.html" target="_blank" rel="noopener noreferrer">Política de Privacidade</a> · <a href="./comunidade.html" target="_blank" rel="noopener noreferrer">Regras da Comunidade</a></p>
           <button class="btn btn-ghost" data-nav="explorar"><i data-lucide="arrow-left"></i> Voltar a explorar</button>
         </section>
       </main>

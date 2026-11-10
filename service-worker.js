@@ -1,4 +1,4 @@
-const CACHE = 'bora-pro-role-live-v1';
+const CACHE = 'bora-pro-role-email-lgpd-v2';
 const APP_SHELL = ['./', './index.html', './app.js', './style.css', './manifest.webmanifest',
   './icon-192.png', './icon-512.png', './termos.html', './privacidade.html', './comunidade.html'];
 
