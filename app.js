@@ -1117,28 +1117,72 @@ function renderSquads() {
   icons();
 }
 
-async function createSquad(eventId) {
-  const name = prompt('Como sua galera vai chamar o SQUAD? (3 a 65 caracteres)');
-  if (!name?.trim()) return;
-  try {
-    const row = await assertOk(db.from('squads').insert({origin_event_id: eventId,
-      creator_id: state.user.id, name: name.trim().slice(0,65)}).select('id').single());
-    state.activeSquad = row.id;
-    await loadSquads();
-    navigate('squad');
-    toast('SQUAD criado! Convide amigos para continuar o papo.');
-  } catch (err) { toast(err.message); }
+function openSquadCreateForm(eventId = null) {
+  const origin = eventId ? state.events.find((event) => event.id === eventId) : null;
+  showModal('Criar meu SQUAD ✨', `
+    <div class="squad-create-intro"><span class="squad-create-icon" aria-hidden="true">🫶</span>
+      <div><span class="eyebrow">Sua galera, suas regras</span>
+        <h3>Todo SQUAD começa com uma boa ideia.</h3>
+        <p>Crie um espaço para conversar, combinar rolês e manter a galera reunida.</p></div></div>
+    ${origin ? `<p class="squad-create-origin">🎟️ SQUAD ligado ao rolê <strong>${html(origin.title)}</strong>.</p>` : ''}
+    <form id="squad-create-form" class="create-form squad-create-form">
+      <div class="field"><label for="squad-new-name">Nome do SQUAD <span aria-hidden="true">*</span></label>
+        <input id="squad-new-name" name="name" minlength="3" maxlength="65" required autocomplete="off"
+          placeholder="Ex.: A galera do próximo rolê" aria-describedby="squad-name-tip">
+        <small id="squad-name-tip" class="small-muted">De 3 a 65 caracteres. Escolha um nome que a galera reconheça.</small></div>
+      <div class="field"><label for="squad-new-description">Qual é a vibe? <span class="optional-label">Opcional</span></label>
+        <textarea id="squad-new-description" name="description" maxlength="500" rows="3"
+          placeholder="Ex.: Amizades para curtir shows, cinema e um café no fim de semana."></textarea>
+        <small class="small-muted">Uma descrição curta ajuda a apresentar o grupo aos convidados.</small></div>
+      <label class="squad-create-visibility" for="squad-new-discoverable">
+        <input id="squad-new-discoverable" type="checkbox" name="discoverable">
+        <span><strong>🔎 Aparecer na busca de SQUADs</strong>
+          <small>Se ativar, outras pessoas podem encontrar o nome e pedir entrada. Um admin terá de aprovar. Chats, integrantes e fotos continuam privados.</small></span></label>
+      <div class="squad-create-rules"><strong>🔐 Seu espaço começa protegido</strong>
+        <p>Você será o primeiro admin e poderá convidar mais 1 ou 2. Ninguém entra automaticamente: convites devem ser aceitos e pedidos pela busca precisam de aprovação.</p></div>
+      <p id="squad-create-error" class="squad-create-error hidden" role="alert"></p>
+      <div class="squad-create-actions"><button type="button" class="btn btn-ghost" data-action="close-modal">Agora não</button>
+        <button type="submit" class="btn btn-pink">✨ Criar SQUAD</button></div>
+    </form>`);
+  $('squad-create-form').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const name = $('squad-new-name').value.trim().replace(/\s+/g, ' ');
+    const description = $('squad-new-description').value.trim();
+    const errorBox = $('squad-create-error');
+    errorBox.classList.add('hidden');
+    if (name.length < 3 || name.length > 65) {
+      errorBox.textContent = 'O nome deve ter de 3 a 65 caracteres.';
+      errorBox.classList.remove('hidden');
+      return;
+    }
+    const submit = event.submitter;
+    submit.disabled = true;
+    try {
+      const row = await assertOk(db.from('squads').insert({
+        creator_id: state.user.id,
+        origin_event_id: eventId,
+        name,
+        description,
+        is_discoverable: $('squad-new-discoverable').checked
+      }).select('id').single());
+      state.activeSquad = row.id;
+      await loadSquads();
+      closeModal();
+      navigate('squad');
+      toast('Seu SQUAD está pronto! Convide a galera por @nickname. 💜');
+    } catch (err) {
+      const permissionError = err?.code === '42501' || /row.level security|permission denied/i.test(String(err?.message || ''));
+      errorBox.textContent = permissionError
+        ? 'Não foi possível criar o SQUAD por uma permissão do banco. Aplique a migração 15 no Supabase e tente novamente.'
+        : friendlyError(err);
+      errorBox.classList.remove('hidden');
+    } finally { submit.disabled = false; }
+  });
 }
 
-async function createIndependentSquad() {
-  const name=prompt('Nome do SQUAD (3–65 caracteres). Você pode criar antes de participar de qualquer rolê:');
-  if (!name) return;
-  if (name.trim().length<3 || name.trim().length>65) return toast('Nome precisa ter de 3 a 65 caracteres.');
-  try {
-    const row=await assertOk(db.from('squads').insert({creator_id:state.user.id,name:name.trim(),origin_event_id:null}).select('id').single());
-    state.activeSquad=row.id;await loadSquads();navigate('squad');toast('SQUAD criado! Convide a galera por @nickname.');
-  } catch(err){toast(err.message);}
-}
+function createSquad(eventId) { openSquadCreateForm(eventId); }
+
+function createIndependentSquad() { openSquadCreateForm(); }
 
 async function editAlbumLink(squadId) {
   const squad=state.squads.find(item=>item.id===squadId);

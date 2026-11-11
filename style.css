@@ -235,3 +235,49 @@
   .create-form textarea,.create-form select{min-height:46px}
   .dialog-content .map-picker{width:100%;max-width:100%}
 }
+
+/* Criar SQUAD: formulário da comunidade, sem prompts nativos do navegador. */
+.squad-create-intro{display:flex;align-items:center;gap:15px;min-width:0;
+  padding:17px;border:1px solid var(--line);border-radius:19px;
+  background:linear-gradient(120deg,var(--surface2),var(--surface3));margin-bottom:19px}
+.squad-create-icon{display:grid;place-items:center;flex:none;width:57px;height:57px;
+  border-radius:17px;background:linear-gradient(135deg,#6e3da8,#f44487);font-size:29px;
+  box-shadow:0 9px 25px #b03c8840}
+.squad-create-intro>div{min-width:0}
+.squad-create-intro h3{font-size:19px;line-height:1.18;margin:5px 0 6px}
+.squad-create-intro p{font-size:12px;line-height:1.5;color:var(--muted);margin:0}
+.squad-create-origin{padding:12px 14px;background:var(--surface2);border-radius:12px;
+  font-size:12px;color:var(--muted);overflow-wrap:anywhere}
+.squad-create-origin strong{color:var(--text)}
+.squad-create-form{gap:16px}
+.squad-create-form .field{gap:8px}
+.squad-create-form .field>label{font-size:13px;color:var(--text)}
+.squad-create-form .field input,.squad-create-form .field textarea{
+  min-height:48px;padding:13px 14px;border-radius:13px;font-size:16px;
+  background:var(--surface2);border:1px solid var(--line);color:var(--text)}
+.squad-create-form .field textarea{min-height:100px;resize:vertical;line-height:1.55}
+.squad-create-form .field input::placeholder,.squad-create-form .field textarea::placeholder{color:var(--muted)}
+.optional-label{font-size:10px;color:var(--muted);font-weight:700;margin-left:5px}
+.squad-create-visibility{display:flex!important;align-items:flex-start;gap:12px;
+  padding:15px;border:1px solid var(--line);border-radius:15px;
+  background:var(--surface2);cursor:pointer}
+.squad-create-visibility input{width:21px;height:21px;flex:none;margin:1px 0;
+  accent-color:var(--pink)}
+.squad-create-visibility span{min-width:0}
+.squad-create-visibility strong{display:block;font-size:13px;margin-bottom:5px;color:var(--text)}
+.squad-create-visibility small{display:block;font-size:11px;line-height:1.6;color:var(--muted)}
+.squad-create-rules{border-left:3px solid var(--purple);padding:12px 14px;
+  border-radius:11px;background:var(--surface2)}
+.squad-create-rules strong{font-size:12px}
+.squad-create-rules p{font-size:12px;color:var(--muted);line-height:1.6;margin:6px 0 0}
+.squad-create-error{font-size:13px;font-weight:800;line-height:1.5;
+  color:#fff;background:#9b224c;border:1px solid #ff8bae;border-radius:12px;padding:13px}
+.squad-create-actions{display:flex;align-items:stretch;gap:10px}
+.squad-create-actions .btn{flex:1;min-width:0;min-height:46px;white-space:normal}
+@media(max-width:650px){
+  .squad-create-intro{padding:14px;gap:11px;margin-bottom:17px}
+  .squad-create-icon{width:48px;height:48px;font-size:25px}
+  .squad-create-intro h3{font-size:17px}
+  .squad-create-actions{flex-direction:column-reverse}
+  .squad-create-actions .btn{width:100%;flex:auto}
+}
