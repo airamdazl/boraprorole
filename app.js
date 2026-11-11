@@ -2066,7 +2066,8 @@ else {
 }
 
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
-  navigator.serviceWorker.register('./service-worker.js').catch(() => {});
+  // Atualização explícita do worker: evita manter uma instalação antiga do PWA.
+  navigator.serviceWorker.register('./service-worker.js?v=20261111-squad3', {updateViaCache:'none'}).catch(() => {});
 }
 
 async function inviteNickname(event, squadId) {

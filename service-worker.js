@@ -1,4 +1,4 @@
-const CACHE = 'bora-pro-role-launch-v12';
+const CACHE = 'bora-pro-role-launch-v13';
 const APP_SHELL = ['./', './index.html', './app.js', './style.css', './manifest.webmanifest',
   './icon-192.png', './icon-512.png', './logo-boraprorole.png',
   './termos.html', './privacidade.html', './comunidade.html'];
@@ -27,6 +27,6 @@ self.addEventListener('fetch', event => {
     event.respondWith(fetch(request).then(async response => {
       if (response.ok) (await caches.open(CACHE)).put(request, response.clone());
       return response;
-    }).catch(() => caches.match(request)));
+    }).catch(() => caches.match(request, {ignoreSearch: true})));
   }
 });
