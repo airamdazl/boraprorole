@@ -76,6 +76,21 @@ const state = {
   photoUrls: []
 };
 
+// Navegação por histórico: o botão/gesto Voltar do Android percorre telas e modais.
+// A primeira tela substitui a entrada atual para não prender o usuário no PWA.
+const BORA_HISTORY_KEY = '__boraScreen';
+function activeScreen() {
+  return document.querySelector('.screen.active')?.id.replace(/^screen-/, '') || 'explorar';
+}
+function updateAppHistory(screen, modal = false, replace = false) {
+  if (!state.opened) return;
+  const previous = history.state?.[BORA_HISTORY_KEY];
+  if (previous?.screen === screen && previous.modal === modal) return;
+  const next = { ...(history.state || {}), [BORA_HISTORY_KEY]: {screen, modal} };
+  if (replace || !previous) history.replaceState(next, '', location.href);
+  else history.pushState(next, '', location.href);
+}
+
 function toast(message) {
   const el = $('toast');
   el.textContent = message;
@@ -317,7 +332,9 @@ async function syncSession() {
     }
     if (!state.opened) {
       state.opened = true;
-      navigate('explorar');
+      // Ao reabrir o PWA, nenhuma janela antiga deve permanecer no histórico.
+      updateAppHistory('explorar', false, true);
+      navigate('explorar', true);
     }
   } catch (err) {
     if (!navigator.onLine || /network|fetch|timeout|failed to fetch/i.test(err?.message || '')) {
@@ -331,6 +348,7 @@ async function syncSession() {
 }
 
 function showModal(title, body) {
+  const alreadyOpen = !$('modal').classList.contains('hidden');
   state.lastFocus = document.activeElement;
   $('dialog-title').textContent = title;
   $('dialog-body').className = 'dialog-content';
@@ -342,28 +360,52 @@ function showModal(title, body) {
   $('modal').classList.remove('hidden');
   document.body.style.overflow = 'hidden';
   $('modal-close').focus();
+  if (!alreadyOpen && state.opened) {
+    const screen = activeScreen();
+    if (!history.state?.[BORA_HISTORY_KEY]) updateAppHistory(screen, false, true);
+    updateAppHistory(screen, true);
+  }
   icons();
 }
 
-function closeModal() {
+function closeModal(fromHistory = false) {
+  const wasOpen = !$('modal').classList.contains('hidden');
   if (state.pickerMap) { state.pickerMap.remove(); state.pickerMap = null; }
   $('modal').classList.add('hidden');
   $('dialog-body').innerHTML = '';
   document.body.style.overflow = '';
   state.lastFocus?.focus?.();
+  if (wasOpen && !fromHistory && history.state?.[BORA_HISTORY_KEY]?.modal) {
+    updateAppHistory(activeScreen(), false, true);
+  }
 }
 
-function navigate(page) {
+function navigate(page, fromHistory = false) {
   if (!state.user || !$('auth-gate').classList.contains('hidden')) return;
   if (page === 'criar') return openCreate();
+  const previousScreen = activeScreen();
   document.querySelectorAll('.screen').forEach((screen) => screen.classList.toggle('active', screen.id === `screen-${page}`));
   document.querySelectorAll('[data-nav]').forEach((button) => button.classList.toggle('active', button.dataset.nav === page));
   window.scrollTo({ top: 0, behavior: 'instant' });
   if (page === 'explorar') setTimeout(() => state.map?.invalidateSize(), 140);
   if (page === 'meus') renderMine();
   if (page === 'squad') renderSquads();
+  if (!fromHistory && (previousScreen !== page || !history.state?.[BORA_HISTORY_KEY])) {
+    updateAppHistory(page, false, !history.state?.[BORA_HISTORY_KEY]);
+  }
   icons();
 }
+
+window.addEventListener('popstate', (event) => {
+  if (!state.opened || !$('auth-gate').classList.contains('hidden')) return;
+  const destination = event.state?.[BORA_HISTORY_KEY];
+  if (!destination) return; // permite sair normalmente ao chegar ao histórico anterior ao app
+  if (!$('modal').classList.contains('hidden')) {
+    leaveRoom();
+    closeModal(true);
+  }
+  if (destination.screen !== activeScreen()) navigate(destination.screen, true);
+});
 
 function setView(view) {
   state.view = view;
@@ -1158,14 +1200,18 @@ function openSquadCreateForm(eventId = null) {
     const submit = event.submitter;
     submit.disabled = true;
     try {
-      const row = await assertOk(db.from('squads').insert({
+      // Não use insert().select(): a leitura via RLS depende da inclusão do dono
+      // pelo trigger AFTER INSERT, que ainda não existe no RETURNING do INSERT.
+      const squadId = crypto.randomUUID();
+      await assertOk(db.from('squads').insert({
+        id: squadId,
         creator_id: state.user.id,
         origin_event_id: eventId,
         name,
         description,
         is_discoverable: $('squad-new-discoverable').checked
-      }).select('id').single());
-      state.activeSquad = row.id;
+      }));
+      state.activeSquad = squadId;
       await loadSquads();
       closeModal();
       navigate('squad');
@@ -1173,7 +1219,7 @@ function openSquadCreateForm(eventId = null) {
     } catch (err) {
       const permissionError = err?.code === '42501' || /row.level security|permission denied/i.test(String(err?.message || ''));
       errorBox.textContent = permissionError
-        ? 'Não foi possível criar o SQUAD por uma permissão do banco. Aplique a migração 15 no Supabase e tente novamente.'
+        ? 'O banco recusou a criação (permissão 42501). Confira se seu cadastro está liberado e tente novamente.'
         : friendlyError(err);
       errorBox.classList.remove('hidden');
     } finally { submit.disabled = false; }
