@@ -22,6 +22,16 @@ const html = (value) => String(value ?? '').replace(/[&<>"']/g, (ch) => ({
 })[ch]);
 const legalUrl = (kind) => ({ terms: './termos.html', privacy: './privacidade.html', community: './comunidade.html' })[kind];
 const safeHttps = (value) => { try { const url = new URL(value); return url.protocol === 'https:' ? url.href : ''; } catch { return ''; } };
+function friendlyError(error) {
+  const message = String(error?.message || '');
+  if (error?.code === '23505' || /profiles_username_key|duplicate key value.*username/i.test(message)) {
+    return 'Este @nickname já está em uso. Escolha outro para continuar.';
+  }
+  if (/invalid login credentials|invalid credentials/i.test(message)) return 'E-mail ou senha incorretos. Confira e tente novamente.';
+  if (/email not confirmed/i.test(message)) return 'Confirme seu e-mail antes de entrar. Confira também a pasta de spam.';
+  if (/user already registered/i.test(message)) return 'Este e-mail já está cadastrado. Entre na sua conta ou recupere a senha.';
+  return message || 'Não foi possível concluir. Tente novamente.';
+}
 const icons = () => window.lucide?.createIcons({ attrs: { 'stroke-width': 2 } });
 const displayDate = (value) => new Intl.DateTimeFormat('pt-BR', {
   weekday: 'long', day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit',
@@ -238,8 +248,7 @@ async function authAction(kind, form) {
       await syncSession();
     }
   } catch (err) {
-    const invalid = kind === 'login' && /invalid login credentials|invalid credentials/i.test(err.message || '');
-    feedback(invalid ? '❌ E-mail ou senha incorretos. Confira os dados e tente novamente.' : (err.message || 'Não foi possível concluir. Tente novamente.'));
+    feedback(`❌ ${friendlyError(err)}`);
     if (kind === 'login') form?.querySelector('input[name="password"]')?.focus();
   }
 }
@@ -267,6 +276,7 @@ async function syncSession() {
     if (version !== state.sessionVersion) return;
     let status = Array.isArray(raw) ? raw[0] : raw;
     const signup = state.user.user_metadata?.bora_signup;
+    let onboardingIssue = '';
     if (signup && status && !status.can_use_app) {
       try {
         if (!status.adult_declared) await assertOk(db.rpc('declare_adulthood', {_birthdate:signup.birthdate}));
@@ -279,10 +289,17 @@ async function syncSession() {
         raw = await assertOk(db.rpc('my_onboarding_status'));
         status = Array.isArray(raw) ? raw[0] : raw;
         if (status?.can_use_app) await db.auth.updateUser({data:{bora_signup:null}});
-      } catch (err) { console.warn('Cadastro necessita confirmação dos dados:',err.message); }
+      } catch (err) { onboardingIssue = friendlyError(err); }
     }
     if (!status?.adult_declared) return showGate('birth');
-    if (!status.has_profile) return showGate('profile');
+    if (!status.has_profile) {
+      showGate('profile');
+      if (signup?.username) $('onboard-profile-form')?.querySelector('[name="username"]')?.setAttribute('value', signup.username);
+      if (signup?.display_name) $('onboard-profile-form')?.querySelector('[name="display_name"]')?.setAttribute('value', signup.display_name);
+      if (signup?.city) $('onboard-profile-form')?.querySelector('[name="city"]')?.setAttribute('value', signup.city);
+      if (onboardingIssue) feedback(onboardingIssue);
+      return;
+    }
     if (!status.legal_accepted) {
       const docs = await assertOk(db.from('legal_documents').select('kind,version,document_url').eq('is_active', true));
       if (docs.length !== 3) return showGate('waiting');
@@ -429,16 +446,50 @@ function renderEvents() {
   icons();
 }
 
+// O mapa acompanha a cidade declarada no perfil; nunca presume que todos moram em SP.
+const cityCoordinates = {
+  'rio de janeiro': [-22.9068,-43.1729,'RJ'], 'sao paulo': [-23.5505,-46.6333,'SP'],
+  'belo horizonte': [-19.9167,-43.9345,'MG'], 'vitoria': [-20.3155,-40.3128,'ES'],
+  'curitiba': [-25.4284,-49.2733,'PR'], 'florianopolis': [-27.5949,-48.5482,'SC'],
+  'porto alegre': [-30.0346,-51.2177,'RS'], 'brasilia': [-15.7939,-47.8828,'DF'],
+  'goiania': [-16.6869,-49.2648,'GO'], 'campo grande': [-20.4697,-54.6201,'MS'],
+  'cuiaba': [-15.6010,-56.0974,'MT'], 'salvador': [-12.9777,-38.5016,'BA'],
+  'recife': [-8.0476,-34.8770,'PE'], 'fortaleza': [-3.7319,-38.5267,'CE'],
+  'natal': [-5.7945,-35.2110,'RN'], 'joao pessoa': [-7.1195,-34.8450,'PB'],
+  'maceio': [-9.6658,-35.7353,'AL'], 'aracaju': [-10.9472,-37.0731,'SE'],
+  'teresina': [-5.0892,-42.8016,'PI'], 'sao luis': [-2.5297,-44.3028,'MA'],
+  'belem': [-1.4558,-48.4902,'PA'], 'manaus': [-3.1190,-60.0217,'AM'],
+  'porto velho': [-8.7608,-63.8999,'RO'], 'rio branco': [-9.9754,-67.8249,'AC'],
+  'boa vista': [2.8235,-60.6758,'RR'], 'macapa': [0.0349,-51.0694,'AP'],
+  'palmas': [-10.2491,-48.3243,'TO'], 'campinas': [-22.9099,-47.0626,'SP'],
+  'santos': [-23.9608,-46.3336,'SP'], 'guarulhos': [-23.4545,-46.5333,'SP'],
+  'osasco': [-23.5325,-46.7917,'SP'], 'niteroi': [-22.8832,-43.1034,'RJ']
+};
+const cityKey = (city) => String(city || '').normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+  .toLowerCase().replace(/\s*[-,/]\s*[a-z]{2}\s*$/,'').replace(/\s+/g,' ').trim();
+function focusHomeMap() {
+  const city = String(state.profile?.city || '').trim();
+  const key = cityKey(city);
+  const localEvents = state.events.filter(event => cityKey(event.city) === key && Number.isFinite(event.lat) && Number.isFinite(event.lng));
+  const center = cityCoordinates[key] || (localEvents.length ? [localEvents[0].lat,localEvents[0].lng] : null);
+  const hint = document.querySelector('#map-frame .map-hint');
+  if (hint?.firstChild) hint.firstChild.textContent = center && city ? `📍 Rolês por ${city}` : '📍 Rolês pelo Brasil';
+  if (!state.map) return;
+  if (center) state.map.setView([center[0],center[1]], 11);
+  else state.map.setView([-14.235,-51.925], 4);
+}
+
 function initMap() {
   if (!window.L) return;
-  if (state.map) { state.map.invalidateSize(); return; }
-  state.map = L.map('map', { zoomControl: false, scrollWheelZoom: false }).setView([-23.56, -46.625], 12);
+  if (state.map) { state.map.invalidateSize(); focusHomeMap(); return; }
+  state.map = L.map('map', { zoomControl: false, scrollWheelZoom: false }).setView([-14.235,-51.925], 4);
   L.control.zoom({ position: 'bottomleft' }).addTo(state.map);
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom: 19,
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a>'
   }).addTo(state.map);
   state.markers = L.layerGroup().addTo(state.map);
   renderPins(filteredEvents().filter(isPublished));
+  focusHomeMap();
 }
 
 function renderPins(events) {
@@ -490,6 +541,7 @@ async function loadEvents() {
   }
   await refreshCounts(state.events.map((event) => event.id));
   renderEvents();
+  focusHomeMap();
 }
 
 async function loadMyEvents() {
@@ -700,11 +752,15 @@ function openCreate() {
     <label class="check-label"><input id="new-verified" type="checkbox"> O local exige documento para entrada e só aceita maiores de 18 anos.</label>
     <p class="legal-note">Nunca publique endereços residenciais, dados de terceiros ou convites a práticas ilegais. O app pode recusar conteúdos e eventos inadequados.</p>
     <button type="submit" class="btn btn-pink" style="width:100%">Publicar evento agora</button></form>`);
+  const userCity = String(state.profile?.city || '').trim();
+  if (userCity) $('new-city').value = userCity;
+  if (cityCoordinates[cityKey(userCity)]) $('new-state').value = cityCoordinates[cityKey(userCity)][2];
   const start = $('new-start');
   start.min = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0,16);
   state.pickedCoords = null;
   if (window.L) {
-    state.pickerMap = L.map('map-picker', {scrollWheelZoom: false}).setView([-23.56, -46.625], 11);
+    const location = cityCoordinates[cityKey(userCity)] || [-14.235,-51.925];
+    state.pickerMap = L.map('map-picker', {scrollWheelZoom: false}).setView(location.slice(0,2), userCity && cityCoordinates[cityKey(userCity)] ? 11 : 4);
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom: 19,
       attribution: '&copy; OpenStreetMap contributors'}).addTo(state.pickerMap);
     let marker;
@@ -798,6 +854,7 @@ function hydrateProfile() {
   $('edit-city').value = profile.city || '';
   $('edit-bio').value = profile.bio || '';
   $('edit-insta').value = profile.instagram || '';
+  focusHomeMap();
   $('edit-birth').disabled = true;
   $('edit-birth').title = 'A data declarada só pode ser corrigida pelo suporte.';
   db.from('private_profile_data').select('date_of_birth').eq('user_id',state.user.id).maybeSingle()
@@ -820,24 +877,38 @@ function hydrateProfile() {
       if (data?.signedUrl && avatar) avatar.innerHTML = `<img src="${html(safeHttps(data.signedUrl))}" alt="Minha foto de perfil">`;
     });
   }
-  if (!$('profile-extra-live')) {
-    const extra = document.createElement('div');
-    extra.id = 'profile-extra-live';
-    extra.className = 'panel profile-live-extras';
-    extra.innerHTML = `<h3>🖼️ Minha foto de perfil</h3>
-      <form id="avatar-form" class="friend-finder"><input type="file" id="avatar-upload" accept="image/*" aria-label="Enviar foto de perfil"><button class="btn btn-ghost btn-small" type="submit">Salvar foto</button></form>
-      <p class="small-muted">Compactamos sua foto para WebP e limitamos o arquivo a 300 KiB. A visibilidade segue suas escolhas.</p>
-      <div class="switch-line"><div><strong>🎂 Avisar aniversário aos SQUADs</strong><small>Somente dia e mês, se você permitir.</small></div><input type="checkbox" id="birthday-consent"></div>
-      <h3>🔎 Seguir alguém pelo @nickname</h3><form id="friend-form" class="friend-finder"><input id="friend-nick" placeholder="@nickname" maxlength="24" aria-label="Nickname"><button class="btn btn-pink btn-small" type="submit">Seguir</button></form>
-      <p class="small-muted" id="friend-result">Seguir alguém não revela seus dados privados. Amizade é recíproca.</p>
-      <h3>🛡️ Meus dados e direitos</h3>
-      <p class="small-muted">Consulte e solicite acesso, correção, portabilidade ou exclusão dos seus dados pessoais.</p>
-      <button class="btn btn-ghost" data-action="privacy-requests">Solicitações LGPD</button>
-      <button class="btn btn-ghost hidden" id="moderation-entry" data-action="moderation">Painel de moderação</button>
-      <button class="btn btn-ghost" data-action="logout">Sair da conta</button>`;
-    document.querySelector('.profile-panel').append(extra);
+  if (!$('avatar-form')) {
+    const photo = document.createElement('div');
+    photo.className = 'profile-photo-edit';
+    photo.innerHTML = `<h3>🖼️ Minha foto</h3>
+      <form id="avatar-form" class="friend-finder"><input type="file" id="avatar-upload" accept="image/*" aria-label="Enviar foto de perfil"><button class="btn btn-ghost btn-small" type="submit">Atualizar foto</button></form>
+      <p class="small-muted">Foto WebP de até 300 KiB. A visibilidade segue suas escolhas de privacidade.</p>`;
+    document.querySelector('.profile-bio').after(photo);
     $('avatar-form').addEventListener('submit', saveAvatar);
+  }
+  if (!$('profile-account-options')) {
+    const options = document.createElement('div');
+    options.id = 'profile-account-options';
+    options.innerHTML = `<div class="switch-line"><label for="birthday-consent"><strong>🎂 Avisar meu aniversário aos SQUADs</strong>
+        <small>Somente dia e mês, se você autorizar.</small></label><input type="checkbox" id="birthday-consent"></div>
+      <button class="btn btn-ghost account-logout" data-action="logout"><i data-lucide="log-out"></i> Sair da minha conta</button>
+      <button class="btn btn-ghost hidden" id="moderation-entry" data-action="moderation">🛡️ Painel de moderação</button>`;
+    document.querySelector('#screen-perfil .profile-panel .two-col > .panel:last-child').append(options);
+  }
+  if (!$('friend-form')) {
+    const finder = document.createElement('section');
+    finder.className = 'panel friend-discovery';
+    finder.innerHTML = `<div class="friend-discovery-title"><div class="friend-discovery-icon">🔎</div><div>
+      <span class="eyebrow">Encontre sua galera</span><h2>Gente nova, SQUAD novo. ✌️</h2>
+      <p>Procure pessoas pelo @nickname ou SQUADs pelo nome. Perfis e grupos só aparecem conforme a privacidade escolhida.</p></div></div>
+      <form id="friend-form" class="friend-finder"><input id="friend-nick" placeholder="@nickname ou nome do SQUAD" maxlength="65" aria-label="Buscar pessoas ou SQUADs"><button class="btn btn-pink" type="submit">🔎 Buscar</button></form>
+      <div class="friend-results" id="friend-result" role="status" aria-live="polite">A pesquisa não revela fotos, conversas ou integrantes privados.</div>
+      <div class="blocked-profile-box"><h3>🔒 Controle de bloqueios</h3><p class="small-muted">Você pode bloquear qualquer @nickname, mesmo que o perfil não apareça nas pesquisas.</p>
+      <form id="nickname-block-form" class="friend-finder"><input id="block-nick" placeholder="@nickname a bloquear" maxlength="24" aria-label="Bloquear pelo nickname"><button class="btn btn-ghost" type="submit">Bloquear</button></form>
+      <button class="inline-button" data-action="manage-blocks">Ver e gerenciar meus bloqueios</button></div>`;
+    document.querySelector('#screen-perfil .profile-panel').after(finder);
     $('friend-form').addEventListener('submit', followNickname);
+    $('nickname-block-form').addEventListener('submit', blockNicknameFromForm);
   }
   $('birthday-consent').checked = Boolean(profile.share_birthday_to_squads);
   const birthConsent = $('birthday-consent');
@@ -868,7 +939,7 @@ async function saveProfile() {
     state.profile = profile;
     hydrateProfile();
     toast('Perfil atualizado.');
-  } catch (err) { toast(err.message); }
+  } catch (err) { toast(friendlyError(err)); }
 }
 
 async function saveAvatar(event) {
@@ -888,16 +959,78 @@ async function saveAvatar(event) {
 
 async function followNickname(event) {
   event.preventDefault();
-  const nickname = $('friend-nick').value.trim().replace(/^@/, '').toLowerCase();
-  if (!/^[a-z0-9_.]{3,24}$/.test(nickname)) return toast('Informe um @nickname válido.');
-  if (nickname === state.profile.username) return toast('Você não pode seguir a própria conta.');
+  const query = $('friend-nick').value.trim();
+  const nickname = query.replace(/^@/, '').toLowerCase();
+  if (query.length < 3) return toast('Digite pelo menos três caracteres para pesquisar.');
+  const target = $('friend-result');
+  target.innerHTML = '<p class="small-muted">Buscando pessoas e SQUADs…</p>';
   try {
-    const found = await assertOk(db.rpc('lookup_nickname', {_nickname: nickname}));
-    if (!found?.length) return $('friend-result').textContent = 'Perfil não encontrado ou não disponível para busca.';
-    await assertOk(db.from('follows').insert({follower_id: state.user.id, followed_id: found[0].user_id}));
-    $('friend-result').textContent = `Você está seguindo @${found[0].username}. Vocês serão amigos quando essa pessoa seguir de volta.`;
-    toast(`Agora você segue @${found[0].username}.`);
-  } catch (err) { toast(err.code === '23505' ? 'Você já segue esse usuário.' : err.message); }
+    const [people,groups] = await Promise.all([
+      /^[a-z0-9_.]{3,24}$/.test(nickname) && nickname!==state.profile.username
+        ? assertOk(db.rpc('bora_lookup_profile',{_nickname:nickname})) : Promise.resolve([]),
+      query.startsWith('@') ? Promise.resolve([]) : assertOk(db.rpc('bora_search_squads',{_query:query}))
+    ]);
+    if (!state.user) return;
+    const person = people?.[0];
+    let avatarUrl = '';
+    if (person?.avatar_path) {
+      const {data,error} = await db.storage.from('avatars').createSignedUrl(person.avatar_path,90);
+      if (!error) avatarUrl = safeHttps(data?.signedUrl);
+    }
+    const personCard = person ? `<article class="discovery-card person-result"><div class="discovery-avatar">${avatarUrl?`<img src="${html(avatarUrl)}" alt="Foto de @${html(person.username)}">`:'👤'}</div>
+      <div class="grow"><strong>${html(person.display_name)}</strong><p>@${html(person.username)} ${person.is_friend?'· 🤝 Amizade recíproca':''}</p>
+      ${person.bio?`<p>${html(person.bio)}</p>`:''}${person.city?`<p>📍 ${html(person.city)}</p>`:''}${person.instagram?`<p>Instagram: ${html(person.instagram)}</p>`:''}</div>
+      <div class="discovery-actions"><button class="btn btn-pink btn-small" data-action="follow-found-user" data-id="${html(person.user_id)}" data-nick="${html(person.username)}">Seguir</button>
+      <button class="btn btn-ghost btn-small" data-action="block-found-user" data-nick="${html(person.username)}">Bloquear</button></div></article>`:
+      '<p class="small-muted">Nenhuma pessoa encontrada com esse @nickname ou ela não permite buscas.</p>';
+    const squadCards = groups?.length ? groups.map(squad=>`<article class="discovery-card squad-result"><div class="discovery-avatar">🫶</div>
+      <div class="grow"><strong>${html(squad.name)}</strong><p>${html(squad.description || 'Uma galera com planos em comum.')}</p>
+      <span class="small-muted">${Number(squad.member_count)||0} integrante(s) · Entrada com autorização de admin</span></div>
+      <button class="btn btn-pink btn-small" data-action="request-squad-join" data-id="${html(squad.squad_id)}">Pedir entrada</button></article>`).join(''):
+      '<p class="small-muted">Nenhum SQUAD aberto a pedidos com esse nome.</p>';
+    target.innerHTML = `<section class="discovery-group"><h3>👥 Pessoas</h3>${personCard}</section>
+      <section class="discovery-group"><h3>🫶 SQUADs</h3>${squadCards}</section>`;
+  } catch (err) { target.textContent = `Não foi possível pesquisar: ${friendlyError(err)}`; }
+}
+
+async function followFoundUser(userId,nickname) {
+  if (!userId || userId===state.user?.id) return;
+  try {
+    await assertOk(db.from('follows').insert({follower_id:state.user.id,followed_id:userId}));
+    toast(`Agora você segue @${nickname}. A amizade é recíproca quando a pessoa também seguir você.`);
+  } catch(err) { toast(err.code==='23505'?'Você já segue esta pessoa.':friendlyError(err)); }
+}
+
+async function blockFoundNickname(nickname) {
+  if (!confirm(`Bloquear @${nickname}? Vocês deixarão de se seguir e de se encontrar nas buscas.`)) return;
+  try {
+    await assertOk(db.rpc('bora_block_nickname',{_nickname:nickname}));
+    $('friend-result').textContent = 'Bloqueio registrado. Você pode pesquisar outra pessoa ou SQUAD.';
+    toast('Bloqueio registrado.');
+  } catch(err) { toast(friendlyError(err)); }
+}
+
+async function blockNicknameFromForm(event) {
+  event.preventDefault();
+  const nick=$('block-nick').value.trim().replace(/^@/,'').toLowerCase();
+  if (!/^[a-z0-9_.]{3,24}$/.test(nick)) return toast('Informe um @nickname válido.');
+  await blockFoundNickname(nick);
+  $('nickname-block-form').reset();
+}
+
+async function manageBlockedNicknames() {
+  try {
+    const rows=await assertOk(db.rpc('bora_my_blocks'));
+    showModal('Quem você bloqueou 🔒',`${rows?.length?rows.map(item=>`<div class="list-row"><div class="grow"><strong>@${html(item.username)}</strong></div>
+      <button class="btn btn-ghost btn-small" data-action="unblock-found-user" data-nick="${html(item.username)}">Desbloquear</button></div>`).join(''):
+      '<p class="small-muted">Você ainda não bloqueou ninguém.</p>'}<button class="btn btn-ghost" data-action="close-modal">Voltar</button>`);
+  } catch(err) { toast(friendlyError(err)); }
+}
+
+async function unblockFoundNickname(nickname) {
+  if (!confirm(`Desbloquear @${nickname}?`)) return;
+  try { await assertOk(db.rpc('bora_unblock_nickname',{_nickname:nickname})); toast('Perfil desbloqueado.'); await manageBlockedNicknames(); }
+  catch(err) { toast(friendlyError(err)); }
 }
 
 async function loadSquads() {
@@ -908,7 +1041,7 @@ async function loadSquads() {
   state.squadRoles = new Map((members || []).map((item) => [item.squad_id,item.role]));
   state.squadInvites = invites || [];
   const ids = (members || []).map((item) => item.squad_id);
-  state.squads = ids.length ? await assertOk(db.from('squads').select('id,name,description,origin_event_id,cover_path,created_at,status,album_url').in('id', ids).limit(60)) : [];
+  state.squads = ids.length ? await assertOk(db.from('squads').select('id,name,description,origin_event_id,cover_path,created_at,status,album_url,is_discoverable').in('id', ids).limit(60)) : [];
   if (!state.activeSquad && state.squads.length) state.activeSquad = state.squads[0].id;
   renderSquads();
 }
@@ -926,7 +1059,8 @@ function renderSquads() {
     ${state.squads.length ? state.squads.map((squad) => `<div class="list-row"><div class="icon-disc">🫶</div><div class="grow"><strong>${html(squad.name)}</strong><p>${html(squad.description || 'Comunidade de amigos')}</p></div>
       <button class="btn btn-pink btn-small" data-action="open-squad" data-id="${html(squad.id)}">Abrir</button></div>`).join('') : '<p class="small-muted">Ainda não participa de SQUAD. Você já pode criar um, sem precisar ir a um rolê antes.</p>'}</div>
     <div class="panel"><h3>O que é um SQUAD?</h3><p class="small-muted">Uma galera organizada com chat, enquetes, álbum privado, mural, convites por @nickname e até 3 administradores.</p>
-      <div class="list-row"><div class="icon-disc">🔐</div><div class="grow"><strong>Só entra quem aceitar</strong><p>Convites individuais, sem inclusão automática.</p></div></div>
+      <div class="list-row"><div class="icon-disc">🔐</div><div class="grow"><strong>Entrada protegida</strong><p>Convites individuais precisam ser aceitos. Quem encontra o SQUAD pela busca solicita entrada e espera aprovação de um admin.</p></div></div>
+      <div class="list-row"><div class="icon-disc">🛡️</div><div class="grow"><strong>Decisão em conjunto</strong><p>Excluir alguém do grupo exige concordância de 2 administradores, mesmo quando há 3.</p></div></div>
       <div class="list-row"><div class="icon-disc">🎂</div><div class="grow"><strong>Aniversários opcionais</strong><p>Quem permite, compartilha apenas dia e mês.</p></div></div></div>`;
   const extras = $('squad-live-extras');
   if (!extras) {
@@ -936,11 +1070,19 @@ function renderSquads() {
     list.insertAdjacentElement('afterend', section);
   }
   const current = state.squads.find((row) => row.id === state.activeSquad);
+  const currentRole = current ? state.squadRoles.get(current.id) : null;
+  const manager = ['owner','moderator'].includes(currentRole);
   $('squad-live-extras').innerHTML = current ? `<div class="squad-extras-head"><div><span class="eyebrow">Comunidade selecionada</span><h3>${html(current.name)}</h3></div>
       <div class="squad-actions"><button class="btn btn-pink btn-small" data-action="open-squad" data-id="${html(current.id)}">Abrir conversa</button>
-      ${['owner','moderator'].includes(state.squadRoles.get(current.id)) ? `<button class="btn btn-ghost btn-small" data-action="rename-squad" data-id="${html(current.id)}">Renomear</button>` : ''}
-      ${['owner','moderator'].includes(state.squadRoles.get(current.id)) ? `<button class="btn btn-ghost btn-small" data-action="edit-album-link" data-id="${html(current.id)}">Link de álbum externo</button>` : ''}
+      ${manager ? `<button class="btn btn-ghost btn-small" data-action="rename-squad" data-id="${html(current.id)}">Renomear</button>` : ''}
+      ${manager ? `<button class="btn btn-ghost btn-small" data-action="edit-album-link" data-id="${html(current.id)}">Link de álbum externo</button>` : ''}
       ${state.squadRoles.get(current.id) !== 'owner' ? `<button class="btn btn-ghost btn-small" data-action="leave-squad" data-id="${html(current.id)}">Sair do SQUAD</button>` : ''}</div></div>
+      <div class="squad-guard-panel"><strong>🔐 Descoberta e acesso ao SQUAD</strong><p class="small-muted">As conversas, fotos e a lista de integrantes nunca ficam públicas na pesquisa. Encontrar o grupo só permite solicitar entrada.</p>
+        ${currentRole==='owner' ? `<label class="squad-discovery-switch"><input type="checkbox" id="squad-discoverable" ${current.is_discoverable?'checked':''}> Permitir que encontrem este SQUAD na busca pelo nome</label>` :
+        `<span class="small-muted">${current.is_discoverable?'Aparece nas buscas · acesso somente após aprovação.':'SQUAD privado, não aparece nas buscas.'}</span>`}
+        ${manager ? `<div class="squad-actions"><button class="btn btn-pink btn-small" data-action="squad-join-requests" data-id="${html(current.id)}">💌 Pedidos de entrada</button>
+          <button class="btn btn-ghost btn-small" data-action="squad-removals" data-id="${html(current.id)}">🛡️ Votos de remoção</button>
+          <button class="btn btn-ghost btn-small" data-action="squad-roster" data-id="${html(current.id)}">👥 Integrantes e admins</button></div>`:''}</div>
       <div class="legal-note">🔐 <strong>Álbum do app:</strong> privado aos integrantes. ${current.album_url ? `<a href="${html(safeHttps(current.album_url))}" target="_blank" rel="noopener noreferrer">Abrir álbum externo (permissões do provedor) ↗</a>` : 'O link externo é opcional e só deve ser usado com acesso restrito no serviço de nuvem.'}</div>
       <div class="two-col"><div><h3>Convidar pelo @nickname</h3><p class="small-muted">Somente dono ou moderador do SQUAD pode enviar convites.</p>
       <form id="squad-invite-form" class="friend-finder"><input id="squad-nick" placeholder="@amigo" aria-label="Nickname do convidado" maxlength="24"><button class="btn btn-ghost btn-small">Convidar</button></form>
@@ -952,6 +1094,14 @@ function renderSquads() {
     $('squad-month').value = new Date().toISOString().slice(0, 7);
     $('squad-month').addEventListener('change', () => renderSquadCalendar(current.id));
     $('squad-invite-form').addEventListener('submit', (event) => inviteNickname(event, current.id));
+    if ($('squad-discoverable')) $('squad-discoverable').addEventListener('change', async (event)=>{
+      const checkbox=event.target;
+      try {
+        await assertOk(db.rpc('bora_set_squad_discovery',{_squad:current.id,_enabled:checkbox.checked}));
+        current.is_discoverable=checkbox.checked;
+        toast(checkbox.checked?'Seu SQUAD agora pode ser encontrado pelo nome. Entradas continuam sob aprovação.':'SQUAD removido das buscas públicas.');
+      } catch(err) { checkbox.checked=!checkbox.checked; toast(friendlyError(err)); }
+    });
     renderSquadCalendar(current.id);
   }
   icons();
@@ -1011,6 +1161,77 @@ async function leaveSquad(id) {
     await loadSquads();
     toast('Você saiu do SQUAD.');
   } catch(err) { toast(err.message); }
+}
+
+async function requestSquadJoin(squadId) {
+  if (!confirm('Solicitar entrada neste SQUAD? Você só terá acesso após a aprovação de um administrador.')) return;
+  try {
+    const status=await assertOk(db.rpc('bora_request_join_squad',{_squad:squadId}));
+    const message=status==='already_member'?'Você já participa deste SQUAD.':
+      status==='already_requested'?'Seu pedido já está aguardando um administrador.':
+      'Pedido enviado! Você receberá uma notificação quando um admin decidir. Até lá, o grupo permanece privado.';
+    toast(message);
+  } catch(err){toast(friendlyError(err));}
+}
+
+async function openSquadJoinRequests(squadId) {
+  try {
+    const requests=await assertOk(db.rpc('bora_pending_squad_joins',{_squad:squadId}));
+    showModal('Pedidos para entrar 💌',`<p class="small-muted">Qualquer administrador pode aprovar ou recusar a entrada. O solicitante não tem acesso ao grupo antes da aprovação.</p>
+      ${requests?.length?requests.map(request=>`<article class="squad-request-card"><div class="grow"><strong>${html(request.display_name)}</strong><p>@${html(request.username)}</p><small>Solicitado em ${html(shortDate(request.created_at))}</small></div>
+      <div class="squad-actions"><button class="btn btn-pink btn-small" data-action="review-squad-join" data-id="${html(request.request_id)}" data-squad="${html(squadId)}" data-approve="true">Aprovar entrada</button>
+      <button class="btn btn-ghost btn-small" data-action="review-squad-join" data-id="${html(request.request_id)}" data-squad="${html(squadId)}" data-approve="false">Recusar</button></div></article>`).join(''):
+      '<p class="small-muted">Nenhum pedido aguardando análise.</p>'}
+      <button class="btn btn-ghost" data-action="close-modal">Voltar</button>`);
+  }catch(err){toast(friendlyError(err));}
+}
+
+async function reviewSquadJoin(requestId,squadId,approve) {
+  if(!confirm(approve?'Aprovar esta pessoa no SQUAD? Ela poderá acessar chat, mural e álbum privado.':'Recusar este pedido de entrada?'))return;
+  try {
+    await assertOk(db.rpc('bora_review_squad_join',{_request:requestId,_approve:approve}));
+    toast(approve?'Entrada aprovada!':'Pedido recusado.');
+    await openSquadJoinRequests(squadId);
+  }catch(err){toast(friendlyError(err));}
+}
+
+async function openSquadRemovals(squadId) {
+  try {
+    const removals=await assertOk(db.rpc('bora_pending_squad_removals',{_squad:squadId}));
+    showModal('Decisões dos administradores 🛡️',`<p class="legal-note">A exclusão de um integrante só é efetivada com dois votos de administradores ativos. Com apenas um admin, ninguém pode expulsar usuários.</p>
+      ${removals?.length?removals.map(item=>`<article class="squad-request-card"><div class="grow"><strong>@${html(item.username)}</strong><p>${Number(item.votes)||0} de 2 aprovações necessárias · ${item.voted_by_me?'Você já aprovou esta remoção.':'Aguardando seu voto.'}</p></div>
+      ${item.voted_by_me?'🕒':`<button class="btn btn-ghost btn-small" data-action="vote-squad-removal" data-id="${html(item.target_id)}" data-squad="${html(squadId)}">Concordar com a remoção</button>`}</article>`).join(''):
+      '<p class="small-muted">Nenhuma proposta de remoção pendente.</p>'}
+      <button class="btn btn-ghost" data-action="squad-roster" data-id="${html(squadId)}">Ver integrantes</button>`);
+  }catch(err){toast(friendlyError(err));}
+}
+
+async function voteSquadRemoval(squadId,targetId) {
+  if(!confirm('Confirmar seu voto para remover este integrante? A ação só será executada se um segundo administrador também concordar.'))return;
+  try {
+    const result=await assertOk(db.rpc('bora_vote_squad_removal',{_squad:squadId,_target:targetId}));
+    toast(result==='removed'?'Dois administradores aprovaram. Integrante removido.':'Seu voto foi registrado. Aguardando aprovação de outro administrador.');
+    await openSquadRemovals(squadId);
+  }catch(err){toast(friendlyError(err));}
+}
+
+async function showSquadRoster(squadId) {
+  try {
+    const roster=await assertOk(db.rpc('bora_squad_roster',{_squad:squadId}));
+    const owner=state.squadRoles.get(squadId)==='owner';
+    const manager=['owner','moderator'].includes(state.squadRoles.get(squadId));
+    const admins=(roster||[]).filter(item=>['owner','moderator'].includes(item.role)).length;
+    showModal('Integrantes e administradores 🛡️',`<p class="small-muted">O SQUAD pode ter 2 ou 3 administradores. ${admins<2?'⚠️ Promova pelo menos um integrante a admin antes de propor remoções.':'Para remover um integrante, 2 administradores devem aprovar.'}</p>
+      ${(roster||[]).map(profile=>`<div class="list-row"><div class="icon-disc">${profile.role==='owner'?'⭐':profile.role==='moderator'?'🛡️':'👤'}</div>
+        <div class="grow"><strong>${html(profile.display_name)} · @${html(profile.username)}</strong><p>${html(profile.role==='owner'?'Criador':profile.role==='moderator'?'Administrador':'Integrante')}</p></div>
+        <div class="squad-actions">${owner&&profile.role!=='owner'?`<button class="btn btn-ghost btn-small" data-action="set-squad-admin" data-id="${html(profile.user_id)}" data-squad="${html(squadId)}" data-promote="${profile.role==='moderator'?'false':'true'}">${profile.role==='moderator'?'Retirar cargo':'Promover admin'}</button>`:''}
+        ${manager&&profile.role==='member'?`<button class="btn btn-ghost btn-small" data-action="vote-squad-removal" data-id="${html(profile.user_id)}" data-squad="${html(squadId)}">Propor remoção</button>`:''}
+        ${profile.user_id!==state.user.id?`<button class="btn btn-ghost btn-small" data-action="block-found-user" data-nick="${html(profile.username)}">Bloquear</button>`:''}</div>
+      </div>`).join('')||'<p class="small-muted">Nenhum integrante encontrado.</p>'}
+      ${manager?`<button class="btn btn-pink btn-small" data-action="squad-removals" data-id="${html(squadId)}">Ver votos pendentes</button>`:''}
+      <button class="btn btn-ghost" data-action="close-modal">Fechar</button>`);
+    leaveRoom();
+  }catch(err){toast(friendlyError(err));}
 }
 
 function leaveRoom() {
@@ -1284,17 +1505,7 @@ async function openRoomMembers() {
   const room = state.activeRoom;
   if (!room) return;
   if (room.type==='squad') {
-    try {
-      const roster=await assertOk(db.rpc('bora_squad_roster',{_squad:room.id}));
-      const owner=state.squadRoles.get(room.id)==='owner';
-      showModal('Integrantes e administradores 🛡️',`<p class="small-muted">O SQUAD pode ter até três administradores: o criador e até dois integrantes promovidos. Só integrantes podem consultar esta lista.</p>
-        ${(roster || []).map(profile=>`<div class="list-row"><div class="icon-disc">${profile.role==='owner'?'⭐':profile.role==='moderator'?'🛡️':'👤'}</div>
-          <div class="grow"><strong>${html(profile.display_name)} · @${html(profile.username)}</strong><p>${html(profile.role==='owner'?'Criador do SQUAD':profile.role==='moderator'?'Admin do SQUAD':'Integrante')}</p></div>
-          ${owner && profile.role!=='owner'?`<button class="btn btn-ghost btn-small" data-action="set-squad-admin" data-id="${html(profile.user_id)}" data-squad="${html(room.id)}" data-promote="${profile.role==='moderator'?'false':'true'}">${profile.role==='moderator'?'Remover admin':'Promover'}</button>`:''}
-        </div>`).join('') || '<p>Nenhum integrante disponível.</p>'}
-        <button class="btn btn-ghost" data-action="close-modal">Fechar</button>`);
-      leaveRoom();return;
-    } catch(err){return toast(`Falha ao consultar participantes: ${err.message}`);}
+    return showSquadRoster(room.id);
   }
   const table = room.type === 'event' ? 'event_members' : 'squad_members';
   const key = room.type === 'event' ? 'event_id' : 'squad_id';
@@ -1382,8 +1593,9 @@ async function openAccount() {
     <form id="account-password-form"><div class="field"><label>Nova senha<input name="password" type="password" minlength="8" autocomplete="new-password" required></label></div>
     <button class="btn btn-pink" type="submit">Alterar minha senha</button></form>
     <p class="legal-note">Nunca compartilhe seu código de recuperação, senha ou links de acesso.</p>
-    <button class="btn btn-ghost" data-action="delete-account-request">🗑️ Solicitar exclusão definitiva da conta</button>
-    <p class="small-muted">A solicitação será analisada e executada com confirmação de identidade. Não remove automaticamente os dados.</p>`);
+    <div class="danger-zone"><h3>🗑️ Excluir minha conta</h3>
+      <p>Você pode apagar sua conta imediatamente, após confirmar sua senha. Se houver denúncia ou investigação pendente envolvendo sua conta ou conteúdo, o pedido será registrado para análise humana.</p>
+      <button class="btn btn-ghost" data-action="delete-account-start">Excluir minha conta definitivamente</button></div>`);
   $('account-password-form').addEventListener('submit', async (event) => {
     event.preventDefault();
     try {
@@ -1391,6 +1603,52 @@ async function openAccount() {
       await assertOk(db.auth.updateUser({password:data.password}));
       closeModal(); toast('Senha atualizada.');
     } catch (err) { toast(err.message); }
+  });
+}
+
+function openDeleteAccount() {
+  showModal('Excluir conta definitivamente', `<div class="danger-zone"><h3>Esta ação não pode ser desfeita</h3>
+    <p>Seu acesso e dados pessoais serão excluídos. Seus SQUADs com outros participantes continuarão com um novo administrador. Registros de moderação necessários à proteção de direitos poderão ser preservados.</p>
+    <p><strong>Se uma denúncia estiver em investigação, sua solicitação será encaminhada à moderação em vez da exclusão imediata.</strong></p></div>
+    <form id="confirm-account-deletion" class="privacy-form">
+      <label>Digite EXCLUIR para confirmar<input name="confirmation" placeholder="EXCLUIR" autocomplete="off" spellcheck="false" required></label>
+      <label>Sua senha atual<input name="password" type="password" autocomplete="current-password" required></label>
+      <p id="delete-account-feedback" class="small-muted" role="status" aria-live="polite"></p>
+      <button class="btn btn-pink" type="submit">Confirmar exclusão definitiva</button>
+      <button class="btn btn-ghost" type="button" data-action="account">Voltar sem excluir</button></form>`);
+  $('confirm-account-deletion').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const values = Object.fromEntries(new FormData(form));
+    const message = $('delete-account-feedback');
+    if (values.confirmation !== 'EXCLUIR') {
+      message.textContent = 'Digite EXCLUIR em letras maiúsculas para continuar.';
+      return;
+    }
+    const submit = form.querySelector('button[type="submit"]');
+    submit.disabled = true;
+    message.textContent = 'Confirmando sua identidade e verificando a conta…';
+    try {
+      // Confirmação recente da senha antes de uma operação irreversível.
+      await assertOk(db.auth.signInWithPassword({email:state.user.email,password:values.password}));
+      const { data, error } = await db.functions.invoke('delete-account', {body:{confirmed:true}});
+      if (error) throw error;
+      if (data?.outcome === 'review_required') {
+        toast('Existe uma pendência de segurança. Seu pedido foi encaminhado à moderação.');
+        return await openPrivacyRequests();
+      }
+      if (data?.outcome !== 'deleted') throw Error('A exclusão não foi confirmada. Contate a moderação antes de repetir a solicitação.');
+      try { await db.auth.signOut({scope:'local'}); } catch { /* Conta já removida do Auth. */ }
+      state.sessionVersion++;
+      state.user = null; state.profile = null; state.opened = false; state.isModerator = false;
+      leaveRoom(); closeModal(); showGate('login');
+      feedback('Sua conta foi excluída. Obrigado por ter feito parte da nossa galera. 💜', false);
+    } catch (err) {
+      message.textContent = /invalid login credentials/i.test(err.message || '')
+        ? 'Senha atual incorreta. Tente novamente.'
+        : 'Não foi possível confirmar a exclusão agora. Sua conta pode estar em processamento. Entre em contato com moderacao.boraprorole@gmail.com se o problema continuar.';
+      submit.disabled = false;
+    }
   });
 }
 
@@ -1425,9 +1683,9 @@ async function openPrivacyRequests() {
       .eq('requester_id',state.user.id).order('created_at',{ascending:false}).limit(20));
     const labels = {access:'Acesso aos dados',correction:'Correção de dados',portability:'Portabilidade',
       deletion:'Exclusão da conta/dados',opposition:'Oposição ao tratamento',other:'Outra solicitação'};
-    showModal('Seus dados e direitos — LGPD', `<p class="small-muted">Este canal registra seu pedido para análise humana. Não exclui a conta automaticamente. Solicitações não são públicas; algumas informações podem exigir retenção legal. O atendimento será registrado aqui.</p>
+    showModal('Seus dados e direitos — LGPD', `<p class="small-muted">Este canal registra solicitações de dados para análise humana. Para excluir sua conta, use <strong>Meu perfil → Senha e exclusão da conta</strong>. Solicitações não são públicas e algumas informações podem exigir retenção legal.</p>
       <form id="privacy-request-form" class="privacy-form"><label>O que deseja solicitar?
-        <select name="kind" required>${Object.entries(labels).map(([key,label]) => `<option value="${key}">${label}</option>`).join('')}</select></label>
+        <select name="kind" required>${Object.entries(labels).filter(([key])=>key!=='deletion').map(([key,label]) => `<option value="${key}">${label}</option>`).join('')}</select></label>
         <label>Detalhes do pedido (opcional)<textarea name="details" maxlength="2000" rows="3" placeholder="Explique o que você deseja. Não inclua documentos ou informações sensíveis de terceiros."></textarea></label>
         <button class="btn btn-pink" type="submit">Registrar solicitação</button></form>
       <h3 style="margin-top:20px">Histórico de pedidos</h3><div class="mod-list">
@@ -1542,8 +1800,13 @@ async function handleAction(action, element) {
       case 'cancel-event': return await cancelEvent(id);
       case 'safety': closeAndLeaveRoom(); return navigate('seguranca');
       case 'save-profile': return await saveProfile();
+      case 'follow-found-user': return await followFoundUser(id,element.dataset.nick);
+      case 'block-found-user': return await blockFoundNickname(element.dataset.nick);
+      case 'manage-blocks': return await manageBlockedNicknames();
+      case 'unblock-found-user': return await unblockFoundNickname(element.dataset.nick);
       case 'notifications': return await openNotifications();
       case 'account': return await openAccount();
+      case 'delete-account-start': return openDeleteAccount();
       case 'audience-preferences': return await openAudiencePreferences();
       case 'revoke-audience': {
         if(!confirm('Apagar suas identificações opcionais? Você deixará de confirmar presença em rolês de público direcionado.'))return;
@@ -1551,11 +1814,6 @@ async function handleAction(action, element) {
         closeModal();return toast('Identificações privadas apagadas.');
       }
       case 'privacy-requests': return await openPrivacyRequests();
-      case 'delete-account-request': {
-        if (!confirm('Deseja registrar uma solicitação de exclusão da conta? O processo não é imediato e dependerá de confirmação pela equipe.'))return;
-        await assertOk(db.from('privacy_requests').insert({kind:'deletion',details:'Solicito exclusão definitiva da minha conta e dados, ressalvadas obrigações legais de retenção.'}));
-        toast('Pedido de exclusão registrado para atendimento.');return await openPrivacyRequests();
-      }
       case 'moderation': return await openModeration();
       case 'mod-event': case 'mod-report': case 'mod-remove': case 'mod-suspend': case 'mod-privacy': case 'mod-cancel':
         return await performModeration(action, element);
@@ -1565,11 +1823,17 @@ async function handleAction(action, element) {
       case 'create-independent-squad': return await createIndependentSquad();
       case 'rename-squad': return await renameSquad(id);
       case 'edit-album-link': return await editAlbumLink(id);
+      case 'request-squad-join': return await requestSquadJoin(id);
+      case 'squad-join-requests': return await openSquadJoinRequests(id);
+      case 'review-squad-join': return await reviewSquadJoin(id,element.dataset.squad,element.dataset.approve==='true');
+      case 'squad-roster': return await showSquadRoster(id);
+      case 'squad-removals': return await openSquadRemovals(id);
+      case 'vote-squad-removal': return await voteSquadRemoval(element.dataset.squad,id);
       case 'set-squad-admin': {
         if(!confirm(element.dataset.promote==='true'?'Promover este integrante a administrador do SQUAD?':'Remover o cargo de administrador?'))return;
         await assertOk(db.rpc('bora_set_squad_admin',{_squad:element.dataset.squad,_member:id,_promote:element.dataset.promote==='true'}));
         toast('Permissão do integrante atualizada.');
-        await openRoom('squad',element.dataset.squad);return await openRoomMembers();
+        await loadSquads();return await showSquadRoster(element.dataset.squad);
       }
       case 'leave-squad': return await leaveSquad(id);
       case 'accept-invite': return await respondInvite(id, true);

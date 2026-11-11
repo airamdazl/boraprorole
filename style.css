@@ -110,3 +110,46 @@
 .bubble.system{align-self:center;background:#f6a93b1c;color:var(--text);border:1px solid #e6a04f;font-weight:800;width:100%;max-width:100%;text-align:center;border-radius:13px}
 @media(max-width:760px){.view-switch{flex-wrap:wrap}.view-switch button{font-size:11px}.bora-cal-grid{gap:2px}.cal-date{padding:4px;border-radius:8px;min-height:70px}.cal-date>strong{font-size:12px}.cal-week{font-size:9px}.cal-event{font-size:9px;padding:4px}.dialog-actions .btn{width:100%;flex:auto;min-width:0}}
 @media(max-width:420px){.view-switch button{padding:7px 8px}.photo-grid{grid-template-columns:1fr}.cal-date{min-height:64px}.cal-event{font-size:0}.cal-event::first-letter{font-size:16px}.cal-week{font-size:8px}}
+
+/* Perfil v1.3: configurações de conta juntas, amizades em uma área própria. */
+.profile-photo-edit{margin:0 0 20px;padding:15px 18px;border:1px solid var(--line);background:var(--surface2);border-radius:17px}
+.profile-photo-edit h3{font-size:15px;margin-bottom:11px}.profile-photo-edit .small-muted{margin:8px 0 0}
+.profile-photo-edit .friend-finder{align-items:center}.profile-photo-edit input[type=file]{background:var(--surface);padding:11px;min-width:0;max-width:100%;color:var(--text);border:1px solid var(--line);border-radius:12px}
+#profile-account-options{display:grid;gap:11px;margin-top:18px;padding-top:9px;border-top:1px solid var(--line)}
+#profile-account-options .switch-line{align-items:center;padding:9px 0 15px}
+#profile-account-options .switch-line label{flex:1;cursor:pointer}
+#profile-account-options .btn{white-space:normal;width:100%;text-align:center}
+#profile-account-options .account-logout{background:transparent;border:1px solid var(--line)}
+.friend-discovery{margin-top:22px;padding:25px;background:linear-gradient(115deg,color-mix(in srgb,var(--surface) 87%,#9e56ce),var(--surface));border:1px solid color-mix(in srgb,var(--purple) 45%,var(--line))}
+.friend-discovery-title{display:flex;align-items:center;gap:15px;margin-bottom:19px}
+.friend-discovery-icon{width:58px;height:58px;flex:none;display:grid;place-items:center;font-size:26px;background:linear-gradient(130deg,#6733a5,#dd3a85);border-radius:19px;box-shadow:0 7px 22px #c147882b}
+.friend-discovery h2{margin:5px 0;font-size:clamp(21px,3vw,28px);letter-spacing:-.8px}
+.friend-discovery-title p{font-size:13px;line-height:1.5;color:var(--muted);margin:0}
+.friend-discovery .friend-finder{flex-wrap:nowrap;margin:0 0 9px}.friend-discovery .friend-finder input{background:var(--surface);min-height:50px;font-size:15px}
+.friend-discovery .friend-finder .btn{min-height:50px}.friend-discovery #friend-result{margin:9px 0 0}
+@media(max-width:650px){.profile-photo-edit{padding:13px}.profile-photo-edit .friend-finder{flex-direction:column;align-items:stretch}.profile-photo-edit .friend-finder button{width:100%}.friend-discovery{padding:19px 15px}.friend-discovery-title{gap:11px}.friend-discovery-icon{width:47px;height:47px;font-size:22px}.friend-discovery .friend-finder{flex-direction:column}.friend-discovery .friend-finder .btn{width:100%}}
+.danger-zone{border:1px solid #e46e83;background:color-mix(in srgb,var(--surface2) 80%,#a63857);border-radius:16px;padding:16px;margin-top:18px}
+.danger-zone h3{margin:0 0 8px;font-size:17px}.danger-zone p{font-size:12px;line-height:1.65;margin:8px 0 14px;color:var(--text)}
+.danger-zone .btn{white-space:normal}
+.privacy-form input{background:var(--surface2);color:var(--text);border:1px solid var(--line);border-radius:12px;padding:13px;width:100%;min-width:0;font:inherit}
+/* Busca com cartões de perfil e SQUAD, com privacidade preservada. */
+.friend-results{display:grid;gap:16px;margin:18px 0!important}
+.discovery-group{display:grid;gap:10px;min-width:0}
+.discovery-group h3{font:900 16px Outfit,sans-serif;margin:8px 0 0}
+.discovery-card{display:flex;align-items:center;flex-wrap:wrap;gap:13px;padding:16px;background:var(--surface);border:1px solid var(--line);border-radius:18px;min-width:0;box-shadow:0 7px 18px #17102708}
+.discovery-card .grow{min-width:130px;flex:1 1 210px;overflow-wrap:anywhere}
+.discovery-card strong{font:900 16px Outfit,sans-serif}
+.discovery-card p{margin:4px 0;font-size:12px;color:var(--muted);line-height:1.5}
+.discovery-avatar{display:grid;place-items:center;width:52px;height:52px;flex:none;border-radius:16px;font-size:26px;background:linear-gradient(145deg,#6e399b,#e9438d);color:#fff;overflow:hidden}
+.discovery-avatar img{width:100%;height:100%;object-fit:cover}
+.discovery-actions{display:flex;gap:7px;flex-wrap:wrap}.discovery-actions .btn{flex:1}
+.blocked-profile-box{border-top:1px solid var(--line);padding-top:18px;margin-top:12px;display:grid;gap:10px}
+.blocked-profile-box h3{margin:0;font-size:15px}.blocked-profile-box p{margin:0}.blocked-profile-box .inline-button{justify-self:start}
+.squad-guard-panel{margin:14px 0 18px;padding:17px;border:1px solid color-mix(in srgb,var(--purple) 48%,var(--line));background:var(--surface2);border-radius:16px;display:grid;gap:11px}
+.squad-guard-panel>strong{font:900 16px Outfit,sans-serif}.squad-guard-panel p{margin:0;line-height:1.5}
+.squad-discovery-switch{display:flex;align-items:center;gap:12px;cursor:pointer;font-size:13px;font-weight:800;line-height:1.5}
+.squad-discovery-switch input{accent-color:#ed357d;width:21px;height:21px;flex:none}
+.squad-guard-panel .squad-actions{flex-wrap:wrap;gap:9px}
+.squad-request-card{padding:14px;background:var(--surface2);border:1px solid var(--line);border-radius:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:10px 0}
+.squad-request-card .grow{flex:1 1 170px;min-width:120px}.squad-request-card strong{overflow-wrap:anywhere}.squad-request-card p{font-size:12px;color:var(--muted);margin:5px 0}
+@media(max-width:620px){.discovery-card{align-items:flex-start;padding:12px}.discovery-actions{width:100%}.squad-result>.btn{width:100%}.squad-guard-panel{padding:12px}.squad-request-card>.squad-actions{width:100%}.squad-request-card>.squad-actions .btn{flex:1}}

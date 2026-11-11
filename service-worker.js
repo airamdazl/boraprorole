@@ -1,4 +1,4 @@
-const CACHE = 'bora-pro-role-launch-v7';
+const CACHE = 'bora-pro-role-launch-v9';
 const APP_SHELL = ['./', './index.html', './app.js', './style.css', './manifest.webmanifest',
   './icon-192.png', './icon-512.png', './logo-boraprorole.png',
   './termos.html', './privacidade.html', './comunidade.html'];
