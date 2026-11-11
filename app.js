@@ -1555,7 +1555,7 @@ async function refreshRoomChat() {
       ${!message.system_notice && message.author_id !== state.user.id ? `<button class="bubble-report" title="Denunciar mensagem" data-action="report" data-kind="${room.type}_message" data-id="${message.id}">Denunciar</button>` : ''}</div>`).join('') :
       '<p class="small-muted">A conversa ainda está vazia. Que tal mandar um “oi”? 💜</p>';
     target.scrollTop = target.scrollHeight;
-  } catch (err) { target.textContent = `Chat indisponível: ${err.message}`; }
+  } catch (err) { target.textContent = `Chat indisponível: ${friendlyError(err)}`; }
 }
 
 async function sendMessage(event) {
@@ -1570,7 +1570,7 @@ async function sendMessage(event) {
     await assertOk(db.from(table).insert({[key]: room.id, author_id:state.user.id, body}));
     $('chat-text').value = '';
     await refreshRoomChat();
-  } catch (err) { toast(err.message); }
+  } catch (err) { toast(friendlyError(err)); }
 }
 
 async function refreshPolls() {

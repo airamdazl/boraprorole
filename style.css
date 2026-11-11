@@ -337,3 +337,15 @@
   .album-setup-intro{padding:12px}
   .drive-album-card{padding:12px}
 }
+
+/* Ajuste 17: avisos curtos com o visual do Bora Pro Rolê, em ambos os temas. */
+.toast{
+  background:linear-gradient(135deg,#38264e,#231a35);
+  color:#fff;
+  border:1px solid #8764ab;
+  border-left:4px solid var(--pink);
+  box-shadow:0 18px 55px #0c071a99;
+  font-size:13px;
+  line-height:1.45;
+  max-width:min(90vw,440px);
+}
