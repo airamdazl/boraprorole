@@ -281,3 +281,59 @@
   .squad-create-actions{flex-direction:column-reverse}
   .squad-create-actions .btn{width:100%;flex:auto}
 }
+
+/* Diálogos e confirmações próprios do Bora Pro Rolê, sem alertas do navegador. */
+.app-decision-overlay{z-index:1750;padding:18px;align-items:center;justify-content:center}
+.app-decision-dialog{width:min(440px,100%);max-height:calc(100dvh - 36px);border-radius:23px;overflow:auto;
+  background:var(--surface);box-shadow:0 30px 95px #0009;border:1px solid var(--line)}
+.app-decision-form{display:grid;gap:18px;padding:clamp(19px,5vw,27px)}
+.app-decision-heading{display:flex;align-items:center;gap:13px;min-width:0}
+.app-decision-heading>div{min-width:0}.app-decision-heading h2{font:900 22px/1.18 Outfit,sans-serif;letter-spacing:-.5px;margin:5px 0 0;overflow-wrap:anywhere}
+.app-decision-icon{display:grid;place-items:center;width:48px;height:48px;flex:none;font-size:26px;border-radius:15px;
+  background:linear-gradient(135deg,#7050b1,#fc5d8b)}
+.app-decision-description{color:var(--muted);font-size:14px;line-height:1.65;margin:0;overflow-wrap:anywhere}
+.app-decision-input-label{display:grid;gap:9px;font-weight:800;font-size:13px;min-width:0}
+.app-decision-input-label textarea{max-width:100%;min-width:0;width:100%;min-height:74px;max-height:38dvh;resize:vertical;
+  background:var(--surface2);color:var(--text);border:1px solid var(--line);border-radius:13px;padding:13px;font-size:16px;line-height:1.55}
+.app-decision-actions{display:flex;gap:9px}.app-decision-actions .btn{flex:1;min-width:0;white-space:normal;padding:13px 8px}
+.app-decision-danger{background:#a3214c;color:#fff;box-shadow:none}
+.app-decision-error,.album-link-error{padding:12px 13px;margin:0;background:#8d2343;color:#fff;
+  border:1px solid #ff99b0;border-radius:12px;font-weight:800;font-size:12px;line-height:1.5}
+
+/* Álbum 100% externo, acessível no aplicativo somente aos integrantes. */
+.squad-album-highlight{display:flex;gap:13px;align-items:flex-start;padding:17px;
+  background:linear-gradient(130deg,color-mix(in srgb,var(--purple) 16%,var(--surface2)),var(--surface2));
+  border:1px solid var(--line);border-radius:18px;min-width:0;margin:15px 0}
+.squad-album-highlight>div:last-child{min-width:0;flex:1}
+.squad-album-highlight-icon{width:43px;height:43px;flex:none;display:grid;place-items:center;
+  font-size:23px;background:var(--surface3);border-radius:13px}
+.squad-album-highlight strong{font:900 15px Outfit,sans-serif}
+.squad-album-highlight p{font-size:12px;line-height:1.6;margin:6px 0 11px;color:var(--muted)}
+.squad-album-highlight .btn{white-space:normal;line-height:1.3}
+.drive-album-card,.album-guide{display:grid;gap:14px;min-width:0}
+.drive-album-card{padding:15px;border:1px solid var(--line);background:var(--surface2);border-radius:18px}
+.drive-album-hero{display:flex;align-items:flex-start;gap:12px}
+.drive-album-hero>span{background:linear-gradient(135deg,#7350aa,#ec5287);border-radius:14px;
+  width:51px;height:51px;flex:none;display:grid;place-items:center;font-size:28px}
+.drive-album-hero h3{font-size:18px;margin:6px 0}.drive-album-hero p,.drive-album-card .small-muted{font-size:12px;line-height:1.55;color:var(--muted);margin:0}
+.drive-album-cta{width:100%;white-space:normal;text-align:center;line-height:1.4}
+.drive-album-empty{padding:17px;border:1px dashed var(--purple);border-radius:13px;color:var(--muted);
+  font-size:13px;line-height:1.6;background:var(--surface)}
+.album-setup-intro{display:flex;gap:13px;padding:15px;background:var(--surface2);border-radius:17px;margin-bottom:17px}
+.album-setup-intro>span{font-size:31px;flex:none}.album-setup-intro h3{font-size:17px;margin:6px 0}.album-setup-intro p{font-size:12px;color:var(--muted);line-height:1.6;margin:0}
+.album-guide{padding:15px;border:1px solid var(--line);border-radius:15px;background:var(--surface2)}
+.album-guide h3{margin:0;font-size:16px}.album-guide ol{display:grid;gap:11px;padding-left:23px;margin:0}
+.album-guide li{color:var(--muted);font-size:12px;line-height:1.65;padding-left:3px}
+.album-guide li::marker{color:var(--pink);font-weight:900}.album-guide strong,.album-guide b{color:var(--text)}
+.album-help-link{width:100%;white-space:normal;line-height:1.5;text-decoration:none}
+.album-link-form{margin-top:17px;gap:11px}.album-link-form>label{font-size:13px;font-weight:900}
+.album-link-form input{width:100%;min-width:0;max-width:100%;padding:13px 14px;border:1px solid var(--line);
+  border-radius:13px;background:var(--surface2);color:var(--text);font-size:16px}
+.album-link-form .small-muted{font-size:12px;line-height:1.55;margin:0}
+.album-remove-button{justify-self:center;margin-top:3px}
+@media(max-width:540px){
+  .app-decision-actions{flex-direction:column-reverse}
+  .squad-album-highlight{padding:13px}
+  .album-setup-intro{padding:12px}
+  .drive-album-card{padding:12px}
+}

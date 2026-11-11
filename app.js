@@ -22,15 +22,30 @@ const html = (value) => String(value ?? '').replace(/[&<>"']/g, (ch) => ({
 })[ch]);
 const legalUrl = (kind) => ({ terms: './termos.html', privacy: './privacidade.html', community: './comunidade.html' })[kind];
 const safeHttps = (value) => { try { const url = new URL(value); return url.protocol === 'https:' ? url.href : ''; } catch { return ''; } };
+const safeDriveFolder = (value) => {
+  const url=safeHttps(value);
+  if(!url)return '';
+  const parsed=new URL(url);
+  return parsed.hostname==='drive.google.com' && parsed.pathname.includes('/folders/') ? url : '';
+};
 function friendlyError(error) {
   const message = String(error?.message || '');
   if (error?.code === '23505' || /profiles_username_key|duplicate key value.*username/i.test(message)) {
-    return 'Este @nickname já está em uso. Escolha outro para continuar.';
+    return 'Este @user já está em uso. Escolha outro para continuar.';
   }
+  if (/duplicate key value|unique constraint/i.test(message)) return 'Esse dado já está cadastrado. Confira as informações e tente novamente.';
   if (/invalid login credentials|invalid credentials/i.test(message)) return 'E-mail ou senha incorretos. Confira e tente novamente.';
   if (/email not confirmed/i.test(message)) return 'Confirme seu e-mail antes de entrar. Confira também a pasta de spam.';
-  if (/user already registered/i.test(message)) return 'Este e-mail já está cadastrado. Entre na sua conta ou recupere a senha.';
-  return message || 'Não foi possível concluir. Tente novamente.';
+  if (/user already registered|email.*already.*(registered|exists|taken)/i.test(message)) return 'Este e-mail já está cadastrado. Entre na sua conta ou recupere a senha.';
+  if (/weak.password|password.*(too short|at least|minimum|weak|requirements|characters)|password.*(contain|include)/i.test(message) || error?.code==='weak_password')
+    return 'Senha não aceita. Use pelo menos 8 caracteres e evite combinações muito comuns; misture letras, números e símbolos.';
+  if (/invalid email|email.*invalid|email address.*not valid/i.test(message)) return 'Digite um endereço de e-mail válido.';
+  if (/rate limit|too many requests|security purposes/i.test(message)) return 'Muitas tentativas em pouco tempo. Aguarde alguns minutos antes de tentar novamente.';
+  if (/network|failed to fetch|fetch failed|timeout/i.test(message)) return 'Não foi possível conectar. Confira sua internet e tente novamente.';
+  // Erros escritos pelo próprio aplicativo já estão em português.
+  if (/[áàâãçéêíóôõú]|\b(não|seu|sua|informe|confirme|cadastro|precisa|deve)\b/i.test(message)) return message;
+  if (message) console.warn('Erro técnico tratado no aplicativo:',error?.code || '',message);
+  return 'Não foi possível concluir esta operação. Tente novamente ou entre em contato com o suporte.';
 }
 const icons = () => window.lucide?.createIcons({ attrs: { 'stroke-width': 2 } });
 const displayDate = (value) => new Intl.DateTimeFormat('pt-BR', {
@@ -99,9 +114,56 @@ function toast(message) {
   toast.timer = setTimeout(() => el.classList.add('hidden'), 5000);
 }
 
+// Confirmações e entradas padronizadas: nenhum window.prompt/confirm/alert com a URL do site.
+let activeDecision = null;
+let skipDecisionPopstate = false;
+function finishAppDecision(value, fromHistory = false) {
+  const decision = activeDecision;
+  if (!decision) return;
+  activeDecision = null;
+  $('decision-overlay').classList.add('hidden');
+  $('decision-form').reset();
+  $('decision-field-error').classList.add('hidden');
+  if (!fromHistory && history.state?.__boraDecision) {
+    skipDecisionPopstate = true;
+    history.back();
+  }
+  decision.focus?.focus?.();
+  decision.resolve(value);
+}
+function appDecision({title='Confirme sua escolha',message='',label='',initial='',minLength=0,maxLength=900,
+  confirmLabel='Confirmar',cancelLabel='Cancelar',danger=false}={}) {
+  if (activeDecision) return Promise.resolve(null);
+  const inputMode = Boolean(label);
+  $('decision-title').textContent=title;
+  $('decision-description').textContent=message;
+  $('decision-field-wrap').classList.toggle('hidden',!inputMode);
+  $('decision-field-label').textContent=label || 'Sua resposta';
+  $('decision-input').value=initial;
+  $('decision-input').minLength=minLength;
+  $('decision-input').maxLength=maxLength;
+  $('decision-submit').textContent=confirmLabel;
+  $('decision-submit').classList.toggle('app-decision-danger',danger);
+  $('decision-cancel').textContent=cancelLabel;
+  $('decision-overlay').classList.remove('hidden');
+  $('decision-field-error').classList.add('hidden');
+  if (state.opened) history.pushState({...history.state,__boraDecision:true},'',location.href);
+  return new Promise(resolve=>{
+    activeDecision={resolve,inputMode,minLength,maxLength,focus:document.activeElement};
+    (inputMode?$('decision-input'):$('decision-submit')).focus();
+  });
+}
+async function appConfirm(message,options={}) {
+  return await appDecision({title:'Só pra confirmar ✨',message,confirmLabel:'Sim, confirmar',...options})===true;
+}
+async function appPrompt(label,initial='',options={}) {
+  return await appDecision({title:'Vamos ajustar ✨',label,initial,confirmLabel:'Salvar',...options});
+}
+
 function feedback(message, error = true) {
   $('auth-feedback').textContent = message;
   $('auth-feedback').classList.toggle('error', error);
+  $('auth-feedback').setAttribute('role',error?'alert':'status');
 }
 
 function showGate(stage, data = {}) {
@@ -109,6 +171,8 @@ function showGate(stage, data = {}) {
   const authMessage = $('auth-feedback');
   if (authMessage && $('auth-stage').contains(authMessage)) $('auth-stage').after(authMessage);
   authMessage.textContent = '';
+  authMessage.classList.remove('error');
+  authMessage.setAttribute('role','status');
   const parts = {
     loading: '<h1>Preparando seu rolê…</h1><p class="small-muted">Validando sua sessão com segurança.</p>',
     login: `<span class="eyebrow">Bem-vindo de volta</span><h1>Entra, a galera tá te esperando. ✌️</h1>
@@ -120,7 +184,7 @@ function showGate(stage, data = {}) {
     signup: `<span class="eyebrow">Uma conta, vários encontros</span><h1>Vem pro Bora Pro Rolê 🪩</h1>
       <form id="signup-form" class="auth-form">
       <label>Como podemos te chamar?<input name="display_name" minlength="2" maxlength="60" autocomplete="nickname" required placeholder="Seu nome de exibição"></label>
-      <label>Seu @nickname<input name="username" minlength="3" maxlength="24" pattern="[a-z0-9_.]{3,24}" autocapitalize="none" required placeholder="seu.nick"></label>
+      <label>Seu @user<input name="username" minlength="3" maxlength="24" pattern="[a-z0-9_.]{3,24}" autocapitalize="none" required placeholder="seu.user"></label>
       <label>Data de nascimento (uso privado, 18+)<input name="birthdate" type="date" required></label>
       <label>Cidade<input name="city" maxlength="90" placeholder="Ex.: São Paulo"></label>
       <label>Um pouco sobre você (opcional)<textarea name="bio" maxlength="300" rows="2" placeholder="Qual é a sua vibe?"></textarea></label>
@@ -163,7 +227,7 @@ function showGate(stage, data = {}) {
       <p class="auth-switch"><button data-auth="restart-birth">Corrigir data</button> · <button data-auth="logout">Sair</button></p>`,
     profile: `<span class="eyebrow">Etapa 2 de 3</span><h1>Como vamos te chamar?</h1>
       <form id="onboard-profile-form" class="auth-form"><label>Nome de exibição<input name="display_name" maxlength="60" required placeholder="Como quer aparecer no app"></label>
-      <label>@nickname único<input name="username" maxlength="24" minlength="3" pattern="[a-z0-9_.]{3,24}" required placeholder="seu.nick" autocapitalize="none"></label>
+      <label>@user único<input name="username" maxlength="24" minlength="3" pattern="[a-z0-9_.]{3,24}" required placeholder="seu.user" autocapitalize="none"></label>
       <label>Cidade de residência (opcional)<input name="city" maxlength="90" placeholder="Ex.: São Paulo"></label>
       <button class="btn btn-pink" type="submit">Criar meu perfil</button></form><p class="auth-switch"><button data-auth="logout">Sair</button></p>`,
     legal: `<span class="eyebrow">Etapa 3 de 3</span><h1>Comunidade segura é compromisso de todos.</h1>
@@ -179,7 +243,12 @@ function showGate(stage, data = {}) {
       <button class="btn btn-pink" onclick="location.reload()">Tentar novamente</button>`
   };
   $('auth-stage').innerHTML = parts[stage] || parts.loading;
-  if (stage === 'login') $('login-form')?.querySelector('button[type="submit"]')?.before(authMessage);
+  const activeForm=$('auth-stage').querySelector('form.auth-form');
+  if (activeForm) {
+    // Erros de formulários aparecem dentro do app, sem balões nativos do navegador.
+    activeForm.noValidate=true;
+    activeForm.querySelector('button[type="submit"]')?.before(authMessage);
+  }
   icons();
 }
 
@@ -194,19 +263,33 @@ async function authAction(kind, form) {
     if (kind === 'restart-birth') { pendingBirthdate = null; return showGate('birth'); }
     // Botões de troca de tela não são submissões de formulário.
     if (!form && ['login','signup','forgot','resend'].includes(kind)) return showGate(kind);
+    if(form) {
+      const invalid=[...form.querySelectorAll('input,select,textarea')].find(field=>!field.checkValidity());
+      if(invalid) {
+        const label=invalid.closest('label')?.textContent?.trim() || 'campo';
+        const msg=invalid.name==='username'?'Escolha um @user de 3 a 24 caracteres: letras minúsculas, números, ponto ou _.':
+          invalid.name==='password'?'Sua senha precisa ter pelo menos 8 caracteres.':
+          invalid.type==='email'?'Digite um endereço de e-mail válido.':
+          invalid.type==='checkbox'?'Marque a confirmação necessária para continuar.':
+          `Confira o campo “${label}” antes de continuar.`;
+        feedback(`❌ ${msg}`);
+        invalid.focus();return;
+      }
+    }
     feedback('Processando…', false);
     const data = form ? Object.fromEntries(new FormData(form)) : {};
     if (kind === 'login') {
       await assertOk(db.auth.signInWithPassword({ email: data.email, password: data.password }));
       await syncSession();
     } else if (kind === 'signup') {
+      if (String(data.password||'').length<8) throw Error('Sua senha precisa ter pelo menos 8 caracteres.');
       const birth = String(data.birthdate || '');
       const birthday = new Date(`${birth}T12:00:00`);
       const adultDate = new Date(); adultDate.setFullYear(adultDate.getFullYear() - 18);
       if (!/^\d{4}-\d{2}-\d{2}$/.test(birth) || !Number.isFinite(birthday.getTime()) || birthday > adultDate)
         throw Error('O cadastro é exclusivo para maiores de 18 anos. Confira sua data de nascimento.');
       const nickname = String(data.username || '').toLowerCase().trim();
-      if (!/^[a-z0-9_.]{3,24}$/.test(nickname)) throw Error('Nickname: use de 3 a 24 letras minúsculas, números, . ou _.');
+      if (!/^[a-z0-9_.]{3,24}$/.test(nickname)) throw Error('Seu @user deve ter de 3 a 24 caracteres: letras minúsculas, números, . ou _.');
       if ((data.gender || data.lgbtq) && data.sensitive_consent !== 'on')
         throw Error('Para salvar a identificação opcional, autorize seu uso ou deixe os campos em branco.');
       if (data.truth_acknowledged !== 'on' || data.legal_acknowledged !== 'on')
@@ -254,7 +337,7 @@ async function authAction(kind, form) {
       await syncSession();
     } else if (kind === 'profile') {
       const username = String(data.username || '').toLowerCase().trim().replace(/^@/, '');
-      if (!/^[a-z0-9_.]{3,24}$/.test(username)) throw Error('Nickname deve ter de 3 a 24 caracteres: a-z, 0-9, ponto ou _');
+      if (!/^[a-z0-9_.]{3,24}$/.test(username)) throw Error('Seu @user deve ter de 3 a 24 caracteres: a-z, 0-9, ponto ou _.');
       await assertOk(db.from('profiles').insert({id: state.user.id, username,
         display_name: String(data.display_name).trim(), city: String(data.city || '').trim() || null }));
       await syncSession();
@@ -397,6 +480,8 @@ function navigate(page, fromHistory = false) {
 }
 
 window.addEventListener('popstate', (event) => {
+  if (skipDecisionPopstate) {skipDecisionPopstate=false;return;}
+  if (activeDecision) {finishAppDecision(null,true);return;}
   if (!state.opened || !$('auth-gate').classList.contains('hidden')) return;
   const destination = event.state?.[BORA_HISTORY_KEY];
   if (!destination) return; // permite sair normalmente ao chegar ao histórico anterior ao app
@@ -736,10 +821,10 @@ async function editEvent(id) {
 }
 
 async function cancelEvent(id) {
-  const reason=prompt('Por que precisa cancelar? Os participantes serão avisados (mínimo 8 caracteres).');
+  const reason=await appPrompt('Motivo do cancelamento','',{title:'Cancelar rolê',message:'Os participantes serão avisados. Explique o motivo com pelo menos 8 caracteres.',confirmLabel:'Continuar',minLength:8});
   if (reason===null) return;
   if (reason.trim().length<8) return toast('Descreva brevemente o motivo do cancelamento.');
-  if (!confirm('Confirmar pedido de cancelamento? Até 5 confirmados, o cancelamento é imediato; acima disso, a moderação precisa autorizar.')) return;
+  if (!await appConfirm('Até 5 confirmados, o cancelamento é imediato. Acima disso, a moderação precisa autorizar.',{title:'Confirmar cancelamento',confirmLabel:'Solicitar cancelamento',danger:true})) return;
   try { const result=await assertOk(db.rpc('bora_cancel_event',{_event:id,_reason:reason.trim()}));
     closeModal();await loadEvents();renderMine();
     toast(result.approval_required?'Pedido enviado à moderação; o rolê continua publicado até a decisão.':'Rolê cancelado; integrantes notificados.');
@@ -913,7 +998,7 @@ function hydrateProfile() {
   const profileSave = document.querySelector('[data-action="save-profile"]');
   if (profileSave) profileSave.textContent = 'Salvar meu perfil';
   const privacyLabels = document.querySelectorAll('#screen-perfil .profile-panel .two-col .switch-line strong');
-  if (privacyLabels[3]) privacyLabels[3].textContent = 'Permitir busca pelo meu @nickname';
+  if (privacyLabels[3]) privacyLabels[3].textContent = 'Permitir busca pelo meu @user';
   const switches = document.querySelectorAll('#screen-perfil .profile-panel .two-col .switch-line input');
   if (switches[0]) switches[0].checked = profile.avatar_visibility === 'friends';
   if (switches[1]) switches[1].checked = profile.details_visibility === 'friends';
@@ -952,11 +1037,11 @@ function hydrateProfile() {
     finder.className = 'panel friend-discovery';
     finder.innerHTML = `<div class="friend-discovery-title"><div class="friend-discovery-icon">🔎</div><div>
       <span class="eyebrow">Encontre sua galera</span><h2>Gente nova, SQUAD novo. ✌️</h2>
-      <p>Procure pessoas pelo @nickname ou SQUADs pelo nome. Perfis e grupos só aparecem conforme a privacidade escolhida.</p></div></div>
-      <form id="friend-form" class="friend-finder"><input id="friend-nick" placeholder="@nickname ou nome do SQUAD" maxlength="65" aria-label="Buscar pessoas ou SQUADs"><button class="btn btn-pink" type="submit">🔎 Buscar</button></form>
+      <p>Procure pessoas pelo @user ou SQUADs pelo nome. Perfis e grupos só aparecem conforme a privacidade escolhida.</p></div></div>
+      <form id="friend-form" class="friend-finder"><input id="friend-nick" placeholder="@user ou nome do SQUAD" maxlength="65" aria-label="Buscar pessoas ou SQUADs"><button class="btn btn-pink" type="submit">🔎 Buscar</button></form>
       <div class="friend-results" id="friend-result" role="status" aria-live="polite">A pesquisa não revela fotos, conversas ou integrantes privados.</div>
-      <div class="blocked-profile-box"><h3>🔒 Controle de bloqueios</h3><p class="small-muted">Você pode bloquear qualquer @nickname, mesmo que o perfil não apareça nas pesquisas.</p>
-      <form id="nickname-block-form" class="friend-finder"><input id="block-nick" placeholder="@nickname a bloquear" maxlength="24" aria-label="Bloquear pelo nickname"><button class="btn btn-ghost" type="submit">Bloquear</button></form>
+      <div class="blocked-profile-box"><h3>🔒 Controle de bloqueios</h3><p class="small-muted">Você pode bloquear qualquer @user, mesmo que o perfil não apareça nas pesquisas.</p>
+      <form id="nickname-block-form" class="friend-finder"><input id="block-nick" placeholder="@user a bloquear" maxlength="24" aria-label="Bloquear pelo @user"><button class="btn btn-ghost" type="submit">Bloquear</button></form>
       <button class="inline-button" data-action="manage-blocks">Ver e gerenciar meus bloqueios</button></div>`;
     document.querySelector('#screen-perfil .profile-panel').after(finder);
     $('friend-form').addEventListener('submit', followNickname);
@@ -982,7 +1067,7 @@ function hydrateProfile() {
 async function saveProfile() {
   const display = $('edit-name').value.trim();
   const username = $('edit-handle').value.trim().replace(/^@/, '').toLowerCase();
-  if (!display || !/^[a-z0-9_.]{3,24}$/.test(username)) return toast('Confira seu nome e @nickname.');
+  if (!display || !/^[a-z0-9_.]{3,24}$/.test(username)) return toast('Confira seu nome e @user.');
   const switches = document.querySelectorAll('#screen-perfil .profile-panel .two-col .switch-line input');
   const payload = {display_name: display, username, city: $('edit-city').value.trim() || null,
     bio: $('edit-bio').value.trim(), instagram: $('edit-insta').value.trim() || null};
@@ -1034,7 +1119,7 @@ async function followNickname(event) {
       ${person.bio?`<p>${html(person.bio)}</p>`:''}${person.city?`<p>📍 ${html(person.city)}</p>`:''}${person.instagram?`<p>Instagram: ${html(person.instagram)}</p>`:''}</div>
       <div class="discovery-actions"><button class="btn btn-pink btn-small" data-action="follow-found-user" data-id="${html(person.user_id)}" data-nick="${html(person.username)}">Seguir</button>
       <button class="btn btn-ghost btn-small" data-action="block-found-user" data-nick="${html(person.username)}">Bloquear</button></div></article>`:
-      '<p class="small-muted">Nenhuma pessoa encontrada com esse @nickname ou ela não permite buscas.</p>';
+      '<p class="small-muted">Nenhuma pessoa encontrada com esse @user ou ela não permite buscas.</p>';
     const squadCards = groups?.length ? groups.map(squad=>`<article class="discovery-card squad-result"><div class="discovery-avatar">🫶</div>
       <div class="grow"><strong>${html(squad.name)}</strong><p>${html(squad.description || 'Uma galera com planos em comum.')}</p>
       <span class="small-muted">${Number(squad.member_count)||0} integrante(s) · Entrada com autorização de admin</span></div>
@@ -1054,7 +1139,7 @@ async function followFoundUser(userId,nickname) {
 }
 
 async function blockFoundNickname(nickname) {
-  if (!confirm(`Bloquear @${nickname}? Vocês deixarão de se seguir e de se encontrar nas buscas.`)) return;
+  if (!await appConfirm(`Bloquear @${nickname}? Vocês deixarão de se seguir e de se encontrar nas buscas.`,{title:'Bloquear usuário',confirmLabel:'Bloquear',danger:true})) return;
   try {
     await assertOk(db.rpc('bora_block_nickname',{_nickname:nickname}));
     $('friend-result').textContent = 'Bloqueio registrado. Você pode pesquisar outra pessoa ou SQUAD.';
@@ -1065,7 +1150,7 @@ async function blockFoundNickname(nickname) {
 async function blockNicknameFromForm(event) {
   event.preventDefault();
   const nick=$('block-nick').value.trim().replace(/^@/,'').toLowerCase();
-  if (!/^[a-z0-9_.]{3,24}$/.test(nick)) return toast('Informe um @nickname válido.');
+  if (!/^[a-z0-9_.]{3,24}$/.test(nick)) return toast('Informe um @user válido.');
   await blockFoundNickname(nick);
   $('nickname-block-form').reset();
 }
@@ -1080,7 +1165,7 @@ async function manageBlockedNicknames() {
 }
 
 async function unblockFoundNickname(nickname) {
-  if (!confirm(`Desbloquear @${nickname}?`)) return;
+  if (!await appConfirm(`Desbloquear @${nickname}?`,{title:'Desbloquear usuário'})) return;
   try { await assertOk(db.rpc('bora_unblock_nickname',{_nickname:nickname})); toast('Perfil desbloqueado.'); await manageBlockedNicknames(); }
   catch(err) { toast(friendlyError(err)); }
 }
@@ -1110,7 +1195,7 @@ function renderSquads() {
   list.innerHTML = `<div class="panel"><div class="squad-extras-head"><h3>Meus SQUADs</h3><button class="btn btn-pink btn-small" data-action="create-independent-squad">+ Criar SQUAD</button></div>
     ${state.squads.length ? state.squads.map((squad) => `<div class="list-row"><div class="icon-disc">🫶</div><div class="grow"><strong>${html(squad.name)}</strong><p>${html(squad.description || 'Comunidade de amigos')}</p></div>
       <button class="btn btn-pink btn-small" data-action="open-squad" data-id="${html(squad.id)}">Abrir</button></div>`).join('') : '<p class="small-muted">Ainda não participa de SQUAD. Você já pode criar um, sem precisar ir a um rolê antes.</p>'}</div>
-    <div class="panel"><h3>O que é um SQUAD?</h3><p class="small-muted">Uma galera organizada com chat, enquetes, álbum privado, mural, convites por @nickname e até 3 administradores.</p>
+    <div class="panel"><h3>O que é um SQUAD?</h3><p class="small-muted">Uma galera organizada com chat, enquetes, álbum compartilhado no Google Drive, mural, convites por @user e até 3 administradores.</p>
       <div class="list-row"><div class="icon-disc">🔐</div><div class="grow"><strong>Entrada protegida</strong><p>Convites individuais precisam ser aceitos. Quem encontra o SQUAD pela busca solicita entrada e espera aprovação de um admin.</p></div></div>
       <div class="list-row"><div class="icon-disc">🛡️</div><div class="grow"><strong>Decisão em conjunto</strong><p>Excluir alguém do grupo exige concordância de 2 administradores, mesmo quando há 3.</p></div></div>
       <div class="list-row"><div class="icon-disc">🎂</div><div class="grow"><strong>Aniversários opcionais</strong><p>Quem permite, compartilha apenas dia e mês.</p></div></div></div>`;
@@ -1127,7 +1212,7 @@ function renderSquads() {
   $('squad-live-extras').innerHTML = current ? `<div class="squad-extras-head"><div><span class="eyebrow">Comunidade selecionada</span><h3>${html(current.name)}</h3></div>
       <div class="squad-actions"><button class="btn btn-pink btn-small" data-action="open-squad" data-id="${html(current.id)}">Abrir conversa</button>
       ${manager ? `<button class="btn btn-ghost btn-small" data-action="rename-squad" data-id="${html(current.id)}">Renomear</button>` : ''}
-      ${manager ? `<button class="btn btn-ghost btn-small" data-action="edit-album-link" data-id="${html(current.id)}">Link de álbum externo</button>` : ''}
+      ${manager ? `<button class="btn btn-ghost btn-small" data-action="edit-album-link" data-id="${html(current.id)}">📸 Configurar álbum</button>` : ''}
       ${state.squadRoles.get(current.id) !== 'owner' ? `<button class="btn btn-ghost btn-small" data-action="leave-squad" data-id="${html(current.id)}">Sair do SQUAD</button>` : ''}</div></div>
       <div class="squad-guard-panel"><strong>🔐 Descoberta e acesso ao SQUAD</strong><p class="small-muted">As conversas, fotos e a lista de integrantes nunca ficam públicas na pesquisa. Encontrar o grupo só permite solicitar entrada.</p>
         ${currentRole==='owner' ? `<label class="squad-discovery-switch"><input type="checkbox" id="squad-discoverable" ${current.is_discoverable?'checked':''}> Permitir que encontrem este SQUAD na busca pelo nome</label>` :
@@ -1135,9 +1220,10 @@ function renderSquads() {
         ${manager ? `<div class="squad-actions"><button class="btn btn-pink btn-small" data-action="squad-join-requests" data-id="${html(current.id)}">💌 Pedidos de entrada</button>
           <button class="btn btn-ghost btn-small" data-action="squad-removals" data-id="${html(current.id)}">🛡️ Votos de remoção</button>
           <button class="btn btn-ghost btn-small" data-action="squad-roster" data-id="${html(current.id)}">👥 Integrantes e admins</button></div>`:''}</div>
-      <div class="legal-note">🔐 <strong>Álbum do app:</strong> privado aos integrantes. ${current.album_url ? `<a href="${html(safeHttps(current.album_url))}" target="_blank" rel="noopener noreferrer">Abrir álbum externo (permissões do provedor) ↗</a>` : 'O link externo é opcional e só deve ser usado com acesso restrito no serviço de nuvem.'}</div>
-      <div class="two-col"><div><h3>Convidar pelo @nickname</h3><p class="small-muted">Somente dono ou moderador do SQUAD pode enviar convites.</p>
-      <form id="squad-invite-form" class="friend-finder"><input id="squad-nick" placeholder="@amigo" aria-label="Nickname do convidado" maxlength="24"><button class="btn btn-ghost btn-small">Convidar</button></form>
+      <div class="squad-album-highlight"><div class="squad-album-highlight-icon">📸</div><div><strong>Álbum do SQUAD no Google Drive</strong><p>As fotos ficam na pasta de nuvem escolhida pelos admins, não no Supabase. Somente integrantes do SQUAD veem o atalho aqui; o acesso às fotos depende das permissões da pasta.</p>
+      ${safeDriveFolder(current.album_url) ? `<a class="btn btn-pink btn-small" href="${html(safeDriveFolder(current.album_url))}" target="_blank" rel="noopener noreferrer">Abrir pasta e adicionar fotos ↗</a>` : '<span class="small-muted">Aguardando um admin configurar a pasta.</span>'}</div></div>
+      <div class="two-col"><div><h3>Convidar pelo @user</h3><p class="small-muted">Somente dono ou moderador do SQUAD pode enviar convites.</p>
+      <form id="squad-invite-form" class="friend-finder"><input id="squad-nick" placeholder="@user do amigo" aria-label="User do convidado" maxlength="24"><button class="btn btn-ghost btn-small">Convidar</button></form>
       <p class="small-muted" id="squad-invite-result"></p></div>
       <div><div class="calendar-head"><h3>🗓️ Calendário e aniversários</h3><input id="squad-month" type="month" aria-label="Mês do calendário"></div>
       <div id="squad-calendar"></div><button class="btn btn-ghost btn-small" data-action="add-calendar" data-id="${html(current.id)}">Adicionar encontro</button></div></div>` :
@@ -1215,7 +1301,7 @@ function openSquadCreateForm(eventId = null) {
       await loadSquads();
       closeModal();
       navigate('squad');
-      toast('Seu SQUAD está pronto! Convide a galera por @nickname. 💜');
+      toast('Seu SQUAD está pronto! Convide a galera por @user. 💜');
     } catch (err) {
       const permissionError = err?.code === '42501' || /row.level security|permission denied/i.test(String(err?.message || ''));
       errorBox.textContent = permissionError
@@ -1233,18 +1319,57 @@ function createIndependentSquad() { openSquadCreateForm(); }
 async function editAlbumLink(squadId) {
   const squad=state.squads.find(item=>item.id===squadId);
   if (!squad) return;
-  const next=prompt('Link HTTPS de álbum externo (opcional). O link só será privado se as permissões do provedor estiverem limitadas aos integrantes. Apague para remover:',squad.album_url || '');
-  if (next===null) return;
-  if (next.trim() && !safeHttps(next.trim())) return toast('Informe um link seguro https:// ou deixe vazio.');
-  try {await assertOk(db.from('squads').update({album_url:next.trim() || null}).eq('id',squadId));
-    await loadSquads();toast('Link do álbum externo atualizado. Confira as permissões na nuvem.');
-  }catch(err){toast(err.message);}
+  if (!['owner','moderator'].includes(state.squadRoles.get(squadId))) return;
+  const fromRoom=state.activeRoom?.type==='squad' && state.activeRoom.id===squadId;
+  if(fromRoom)leaveRoom();
+  showModal('Álbum do SQUAD 📸',`<div class="album-setup-intro"><span aria-hidden="true">☁️</span><div><span class="eyebrow">Fotos fora do Supabase</span><h3>Uma pasta da galera, no Google Drive.</h3><p>O Bora Pro Rolê guarda somente o endereço da pasta. Todas as fotos são enviadas diretamente pelo Drive.</p></div></div>
+    <section class="album-guide" aria-label="Passo a passo para criar uma pasta compartilhada">
+      <h3>Como preparar o álbum</h3>
+      <ol><li><strong>Abra o Google Drive.</strong> Entre na sua conta e toque em <b>Novo → Pasta</b>. Dê um nome, por exemplo, “Fotos — ${html(squad.name)}”.</li>
+      <li><strong>Abra Compartilhar.</strong> Nas opções da pasta, escolha <b>Acesso geral: Restrito</b>. Não use “Qualquer pessoa com o link”.</li>
+      <li><strong>Adicione os integrantes autorizados.</strong> Compartilhe com cada conta Google e dê permissão de <b>Editor</b> para permitir o envio de fotos.</li>
+      <li><strong>Proteja as permissões.</strong> Nas configurações de compartilhamento, quando disponível, desative a opção que permite a editores mudar o acesso. Editores ainda podem alterar ou apagar arquivos.</li>
+      <li><strong>Copie o link da pasta.</strong> Cole abaixo e salve. Quando alguém sair do SQUAD, retire também o acesso dessa pessoa no Drive.</li></ol>
+      <a class="btn btn-ghost btn-small album-help-link" href="https://drive.google.com/drive/u/0/my-drive" target="_blank" rel="noopener noreferrer">☁️ Abrir meu Google Drive ↗</a>
+    </section>
+    <form id="album-link-form" class="create-form album-link-form" novalidate>
+      <label for="album-link-input">Link da pasta no Drive <span class="optional-label">Pode configurar depois</span></label>
+      <input id="album-link-input" name="album_url" type="url" inputmode="url" maxlength="650" placeholder="https://drive.google.com/drive/folders/..." value="${html(squad.album_url || '')}">
+      <p class="small-muted">O link aparece somente para os integrantes logados no SQUAD. A privacidade das fotos é controlada no Google Drive.</p>
+      <p class="album-link-error hidden" id="album-link-error" role="alert"></p>
+      <div class="dialog-actions"><button type="button" class="btn btn-ghost" data-action="close-modal">Agora não</button><button type="submit" class="btn btn-pink">Salvar álbum</button></div>
+      ${squad.album_url?'<button type="button" class="inline-button album-remove-button" id="album-link-remove">Remover link do SQUAD</button>':''}
+    </form>`);
+  const form=$('album-link-form');
+  async function persistAlbum(value) {
+    const field=$('album-link-input');const errorBox=$('album-link-error');
+    errorBox.classList.add('hidden');
+    const next=value.trim();
+    if(next) {
+      if(!safeDriveFolder(next)) {
+        errorBox.textContent='Cole o link HTTPS de uma pasta do Google Drive (drive.google.com/drive/folders/…).';
+        errorBox.classList.remove('hidden');field.focus();return;
+      }
+    }
+    const save=form.querySelector('button[type="submit"]');save.disabled=true;
+    try {
+      await assertOk(db.from('squads').update({album_url:next||null}).eq('id',squadId));
+      await loadSquads();closeModal();
+      toast(next?'Pasta vinculada! Lembre-se de autorizar cada integrante no Google Drive. 💜':'Link do álbum removido do SQUAD.');
+      if(fromRoom){await openRoom('squad',squadId);await changeRoomTab('album');}
+    } catch(err) {errorBox.textContent=friendlyError(err);errorBox.classList.remove('hidden');}
+    finally {save.disabled=false;}
+  }
+  form.addEventListener('submit',async(ev)=>{ev.preventDefault();await persistAlbum(form.elements.album_url.value);});
+  $('album-link-remove')?.addEventListener('click',async()=>{
+    if(await appConfirm('O atalho será removido do app, mas a pasta continuará existindo no Google Drive.',{title:'Remover link do álbum',confirmLabel:'Remover link',danger:true})) await persistAlbum('');
+  });
 }
 
 async function renameSquad(id) {
   const current = state.squads.find((row) => row.id === id);
   if (!current) return;
-  const nextName = prompt('Novo nome do SQUAD (3–65 caracteres):',current.name);
+  const nextName = await appPrompt('Nome do SQUAD',current.name,{title:'Renomear SQUAD ✏️',message:'Escolha um nome que seus integrantes reconheçam.',minLength:3,maxLength:65,confirmLabel:'Salvar novo nome'});
   if (!nextName || nextName.trim().length < 3 || nextName.trim().length > 65) return;
   try {
     await assertOk(db.from('squads').update({name:nextName.trim()}).eq('id',id));
@@ -1254,7 +1379,7 @@ async function renameSquad(id) {
 }
 
 async function leaveSquad(id) {
-  if (!confirm('Você quer mesmo sair deste SQUAD?')) return;
+  if (!await appConfirm('Você quer mesmo sair deste SQUAD?',{title:'Sair do SQUAD',confirmLabel:'Sim, sair',danger:true})) return;
   try {
     await assertOk(db.rpc('leave_squad',{_squad:id}));
     state.activeSquad = null;
@@ -1264,7 +1389,7 @@ async function leaveSquad(id) {
 }
 
 async function requestSquadJoin(squadId) {
-  if (!confirm('Solicitar entrada neste SQUAD? Você só terá acesso após a aprovação de um administrador.')) return;
+  if (!await appConfirm('Solicitar entrada neste SQUAD? Você só terá acesso após a aprovação de um administrador.',{title:'Pedir para entrar 💌',confirmLabel:'Enviar pedido'})) return;
   try {
     const status=await assertOk(db.rpc('bora_request_join_squad',{_squad:squadId}));
     const message=status==='already_member'?'Você já participa deste SQUAD.':
@@ -1287,7 +1412,7 @@ async function openSquadJoinRequests(squadId) {
 }
 
 async function reviewSquadJoin(requestId,squadId,approve) {
-  if(!confirm(approve?'Aprovar esta pessoa no SQUAD? Ela poderá acessar chat, mural e álbum privado.':'Recusar este pedido de entrada?'))return;
+  if(!await appConfirm(approve?'Aprovar esta pessoa no SQUAD? Ela poderá acessar chat, mural e o link do álbum externo.':'Recusar este pedido de entrada?',{title:approve?'Aprovar integrante':'Recusar solicitação',confirmLabel:approve?'Aprovar entrada':'Recusar pedido',danger:!approve}))return;
   try {
     await assertOk(db.rpc('bora_review_squad_join',{_request:requestId,_approve:approve}));
     toast(approve?'Entrada aprovada!':'Pedido recusado.');
@@ -1307,7 +1432,7 @@ async function openSquadRemovals(squadId) {
 }
 
 async function voteSquadRemoval(squadId,targetId) {
-  if(!confirm('Confirmar seu voto para remover este integrante? A ação só será executada se um segundo administrador também concordar.'))return;
+  if(!await appConfirm('A remoção só ocorrerá se um segundo administrador também aprovar.',{title:'Confirmar voto de remoção',confirmLabel:'Confirmar meu voto',danger:true}))return;
   try {
     const result=await assertOk(db.rpc('bora_vote_squad_removal',{_squad:squadId,_target:targetId}));
     toast(result==='removed'?'Dois administradores aprovaram. Integrante removido.':'Seu voto foi registrado. Aguardando aprovação de outro administrador.');
@@ -1353,7 +1478,7 @@ async function openRoom(type, id) {
     <div class="chat-tabs"><button class="active" data-room-tab="chat">Chat</button><button data-room-tab="mural">Informações 📌</button>
     <button data-room-tab="polls">Enquetes 📊</button>
     ${type === 'event' ? '<button data-room-tab="music">Músicas 🎵</button>' : ''}
-    ${type === 'squad' ? '<button data-room-tab="album">Fotos 🔒</button>' : ''}
+    ${type === 'squad' ? '<button data-room-tab="album">Álbum 📸</button>' : ''}
     <button data-action="report" data-kind="${type}" data-id="${html(id)}">Denunciar</button></div>
     <div id="room-content" class="room-content"></div>`);
   $('dialog-body').className = 'dialog-content room-panel';
@@ -1389,13 +1514,17 @@ async function changeRoomTab(tab) {
       <button class="btn btn-ghost btn-small" data-action="create-poll">+ Criar enquete</button><div id="poll-list"></div>`;
     await refreshPolls();
   } else if (tab === 'album' && room.type === 'squad') {
-    target.innerHTML = `<p class="legal-note">🔐 Fotos guardadas em espaço privado. Só integrantes autenticados podem baixá-las; fotos não aparecem em links públicos. Respeite o consentimento de quem aparece nas imagens.</p>
-      <form id="squad-photo-form" class="photo-form"><label>Adicionar foto ao SQUAD (até 1 MB depois de otimizada)<input type="file" name="photo" accept="image/*" required></label>
-      <label>Legenda (opcional)<input name="caption" maxlength="180" placeholder="Que rolê foi esse? ✨"></label>
-      <button class="btn btn-pink" type="submit">📸 Compartilhar só com o SQUAD</button></form>
-      <div id="squad-gallery" class="photo-grid"></div>`;
-    $('squad-photo-form').addEventListener('submit',uploadSquadPhoto);
-    await refreshSquadPhotos();
+    const squad=state.squads.find(item=>item.id===room.id);
+    const album=safeDriveFolder(squad?.album_url);
+    const manager=['owner','moderator'].includes(state.squadRoles.get(room.id));
+    target.innerHTML=`<div class="drive-album-card">
+      <div class="drive-album-hero"><span aria-hidden="true">☁️</span><div><span class="eyebrow">Álbum compartilhado</span><h3>As lembranças da sua galera 📸</h3><p>As fotos ficam no Google Drive, sem ocupar espaço no Supabase.</p></div></div>
+      ${album?`<a class="btn btn-pink drive-album-cta" href="${html(album)}" target="_blank" rel="noopener noreferrer">📸 Abrir álbum e enviar fotos ↗</a>
+      <p class="small-muted">Ao abrir a pasta, toque em <strong>+ Novo → Upload de arquivo</strong> para adicionar uma foto. Se o Drive pedir permissão, solicite acesso ao administrador.</p>`:
+      `<div class="drive-album-empty">🕒 A pasta ainda não foi configurada. Assim que um administrador cadastrar o link, todos os integrantes verão o botão para abrir o álbum.</div>`}
+      ${manager?`<button class="btn btn-ghost" data-action="edit-album-link" data-id="${html(room.id)}">⚙️ ${album?'Gerenciar pasta e permissões':'Criar e vincular pasta no Drive'}</button>`:''}
+      <p class="legal-note">🔐 <strong>Privacidade:</strong> o link é mostrado apenas aos integrantes deste SQUAD. No Google Drive, mantenha <b>Acesso geral: Restrito</b> e autorize cada pessoa individualmente. Não publique fotos de outras pessoas sem consentimento.</p>
+    </div>`;
   } else if (tab === 'music' && room.type === 'event') {
     const event = state.events.find((row) => row.id === room.id);
     target.innerHTML = `<p class="small-muted">🎵 Cada participante pode indicar músicas do Spotify para animar o encontro. A lista de sugestões abaixo pertence ao Bora Pro Rolê. <strong>Ela não altera automaticamente a playlist no Spotify.</strong></p>
@@ -1486,57 +1615,6 @@ function createPoll() {
 async function votePoll(pollId,optionId) {
   try {await assertOk(db.rpc('bora_vote_poll',{_poll:pollId,_option:optionId}));
     await refreshPolls();toast('Voto registrado!');}catch(err){toast(err.message);}
-}
-
-async function refreshSquadPhotos() {
-  const room=state.activeRoom,target=$('squad-gallery');
-  if (!room || room.type!=='squad' || !target) return;
-  target.innerHTML='<p class="small-muted">Carregando fotos privadas…</p>';
-  for(const url of state.photoUrls)URL.revokeObjectURL(url);
-  state.photoUrls=[];
-  try {
-    const rows=await assertOk(db.from('squad_photos').select('id,path,caption,uploaded_by,created_at')
-      .eq('squad_id',room.id).order('created_at',{ascending:false}).limit(36));
-    const photos=await Promise.all((rows || []).map(async(row)=>{
-      const result=await db.storage.from('squad-albums').download(row.path);
-      if(result.error || !result.data) return {...row,url:''};
-      return {...row,url:URL.createObjectURL(result.data)};
-    }));
-    if(state.activeRoom?.id!==room.id || !$('squad-gallery')){
-      photos.forEach(photo=>{if(photo.url)URL.revokeObjectURL(photo.url);});return;
-    }
-    state.photoUrls=photos.map(p=>p.url).filter(Boolean);
-    const isManager=['owner','moderator'].includes(state.squadRoles.get(room.id));
-    target.innerHTML=photos.length?photos.map(photo=>`<article class="photo-card">
-      ${photo.url?`<img loading="lazy" src="${html(photo.url)}" alt="Foto compartilhada no SQUAD">`:'<div>Foto indisponível</div>'}
-      <small>${html(photo.caption || 'Momento da galera 📸')}</small>
-      ${(isManager || photo.uploaded_by===state.user.id)?`<button class="btn btn-ghost btn-small" data-action="delete-squad-photo" data-id="${html(photo.id)}" data-path="${html(photo.path)}">Remover</button>`:''}
-      <button class="inline-button" data-action="report" data-kind="squad" data-id="${html(room.id)}">Denunciar conteúdo</button></article>`).join(''):
-      '<p class="small-muted">O álbum ainda está vazio. Compartilhe a primeira lembrança do SQUAD!</p>';
-  }catch(err){target.textContent=`Galeria indisponível: ${err.message}`;}
-}
-
-async function uploadSquadPhoto(ev) {
-  ev.preventDefault();const room=state.activeRoom;
-  if(!room || room.type!=='squad')return;
-  const file=ev.target.elements.photo.files?.[0];if(!file)return;
-  const caption=String(ev.target.elements.caption.value || '').trim();
-  const id=crypto.randomUUID(),path=`${room.id}/${id}.webp`,button=ev.submitter;
-  button.disabled=true;
-  try {
-    const blob=await compressWebp(file,1048576);
-    await assertOk(db.storage.from('squad-albums').upload(path,blob,{contentType:'image/webp',upsert:false}));
-    try {await assertOk(db.from('squad_photos').insert({id,squad_id:room.id,uploaded_by:state.user.id,path,caption}));}
-    catch(err){await db.storage.from('squad-albums').remove([path]);throw err;}
-    ev.target.reset();await refreshSquadPhotos();toast('Foto compartilhada apenas com o SQUAD. 🔐');
-  }catch(err){toast(`Falha ao adicionar foto: ${err.message}`);}finally{button.disabled=false;}
-}
-
-async function deleteSquadPhoto(id,path) {
-  if(!confirm('Remover esta foto do álbum privado do SQUAD?'))return;
-  try {await assertOk(db.storage.from('squad-albums').remove([path]));
-    await assertOk(db.from('squad_photos').delete().eq('id',id));
-    await refreshSquadPhotos();toast('Foto removida.');}catch(err){toast(err.message);}
 }
 
 async function refreshRoomPins() {
@@ -1668,19 +1746,19 @@ async function openNotifications() {
 }
 
 async function deletePin(id) {
-  if (!confirm('Remover esta informação fixada?')) return;
+  if (!await appConfirm('Remover esta informação fixada?',{title:'Remover do mural',confirmLabel:'Remover',danger:true})) return;
   try { await assertOk(db.from('room_pins').delete().eq('id',id)); await refreshRoomPins(); }
   catch (err) { toast(err.message); }
 }
 
 async function removeSong(id) {
-  if (!confirm('Remover esta sugestão musical?')) return;
+  if (!await appConfirm('Remover esta sugestão musical?',{title:'Remover sugestão',confirmLabel:'Remover',danger:true})) return;
   try { await assertOk(db.from('event_song_suggestions').delete().eq('id',id)); await refreshSongs(); }
   catch (err) { toast(err.message); }
 }
 
 async function blockUser(id) {
-  if (!confirm('Bloquear este usuário? Você deixará de ver as informações e mensagens que as regras permitem ocultar.')) return;
+  if (!await appConfirm('Bloquear este usuário? Você deixará de ver as informações e mensagens que as regras permitem ocultar.',{title:'Bloquear usuário',confirmLabel:'Bloquear',danger:true})) return;
   try {
     await assertOk(db.from('user_blocks').insert({blocker_id:state.user.id,blocked_id:id}));
     closeModal();
@@ -1863,7 +1941,7 @@ async function openModeration() {
 
 async function performModeration(action, el) {
   if (!state.isModerator) return;
-  const reason = prompt('Informe o motivo detalhado e objetivo (mínimo 8 caracteres). Essa decisão ficará registrada:');
+  const reason = await appPrompt('Motivo da decisão','',{title:'Decisão da moderação 🛡️',message:'Descreva o motivo com objetividade. A decisão ficará registrada para auditoria.',minLength:8,confirmLabel:'Registrar decisão'});
   if (reason === null) return;
   if (reason.trim().length < 8) return toast('O motivo precisa ter pelo menos 8 caracteres.');
   try {
@@ -1909,7 +1987,7 @@ async function handleAction(action, element) {
       case 'delete-account-start': return openDeleteAccount();
       case 'audience-preferences': return await openAudiencePreferences();
       case 'revoke-audience': {
-        if(!confirm('Apagar suas identificações opcionais? Você deixará de confirmar presença em rolês de público direcionado.'))return;
+        if(!await appConfirm('Apagar suas identificações opcionais? Você deixará de confirmar presença em rolês de público direcionado.',{title:'Apagar identificação',confirmLabel:'Apagar dados',danger:true}))return;
         await assertOk(db.rpc('set_audience_preferences',{_gender:null,_lgbtq:null,_consent:false}));
         closeModal();return toast('Identificações privadas apagadas.');
       }
@@ -1930,7 +2008,7 @@ async function handleAction(action, element) {
       case 'squad-removals': return await openSquadRemovals(id);
       case 'vote-squad-removal': return await voteSquadRemoval(element.dataset.squad,id);
       case 'set-squad-admin': {
-        if(!confirm(element.dataset.promote==='true'?'Promover este integrante a administrador do SQUAD?':'Remover o cargo de administrador?'))return;
+        if(!await appConfirm(element.dataset.promote==='true'?'Promover este integrante a administrador do SQUAD?':'Remover o cargo de administrador?',{title:'Alterar administração',confirmLabel:'Confirmar alteração'}))return;
         await assertOk(db.rpc('bora_set_squad_admin',{_squad:element.dataset.squad,_member:id,_promote:element.dataset.promote==='true'}));
         toast('Permissão do integrante atualizada.');
         await loadSquads();return await showSquadRoster(element.dataset.squad);
@@ -1942,7 +2020,6 @@ async function handleAction(action, element) {
       case 'room-members': return await openRoomMembers();
       case 'create-poll': return createPoll();
       case 'vote-poll': return await votePoll(element.dataset.poll,element.dataset.option);
-      case 'delete-squad-photo': return await deleteSquadPhoto(id,element.dataset.path);
       case 'delete-pin': return await deletePin(id);
       case 'remove-song': return await removeSong(id);
       case 'block-user': return await blockUser(id);
@@ -1985,7 +2062,25 @@ document.addEventListener('submit', (event) => {
 
 $('modal-close').addEventListener('click', closeAndLeaveRoom);
 $('modal').addEventListener('click', (event) => { if (event.target === $('modal')) closeAndLeaveRoom(); });
+$('decision-cancel').addEventListener('click',()=>finishAppDecision(null));
+$('decision-form').addEventListener('submit',(event)=>{
+  event.preventDefault();
+  const decision=activeDecision;
+  if (!decision) return;
+  if (!decision.inputMode) return finishAppDecision(true);
+  const value=$('decision-input').value.trim();
+  if (value.length<decision.minLength || value.length>decision.maxLength) {
+    $('decision-field-error').textContent=`Informe entre ${decision.minLength} e ${decision.maxLength} caracteres para continuar.`;
+    $('decision-field-error').classList.remove('hidden');
+    $('decision-input').focus();return;
+  }
+  finishAppDecision(value);
+});
+$('decision-overlay').addEventListener('click',(event)=>{
+  if(event.target===$('decision-overlay'))finishAppDecision(null);
+});
 document.addEventListener('keydown', (event) => {
+  if (event.key==='Escape' && activeDecision) {event.preventDefault();finishAppDecision(null);return;}
   if (event.key === 'Escape' && !$('modal').classList.contains('hidden')) closeAndLeaveRoom();
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') { event.preventDefault(); $('global-search').focus(); }
   if ((event.key === 'Enter' || event.key === ' ') && event.target.matches('.event-card')) {
@@ -2067,16 +2162,16 @@ else {
 
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   // Atualização explícita do worker: evita manter uma instalação antiga do PWA.
-  navigator.serviceWorker.register('./service-worker.js?v=20261111-squad3', {updateViaCache:'none'}).catch(() => {});
+  navigator.serviceWorker.register('./service-worker.js?v=20261111-album-drive4', {updateViaCache:'none'}).catch(() => {});
 }
 
 async function inviteNickname(event, squadId) {
   event.preventDefault();
   const nickname = $('squad-nick').value.trim().replace(/^@/, '').toLowerCase();
-  if (!/^[a-z0-9_.]{3,24}$/.test(nickname)) return toast('Nickname inválido.');
+  if (!/^[a-z0-9_.]{3,24}$/.test(nickname)) return toast('@user inválido.');
   try {
     const found = await assertOk(db.rpc('lookup_nickname', {_nickname: nickname}));
-    if (!found?.length) return $('squad-invite-result').textContent = 'Nickname indisponível.';
+    if (!found?.length) return $('squad-invite-result').textContent = 'Esse @user não foi encontrado.';
     await assertOk(db.from('squad_invitations').insert({squad_id: squadId,invitee_id:found[0].user_id}));
     $('squad-invite-result').textContent = `Convite enviado a @${found[0].username}. Ela(e) precisa aceitar.`;
   } catch (err) { toast(err.message); }
