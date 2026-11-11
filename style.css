@@ -153,3 +153,85 @@
 .squad-request-card{padding:14px;background:var(--surface2);border:1px solid var(--line);border-radius:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:10px 0}
 .squad-request-card .grow{flex:1 1 170px;min-width:120px}.squad-request-card strong{overflow-wrap:anywhere}.squad-request-card p{font-size:12px;color:var(--muted);margin:5px 0}
 @media(max-width:620px){.discovery-card{align-items:flex-start;padding:12px}.discovery-actions{width:100%}.squad-result>.btn{width:100%}.squad-guard-panel{padding:12px}.squad-request-card>.squad-actions{width:100%}.squad-request-card>.squad-actions .btn{flex:1}}
+
+/* Ajuste mobile: campos nativos do iOS não podem alargar o formulário. */
+.shell,.main-wrap,.main,.screen,.profile-panel,.profile-photo-edit,.two-col,
+.fields,.panel,.field,.create-form,.create-form>label,.create-form>.fields>label,
+.dialog,.dialog-content,.friend-finder{min-width:0;max-width:100%;box-sizing:border-box}
+.two-col,.fields{grid-template-columns:repeat(2,minmax(0,1fr))}
+.field input,.field textarea,.field select,
+.create-form input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+.create-form select,.create-form textarea,
+#screen-perfil input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+#screen-perfil select,#screen-perfil textarea,
+.auth-form input:not([type="checkbox"]):not([type="radio"]),
+.auth-form select,.privacy-form input,.privacy-form select,.privacy-form textarea{
+  display:block;width:100%;min-width:0;max-width:100%;min-inline-size:0;max-inline-size:100%;
+  box-sizing:border-box
+}
+.create-form>label,.create-form .fields>label{display:grid;gap:7px;overflow-wrap:anywhere}
+.create-form>label>input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+.create-form>label>select,.create-form>label>textarea,
+.create-form .fields>label>input,.create-form .fields>label>select{
+  background:var(--surface2);border:1px solid var(--line);border-radius:12px;
+  color:var(--text);padding:12px;min-height:46px
+}
+.create-form .fields,.profile-panel .fields{min-width:0}
+.create-form input[type="date"],.create-form input[type="datetime-local"],
+.profile-panel input[type="date"]{font-size:16px;min-inline-size:0;max-inline-size:100%}
+.panel>.btn,.profile-panel .panel .btn{max-width:100%;white-space:normal;text-align:center}
+.panel .list-row>*{min-width:0}
+.profile-title>*{min-width:0;overflow-wrap:anywhere}
+
+/* Seletor de foto com botão legível e nome de arquivo que nunca transborda. */
+.file-picker{display:flex!important;align-items:center;gap:10px;min-width:0;max-width:100%;
+  padding:9px;border:1px solid var(--line);border-radius:14px;background:var(--surface);
+  color:var(--text);cursor:pointer;text-align:left;overflow:hidden}
+.file-picker input[type="file"]{position:absolute;width:1px;height:1px;opacity:0;
+  overflow:hidden;clip-path:inset(50%);pointer-events:none}
+.file-picker:focus-within{outline:3px solid var(--purple);outline-offset:2px}
+.file-picker-button{display:inline-flex;align-items:center;justify-content:center;flex:none;
+  padding:11px 12px;background:var(--surface3);border:1px solid var(--line);
+  border-radius:10px;font-weight:900;font-size:13px;color:var(--text)}
+.file-picker-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap;font-size:12px;font-weight:600;color:var(--muted)}
+.profile-photo-edit #avatar-form{display:flex;align-items:stretch;gap:10px;min-width:0}
+.profile-photo-edit #avatar-form .file-picker{flex:1;min-width:0}
+.profile-photo-edit #avatar-form .btn{flex:none;white-space:normal}
+
+/* O cabeçalho fica sempre visível e somente o conteúdo longo rola na vertical. */
+.dialog{display:flex;flex-direction:column;overflow:hidden}
+.dialog-top{flex:none;min-width:0;gap:10px;background:var(--surface)}
+.dialog-top h2{min-width:0;overflow-wrap:anywhere}
+.dialog-content{flex:1;min-height:0;overflow-x:hidden;overflow-y:auto;
+  overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.dialog-content>*,.create-form>*{min-width:0;max-width:100%}
+
+@media(max-width:850px){
+  .two-col,.fields{grid-template-columns:minmax(0,1fr)}
+  .screen,.panel,.profile-panel{overflow-wrap:anywhere}
+}
+@media(max-width:650px){
+  html,body{width:100%;max-width:100%;overflow-x:clip}
+  .main{width:100%;padding-left:12px;padding-right:12px}
+  .profile-panel{padding-left:12px;padding-right:12px}
+  #screen-perfil .panel{padding:16px 14px;border-radius:18px}
+  .profile-photo-edit{padding:14px}
+  .profile-photo-edit #avatar-form{flex-direction:column;align-items:stretch}
+  .profile-photo-edit #avatar-form .btn{width:100%;min-height:44px}
+  .file-picker{flex-wrap:wrap;gap:7px}
+  .file-picker-button{min-height:43px}
+  .file-picker-name{flex-basis:90px}
+  .overlay{padding:0;align-items:stretch}
+  .dialog{width:100%;height:100dvh;max-height:100dvh;max-width:100%;
+    border:0;border-radius:0;box-shadow:none}
+  .dialog-top{min-height:66px;padding:calc(12px + env(safe-area-inset-top)) 16px 12px}
+  .dialog-top h2{font-size:22px;line-height:1.2}
+  .dialog-top .icon-btn{flex:none;width:42px;height:42px}
+  .dialog-content{padding:18px 16px max(28px,env(safe-area-inset-bottom))}
+  .create-form{gap:13px}
+  .create-form .field,.create-form>label{margin-bottom:0}
+  .create-form input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+  .create-form textarea,.create-form select{min-height:46px}
+  .dialog-content .map-picker{width:100%;max-width:100%}
+}

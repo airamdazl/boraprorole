@@ -335,6 +335,10 @@ function showModal(title, body) {
   $('dialog-title').textContent = title;
   $('dialog-body').className = 'dialog-content';
   $('dialog-body').innerHTML = body;
+  // Um novo modal deve sempre abrir no início, inclusive no Safari do iPhone.
+  const dialog = $('modal').querySelector('.dialog');
+  if (dialog) dialog.scrollTop = 0;
+  $('dialog-body').scrollTop = 0;
   $('modal').classList.remove('hidden');
   document.body.style.overflow = 'hidden';
   $('modal-close').focus();
@@ -745,13 +749,16 @@ function openCreate() {
     <div class="field"><label for="new-playlist">Playlist do rolê no Spotify (opcional)</label><input id="new-playlist" type="url" placeholder="https://open.spotify.com/playlist/..."></div>
     <div class="field"><label for="new-spend">💸 Média de gasto por pessoa no local (R$)</label><input id="new-spend" type="number" min="0" max="100000" step="0.01" placeholder="Deixe vazio se não souber"><small class="small-muted">Estimativa opcional, além do ingresso. Vazio significa “Não sei informar”.</small></div>
     <div class="field"><label for="new-spend-notes">O que está incluído? (opcional)</label><input id="new-spend-notes" maxlength="250" placeholder="Ex.: ingresso já inclui open bar; consumo à parte"></div>
-    <div class="field"><label for="new-cover">Foto de capa (WebP/JPG/PNG, opcional)</label><input id="new-cover" type="file" accept="image/*"></div>
+    <div class="field"><label for="new-cover">Foto de capa (WebP/JPG/PNG, opcional)</label><label class="file-picker" for="new-cover"><input id="new-cover" type="file" accept="image/*"><span class="file-picker-button">📷 Escolher capa</span><span class="file-picker-name" id="new-cover-name" aria-live="polite">Nenhuma imagem selecionada</span></label></div>
     <p class="small-muted">📍 Toque no mapa para marcar o local exato do evento. A localização não é a da sua residência.</p>
     <div id="map-picker" class="map-picker"></div><div id="picker-location" class="small-muted">Nenhum local marcado.</div>
     <div class="field"><label for="new-audience">Quem pode confirmar presença?</label><select id="new-audience"><option value="all">🌎 Todas as pessoas</option><option value="women">👩 Somente mulheres</option><option value="men">👨 Somente homens</option><option value="lgbtq">🏳️‍🌈 Somente pessoas LGBTQIA+</option></select><small class="small-muted">A participação em rolês direcionados usa a identificação autodeclarada e privada do perfil. A convivência deve respeitar as regras antidiscriminação.</small></div>
     <label class="check-label"><input id="new-verified" type="checkbox"> O local exige documento para entrada e só aceita maiores de 18 anos.</label>
     <p class="legal-note">Nunca publique endereços residenciais, dados de terceiros ou convites a práticas ilegais. O app pode recusar conteúdos e eventos inadequados.</p>
     <button type="submit" class="btn btn-pink" style="width:100%">Publicar evento agora</button></form>`);
+  $('new-cover').addEventListener('change', (event) => {
+    $('new-cover-name').textContent = event.target.files?.[0]?.name || 'Nenhuma imagem selecionada';
+  });
   const userCity = String(state.profile?.city || '').trim();
   if (userCity) $('new-city').value = userCity;
   if (cityCoordinates[cityKey(userCity)]) $('new-state').value = cityCoordinates[cityKey(userCity)][2];
@@ -881,9 +888,12 @@ function hydrateProfile() {
     const photo = document.createElement('div');
     photo.className = 'profile-photo-edit';
     photo.innerHTML = `<h3>🖼️ Minha foto</h3>
-      <form id="avatar-form" class="friend-finder"><input type="file" id="avatar-upload" accept="image/*" aria-label="Enviar foto de perfil"><button class="btn btn-ghost btn-small" type="submit">Atualizar foto</button></form>
+      <form id="avatar-form" class="friend-finder"><label class="file-picker" for="avatar-upload"><input type="file" id="avatar-upload" accept="image/*"><span class="file-picker-button">📷 Escolher foto</span><span class="file-picker-name" id="avatar-filename" aria-live="polite">Nenhuma imagem selecionada</span></label><button class="btn btn-ghost btn-small" type="submit">Atualizar foto</button></form>
       <p class="small-muted">Foto WebP de até 300 KiB. A visibilidade segue suas escolhas de privacidade.</p>`;
     document.querySelector('.profile-bio').after(photo);
+    $('avatar-upload').addEventListener('change', (event) => {
+      $('avatar-filename').textContent = event.target.files?.[0]?.name || 'Nenhuma imagem selecionada';
+    });
     $('avatar-form').addEventListener('submit', saveAvatar);
   }
   if (!$('profile-account-options')) {
