@@ -28,6 +28,48 @@ const safeDriveFolder = (value) => {
   const parsed=new URL(url);
   return parsed.hostname==='drive.google.com' && parsed.pathname.includes('/folders/') ? url : '';
 };
+// Mostrar/ocultar senha sem comprometer o valor digitado; requisitos informativos.
+function enhancePasswordFields(root) {
+  if (!root) return;
+  root.querySelectorAll('input[type="password"]').forEach((input) => {
+    if (input.closest('.bpr-password-field')) return;
+    const wrapper = document.createElement('span');
+    wrapper.className = 'bpr-password-field';
+    input.parentNode.insertBefore(wrapper,input);
+    wrapper.append(input);
+    const toggle = document.createElement('button');
+    toggle.type='button'; toggle.className='bpr-toggle-password';
+    toggle.textContent='Mostrar'; toggle.setAttribute('aria-pressed','false');
+    toggle.setAttribute('aria-label','Mostrar senha');
+    wrapper.append(toggle);
+    if (input.autocomplete === 'new-password' && input.name === 'password') {
+      const hint=document.createElement('small');
+      hint.className='bpr-password-hint';hint.setAttribute('aria-live','polite');
+      hint.textContent='Use pelo menos 8 caracteres. Evite senhas comuns.';
+      wrapper.after(hint);
+      input.addEventListener('input', () => {
+        const v=input.value;
+        hint.textContent=!v?'Use pelo menos 8 caracteres. Evite senhas comuns.':
+          v.length<8?'Faltam '+(8-v.length)+' caracteres.':
+          /[a-zA-Z]/.test(v)&&/[0-9]/.test(v)&&/[^a-zA-Z0-9]/.test(v)?'Boa combinação de caracteres. Não reutilize senhas.':
+          'Tamanho mínimo atingido. Misture letras, números e símbolos.';
+      });
+    }
+  });
+}
+document.addEventListener('click', (event) => {
+  const button=event.target.closest('.bpr-toggle-password');
+  if (!button) return;
+  const input=button.parentElement.querySelector('input');
+  if (!input) return;
+  const visible=input.type==='password';
+  input.type=visible?'text':'password';
+  button.textContent=visible?'Ocultar':'Mostrar';
+  button.setAttribute('aria-pressed',String(visible));
+  button.setAttribute('aria-label',visible?'Ocultar senha':'Mostrar senha');
+  input.focus({preventScroll:true});
+});
+
 function friendlyError(error) {
   const message = String(error?.message || '');
   if (error?.code === '23505' || /profiles_username_key|duplicate key value.*username/i.test(message)) {
@@ -59,6 +101,9 @@ const currentRedirect = () => `${location.origin}${location.pathname}`;
 // Link do cadastro volta a uma página real do GitHub Pages e oferece login.
 // Cadastrar este URL EXATO em Authentication → URL Configuration → Redirect URLs.
 const signupRedirect = () => new URL('./index.html?email_confirmed=1', currentRedirect()).href;
+const recoveryRedirect = () => new URL('./index.html?auth=reset', currentRedirect()).href;
+const recoveryReturn = new URLSearchParams(location.search).get('auth') === 'reset' || confirmationFragment.get('type') === 'recovery';
+const authReturnError = confirmationError || new URLSearchParams(location.search).get('error');
 let pendingBirthdate = null; // Somente em memória, até a confirmação explícita.
 const categories = [
   ['todos', '✨', 'Todos'], ['festa', '🪩', 'Festas'], ['bar', '🍹', 'Bares'],
@@ -109,6 +154,19 @@ function applyBprPublicSettings(settings) {
     $('bpr-promo-title').textContent = config.banner_title;
     const featuredBanner=$('bpr-feature-tem');
     if(featuredBanner) featuredBanner.href=target || defaultBprSettings.banner_url;
+  }
+  const scheduled = config.mode === 'scheduled';
+  const msg = config.announcement || config.message || 'Novidades em preparação. O app continua funcionando.';
+  const topNotice = $('bpr-scheduled-strip');
+  if (topNotice) {
+    topNotice.classList.toggle('hidden', !scheduled);
+    $('bpr-scheduled-summary').textContent = 'Atualização em andamento · ' + msg;
+    topNotice.dataset.fullMessage = msg;
+  }
+  const gateNotice = $('bpr-auth-scheduled');
+  if (gateNotice) {
+    gateNotice.classList.toggle('hidden', !scheduled);
+    gateNotice.textContent = '🔧 Atualização em andamento: o aplicativo continua disponível.';
   }
   const announcement = $('bpr-announcement');
   if (announcement) {
@@ -285,13 +343,14 @@ function showGate(stage, data = {}) {
       <label>Cidade<input name="city" maxlength="90" placeholder="Ex.: São Paulo"></label>
       <label>Um pouco sobre você (opcional)<textarea name="bio" maxlength="300" rows="2" placeholder="Qual é a sua vibe?"></textarea></label>
       <label>Instagram pessoal (opcional)<input name="instagram" maxlength="140" placeholder="@seuperfil"></label>
-      <div class="signup-identity"><strong>Identificação opcional e privada</strong><p class="small-muted">Serve apenas para participar de rolês com público direcionado. Você pode deixar em branco e escolher depois.</p>
+      <details class="signup-identity"><summary>🔐 Identificação opcional e privada</summary><p class="small-muted">Use apenas se quiser participar de rolês com público direcionado. Você pode configurar isso depois no Perfil.</p>
         <label>Identidade de gênero<select name="gender"><option value="">Prefiro não informar</option><option value="woman">Mulher</option><option value="man">Homem</option><option value="nonbinary">Pessoa não binária</option><option value="other">Outra identificação</option></select></label>
         <label>Você se identifica como LGBTQIA+?<select name="lgbtq"><option value="">Prefiro não informar</option><option value="yes">Sim</option><option value="no">Não</option></select></label>
-        <label class="check-label"><input type="checkbox" name="sensitive_consent"> Autorizo o uso dessas identificações apenas para controlar minha entrada em rolês direcionados. Posso revogar depois.</label></div>
+        <label class="check-label"><input type="checkbox" name="sensitive_consent"> <span>Autorizo o uso dessas identificações apenas para controlar minha entrada em rolês direcionados. Posso revogar depois.</span></label></details>
       <label>Senha (mínimo 8 caracteres)<input name="password" type="password" minlength="8" autocomplete="new-password" required></label>
-      <label class="check-label"><input type="checkbox" name="truth_acknowledged" required> Declaro que tenho 18 anos ou mais, que a data é verdadeira e sei que poderemos solicitar comprovação futuramente.</label>
-      <label class="check-label"><input type="checkbox" name="legal_acknowledged" required> Li e aceito os <a href="./termos.html" target="_blank" rel="noopener noreferrer">Termos de Uso</a> e as <a href="./comunidade.html" target="_blank" rel="noopener noreferrer">Regras da Comunidade</a>. Estou ciente da <a href="./privacidade.html" target="_blank" rel="noopener noreferrer">Política de Privacidade</a>.</label>
+      <label>Confirme sua senha<input name="confirm_password" type="password" minlength="8" autocomplete="new-password" required></label>
+      <label class="check-label"><input type="checkbox" name="truth_acknowledged" required><span>Declaro que tenho 18 anos ou mais, que a data é verdadeira e sei que poderemos solicitar comprovação futuramente.</span></label>
+      <label class="check-label"><input type="checkbox" name="legal_acknowledged" required><span>Li e aceito os <a href="./termos.html" target="_blank" rel="noopener noreferrer">Termos de Uso</a> e as <a href="./comunidade.html" target="_blank" rel="noopener noreferrer">Regras da Comunidade</a>. Estou ciente da <a href="./privacidade.html" target="_blank" rel="noopener noreferrer">Política de Privacidade</a>.</span></label>
       <label>Seu e-mail (último passo)<input name="email" type="email" required autocomplete="email" placeholder="nome@exemplo.com"></label>
       <button class="btn btn-pink" type="submit">Criar conta e receber confirmação ✉️</button></form>
       <p class="auth-switch"><button data-auth="login">Já tenho conta</button></p>`,
@@ -305,9 +364,10 @@ function showGate(stage, data = {}) {
     resend: `<h1>Reenviar confirmação ✉️</h1><p class="small-muted">Não recebeu o link ou ele expirou? Informe o e-mail usado no cadastro.</p>
       <form id="resend-form" class="auth-form"><label>Email<input name="email" type="email" required autocomplete="email"></label>
       <button class="btn btn-pink" type="submit">Reenviar confirmação</button></form><p class="auth-switch"><button data-auth="login">Voltar ao login</button></p>`,
-    reset: `<h1>Defina uma nova senha</h1><form id="reset-form" class="auth-form">
+    reset: `<h1>Crie sua nova senha 🔐</h1><p class="small-muted">O link de recuperação foi validado. Após salvar, você voltará ao login.</p><form id="reset-form" class="auth-form">
       <label>Nova senha<input name="password" type="password" minlength="8" autocomplete="new-password" required></label>
-      <button class="btn btn-pink" type="submit">Alterar senha</button></form>`,
+      <label>Repita a nova senha<input name="confirm_password" type="password" minlength="8" autocomplete="new-password" required></label>
+      <button class="btn btn-pink" type="submit">Salvar nova senha e voltar ao login</button></form>`,
     birth: `<span class="eyebrow">Etapa 1 de 3</span><h1>Você já completou 18 anos?</h1>
       <p class="small-muted">Informe sua data de nascimento verdadeira. Esta informação fica privada e não pode ser alterada livremente depois.</p>
       <form id="birth-form" class="auth-form"><label>Data de nascimento<input name="birthdate" type="date" required max="${new Date().toISOString().slice(0,10)}"></label>
@@ -345,6 +405,7 @@ function showGate(stage, data = {}) {
     activeForm.noValidate=true;
     activeForm.querySelector('button[type="submit"]')?.before(authMessage);
   }
+  enhancePasswordFields($('auth-stage'));
   icons();
 }
 
@@ -379,6 +440,7 @@ async function authAction(kind, form) {
       await syncSession();
     } else if (kind === 'signup') {
       if (String(data.password||'').length<8) throw Error('Sua senha precisa ter pelo menos 8 caracteres.');
+      if (data.password !== data.confirm_password) throw Error('As senhas digitadas não coincidem.');
       const birth = String(data.birthdate || '');
       const birthday = new Date(`${birth}T12:00:00`);
       const adultDate = new Date(); adultDate.setFullYear(adultDate.getFullYear() - 18);
@@ -407,12 +469,19 @@ async function authAction(kind, form) {
       showGate('login');
       feedback('Se há uma confirmação pendente, enviaremos um novo link. Verifique sua caixa de entrada e spam.', false);
     } else if (kind === 'forgot') {
-      await assertOk(db.auth.resetPasswordForEmail(data.email, {redirectTo: currentRedirect()}));
+      await assertOk(db.auth.resetPasswordForEmail(data.email, {redirectTo: recoveryRedirect()}));
       showGate('login'); feedback('Se o email estiver cadastrado, você receberá instruções para redefinir a senha.', false);
     } else if (kind === 'reset') {
+      if (data.password !== data.confirm_password) throw Error('As senhas digitadas não coincidem.');
+      if (String(data.password||'').length < 8) throw Error('Use pelo menos 8 caracteres na nova senha.');
+      const { data: sessionData, error: sessionError } = await db.auth.getSession();
+      if (sessionError || !sessionData?.session) throw Error('Seu link expirou. Solicite um novo link de recuperação.');
       await assertOk(db.auth.updateUser({ password: data.password }));
-      feedback('Senha alterada. Continuando…', false);
-      await syncSession();
+      await assertOk(db.auth.signOut());
+      recoveringPassword = false;
+      history.replaceState(history.state, '', currentRedirect());
+      showGate('login');
+      feedback('Sua senha foi alterada. Agora entre com a nova senha.', false);
     } else if (kind === 'logout') {
       pendingBirthdate = null;
       await db.auth.signOut();
@@ -457,6 +526,7 @@ async function syncSession() {
   if (!session?.session?.user) {
     pendingBirthdate = null;
     state.user = null;
+    bprProfileStyle={cover_theme:'aurora',relationship_status:null,show_relationship:false,preferred_categories:[]};
     state.opened = false;
     state.isModerator = false;
     state.lastAppRefresh = 0;
@@ -516,6 +586,7 @@ async function syncSession() {
       // Ao reabrir o PWA, nenhuma janela antiga deve permanecer no histórico.
       updateAppHistory('explorar', false, true);
       navigate('explorar', true);
+      setTimeout(()=>startBprTour(),900);
     }
   } catch (err) {
     if (!navigator.onLine || /network|fetch|timeout|failed to fetch/i.test(err?.message || '')) {
@@ -546,6 +617,7 @@ function showModal(title, body) {
     if (!history.state?.[BORA_HISTORY_KEY]) updateAppHistory(screen, false, true);
     updateAppHistory(screen, true);
   }
+  enhancePasswordFields($('dialog-body'));
   icons();
 }
 
@@ -1161,13 +1233,20 @@ function hydrateProfile() {
   $('profile-handle').textContent = `@${profile.username}`;
   $('profile-bio').textContent = profile.bio || 'Ainda não escreveu sua descrição.';
   $('user-city-label').innerHTML = `<i data-lucide="map-pin"></i> ${html(profile.city || 'Brasil')}`;
-  document.querySelector('.avatar-btn').textContent = profile.display_name.slice(0,1).toUpperCase();
+  const miniAvatar=document.querySelector('.avatar-btn');
+  if (miniAvatar) {
+    miniAvatar.replaceChildren();
+    const fallback=document.createElement('span');
+    fallback.className='bpr-avatar-fallback';fallback.textContent=profile.display_name.slice(0,1).toUpperCase();
+    miniAvatar.append(fallback);
+  }
   $('edit-name').value = profile.display_name;
   $('edit-handle').value = profile.username;
   $('edit-city').value = profile.city || '';
   $('edit-bio').value = profile.bio || '';
   $('edit-insta').value = profile.instagram || '';
   focusHomeMap();
+  loadBprProfileStyle().catch(()=>{});
   $('edit-birth').disabled = true;
   $('edit-birth').title = 'A data declarada só pode ser corrigida pelo suporte.';
   db.from('private_profile_data').select('date_of_birth').eq('user_id',state.user.id).maybeSingle()
@@ -1187,7 +1266,15 @@ function hydrateProfile() {
   avatar.textContent = profile.display_name.slice(0,1).toUpperCase();
   if (profile.avatar_path) {
     db.storage.from('avatars').createSignedUrl(profile.avatar_path, 90).then(({data}) => {
-      if (data?.signedUrl && avatar) avatar.innerHTML = `<img src="${html(safeHttps(data.signedUrl))}" alt="Minha foto de perfil">`;
+      if (state.profile?.id !== profile.id || !data?.signedUrl) return;
+      const url=safeHttps(data.signedUrl);
+      if (!url) return;
+      if (avatar) avatar.innerHTML = `<img src="${html(url)}" alt="Minha foto de perfil">`;
+      if (miniAvatar) {
+        const image=document.createElement('img');image.src=url;
+        image.alt='';image.className='bpr-avatar-mini-photo';
+        miniAvatar.replaceChildren(image);
+      }
     });
   }
   if (!$('avatar-form')) {
@@ -1253,6 +1340,89 @@ function hydrateProfile() {
   }).catch(() => { state.isModerator = false; });
 }
 
+// Personalização opcional, isolada das identificações sensíveis de acesso.
+const bprProfileCategories=['festa','bar','balada','cinema','show','festival','cultura','ar-livre','rave','outros'];
+const bprRelationshipLabels={single:'Solteiro(a)',dating:'Conhecendo alguém',relationship:'Em um relacionamento',complicated:'É complicado'};
+const bprProfileThemes=['aurora','sunset','night','ocean','urban'];
+let bprProfileStyle={cover_theme:'aurora',relationship_status:null,show_relationship:false,preferred_categories:[]};
+let bprStyleLoadedUser=null;
+function initBprStyleForm() {
+  const form=$('bpr-style-form');if (!form || form.dataset.ready) return;
+  form.dataset.ready='true';
+  $('bpr-preferences-options').innerHTML=bprProfileCategories.map(slug => {
+    return `<label class="bpr-preference-option"><input type="checkbox" name="preferred_categories" value="${html(slug)}"><span>${html(catLabel(slug))}</span></label>`;
+  }).join('');
+  form.addEventListener('change',event=>{
+    if (event.target.name==='cover_theme') {
+      applyBprCover(event.target.value);
+    }
+    if (event.target.name==='preferred_categories') {
+      const checked=[...form.querySelectorAll('[name="preferred_categories"]:checked')];
+      if(checked.length>5){event.target.checked=false; $('bpr-style-feedback').textContent='Escolha no máximo cinco tipos de rolê.';}
+    }
+    if(event.target.name==='relationship') $('bpr-show-relationship').disabled=!event.target.value;
+  });
+  form.addEventListener('submit',saveBprProfileStyle);
+}
+function applyBprCover(theme) {
+  const cover=document.querySelector('#screen-perfil .profile-cover');
+  if(cover) cover.dataset.vibe=bprProfileThemes.includes(theme)?theme:'aurora';
+}
+function renderBprProfileStyle(style=bprProfileStyle) {
+  initBprStyleForm();
+  const form=$('bpr-style-form');if(!form)return;
+  const theme=bprProfileThemes.includes(style.cover_theme)?style.cover_theme:'aurora';
+  const radio=form.querySelector(`[name="cover_theme"][value="${theme}"]`);
+  if(radio)radio.checked=true;
+  applyBprCover(theme);
+  $('bpr-relationship').value=style.relationship_status||'';
+  $('bpr-show-relationship').checked=Boolean(style.show_relationship);
+  $('bpr-show-relationship').disabled=!style.relationship_status;
+  form.querySelectorAll('[name="preferred_categories"]').forEach(el=>el.checked=(style.preferred_categories||[]).includes(el.value));
+  const relationship=$('bpr-relationship-chip');
+  const show=Boolean(style.relationship_status&&style.show_relationship&&bprRelationshipLabels[style.relationship_status]);
+  relationship.classList.toggle('hidden',!show);
+  if(show)relationship.textContent='💛 '+bprRelationshipLabels[style.relationship_status];
+  const prefs=(style.preferred_categories||[]).filter(c=>bprProfileCategories.includes(c));
+  $('bpr-preferences-chips').textContent=prefs.length?'Minha vibe: '+prefs.map(c=>catLabel(c)).join(' · '):'';
+}
+async function loadBprProfileStyle() {
+  if(!state.user)return;
+  const uid=state.user.id;bprStyleLoadedUser=uid;
+  initBprStyleForm();
+  const {data,error}=await db.from('bpr_profile_personalization').select('cover_theme,relationship_status,show_relationship,preferred_categories').eq('user_id',uid).maybeSingle();
+  if(state.user?.id!==uid)return;
+  if(error){
+    $('bpr-style-feedback').textContent='Personalização aguardando ativação da migração no Supabase. O perfil antigo continua funcionando.';
+    renderBprProfileStyle();return;
+  }
+  bprProfileStyle={cover_theme:'aurora',relationship_status:null,show_relationship:false,preferred_categories:[],...(data||{})};
+  renderBprProfileStyle();
+  $('bpr-style-feedback').textContent='As escolhas ficam vinculadas à sua conta. Seu relacionamento só aparece se você autorizar.';
+}
+async function saveBprProfileStyle(event) {
+  event.preventDefault();if(!state.user)return;
+  const form=event.currentTarget, submit=event.submitter;
+  if(submit)submit.disabled=true;
+  const pref=[...form.querySelectorAll('[name="preferred_categories"]:checked')].map(el=>el.value);
+  if(pref.length>5){if(submit)submit.disabled=false;return toast('Escolha até 5 preferências.');}
+  const rel=$('bpr-relationship').value||null;
+  const theme=form.querySelector('[name="cover_theme"]:checked')?.value||'aurora';
+  const payload={user_id:state.user.id,cover_theme:theme,relationship_status:rel,
+    show_relationship:!!rel&&$('bpr-show-relationship').checked,preferred_categories:pref};
+  try {
+    const {data,error}=await db.from('bpr_profile_personalization').upsert(payload,{onConflict:'user_id'}).select('cover_theme,relationship_status,show_relationship,preferred_categories').single();
+    if(error)throw error;
+    bprProfileStyle=data;
+    renderBprProfileStyle(data);
+    $('bpr-style-feedback').textContent='Sua vibe foi salva no perfil.';
+    toast('Sua vibe foi salva!');
+  }catch(err){
+    $('bpr-style-feedback').textContent='Não foi possível salvar. Confirme que a migração da personalização foi instalada.';
+    toast('Personalização não salva. O restante do perfil não foi alterado.');
+  }finally{if(submit)submit.disabled=false;}
+}
+
 async function saveProfile() {
   const display = $('edit-name').value.trim();
   const username = $('edit-handle').value.trim().replace(/^@/, '').toLowerCase();
@@ -1305,7 +1475,7 @@ async function followNickname(event) {
     }
     const personCard = person ? `<article class="discovery-card person-result"><div class="discovery-avatar">${avatarUrl?`<img src="${html(avatarUrl)}" alt="Foto de @${html(person.username)}">`:'👤'}</div>
       <div class="grow"><strong>${html(person.display_name)}</strong><p>@${html(person.username)} ${person.is_friend?'· 🤝 Amizade recíproca':''}</p>
-      ${person.bio?`<p>${html(person.bio)}</p>`:''}${person.city?`<p>📍 ${html(person.city)}</p>`:''}${person.instagram?`<p>Instagram: ${html(person.instagram)}</p>`:''}</div>
+      ${person.bio?`<p>${html(person.bio)}</p>`:''}${person.city?`<p>📍 ${html(person.city)}</p>`:''}${person.instagram?`<p>Instagram: ${html(person.instagram)}</p>`:''}<div class="bpr-person-style-view" aria-live="polite"></div></div>
       <div class="discovery-actions"><button class="btn btn-pink btn-small" data-action="follow-found-user" data-id="${html(person.user_id)}" data-nick="${html(person.username)}">Seguir</button>
       <button class="btn btn-ghost btn-small" data-action="block-found-user" data-nick="${html(person.username)}">Bloquear</button></div></article>`:
       '<p class="small-muted">Nenhuma pessoa encontrada com esse @user ou ela não permite buscas.</p>';
@@ -1316,6 +1486,22 @@ async function followNickname(event) {
       '<p class="small-muted">Nenhum SQUAD aberto a pedidos com esse nome.</p>';
     target.innerHTML = `<section class="discovery-group"><h3>👥 Pessoas</h3>${personCard}</section>
       <section class="discovery-group"><h3>🫶 SQUADs</h3>${squadCards}</section>`;
+    // Complementos públicos são solicitados apenas para alguém já encontrado
+    // pela busca que respeita as regras de visibilidade do perfil.
+    if(person?.user_id) {
+      const resultBox=target.querySelector('.bpr-person-style-view');
+      const personId=person.user_id;
+      db.rpc('bpr_profile_personalization_public',{p_user_id:personId}).then(({data,error})=>{
+        if(error||!resultBox?.isConnected||!data)return;
+        if(data.relationship_status && bprRelationshipLabels[data.relationship_status]) {
+          const badge=document.createElement('span');badge.className='bpr-relationship-chip';
+          badge.textContent='💛 '+bprRelationshipLabels[data.relationship_status];
+          resultBox.append(badge);
+        }
+        const theme=bprProfileThemes.includes(data.cover_theme)?data.cover_theme:'aurora';
+        if(theme!=='aurora')resultBox.dataset.vibe=theme;
+      }).catch(()=>{});
+    }
   } catch (err) { target.textContent = `Não foi possível pesquisar: ${friendlyError(err)}`; }
 }
 
@@ -1413,7 +1599,8 @@ function refreshBprFeatures() {
   const slides=[...document.querySelectorAll('.bpr-feature-slide')];
   if(!slides.length)return;
   const config=bprControl.settings||{};
-  const msg=String(config.announcement||'').trim();
+  // Aviso de manutenção agendada já aparece na faixa fixa: não duplicar no carrossel.
+  const msg=config.mode==='scheduled'?'':String(config.announcement||'').trim();
   const card=config.community_card;
   $('bpr-feature-message-text').textContent=msg;
   $('bpr-feature-message').dataset.kind=config.notice_kind||'info';
@@ -2173,6 +2360,36 @@ async function openAudiencePreferences() {
   }catch(err){toast(err.message);}
 }
 
+// Tour opcional: é exibido uma única vez por conta e reaberto pelo FAQ.
+const bprTourSteps=[
+  {title:'Bem-vindo ao Bora Pro Rolê ✌️',body:'Encontre eventos, conheça pessoas e explore a cidade. Você pode pular o tour a qualquer momento.'},
+  {title:'Explore eventos pelo mapa ou lista',body:'Use Explorar para filtrar rolês, verificar data e local, salvar e confirmar presença com segurança.'},
+  {title:'Seus encontros em um lugar só',body:'Meus rolês reúne participação, salvos e eventos publicados. As preferências ficam no Perfil.'},
+  {title:'Crie um rolê com endereço confirmado',body:'Informe o endereço ou link compatível do Google Maps e confira a prévia antes de publicar.'},
+  {title:'Squads e jogos da galera',body:'Meus Squads reúne conversas, informações e convites. A Central de Jogos aparece quando a administração habilita.'},
+  {title:'Você no controle 🔐',body:'Toque na foto do cabeçalho para abrir o menu da conta. No Perfil, escolha sua capa, controle a privacidade e encontre o botão Sair.'}
+];
+let bprTourCurrent=0;
+const bprTourKey=()=>state.user?`bpr_tour_v53_${state.user.id}`:null;
+function finishBprTour(){
+  try{const key=bprTourKey();if(key)localStorage.setItem(key,'done');}catch(_){}
+  closeModal();
+}
+function bprTourRender(){
+  const step=bprTourSteps[bprTourCurrent];
+  showModal('Conheça o Bora Pro Rolê', `<div class="bpr-tour-step"><span class="eyebrow">Passo ${bprTourCurrent+1} de ${bprTourSteps.length}</span><h3>${html(step.title)}</h3><p>${html(step.body)}</p><div class="bpr-tour-progress" aria-label="Progresso do tour">${bprTourSteps.map((_,i)=>`<span class="${i===bprTourCurrent?'active':''}"></span>`).join('')}</div><div class="bpr-tour-actions"><button type="button" class="btn btn-ghost" id="bpr-tour-skip">Pular tour</button>${bprTourCurrent>0?'<button type="button" class="btn btn-ghost" id="bpr-tour-back">Anterior</button>':''}<button type="button" class="btn btn-pink" id="bpr-tour-next">${bprTourCurrent===bprTourSteps.length-1?'Concluir':'Próximo'}</button></div></div>`);
+  $('bpr-tour-skip').onclick=finishBprTour;
+  if($('bpr-tour-back'))$('bpr-tour-back').onclick=()=>{bprTourCurrent--;bprTourRender();};
+  $('bpr-tour-next').onclick=()=>{if(bprTourCurrent===bprTourSteps.length-1)finishBprTour();else{bprTourCurrent++;bprTourRender();}};
+}
+function startBprTour(force=false){
+  if(!state.opened||!state.user)return;
+  const key=bprTourKey();
+  try{if(!force&&localStorage.getItem(key)==='done')return;}catch(_){}
+  if(!$('modal').classList.contains('hidden'))return;
+  bprTourCurrent=0;bprTourRender();
+}
+
 // Atendimento próprio: dúvidas/erros/sugestões ficam separados de denúncias e LGPD.
 // Só envia para RPCs autorizadas: nenhuma escrita direta em tabelas administrativas.
 let bprPendingHelpKey = null;
@@ -2189,6 +2406,7 @@ async function openBprHelp() {
     issue = 'O atendimento interno ainda não está disponível nesta versão. Você pode utilizar o e-mail de moderação abaixo enquanto a integração é concluída.';
   }
   showModal('Ajuda e atendimento 💬', `<p class="small-muted">Fale com a equipe e acompanhe as respostas aqui. Não inclua senhas, documentos ou informações íntimas.</p>
+    <button type="button" id="bpr-tour-restart" class="btn btn-ghost">▶ Rever tour do aplicativo</button>
     <details class="bpr-faq"><summary>Como usar o Bora Pro Rolê? · Guia rápido</summary><ol>
       <li>Em <strong>Explorar</strong>, busque rolês e consulte os detalhes no mapa ou na lista.</li>
       <li>Em <strong>Meus rolês</strong>, acompanhe o que salvou ou confirmou.</li>
@@ -2206,6 +2424,7 @@ async function openBprHelp() {
       <div class="bpr-help-thread">${(row.messages||[]).map(msg=>`<div class="bpr-help-message ${msg.kind==='team'?'team':''}"><strong>${msg.kind==='team'?'Equipe':'Você'}</strong><p>${html(msg.content)}</p><small>${html(shortDate(msg.created_at))}</small></div>`).join('')}</div>
       ${row.status!=='closed'?`<form class="bpr-help-reply" data-ticket="${html(row.id)}"><label>Responder neste atendimento<textarea name="message" maxlength="2000" minlength="5" required rows="2" placeholder="Escreva sua mensagem"></textarea></label><button class="btn btn-ghost btn-small" type="submit">Enviar resposta</button></form>`:''}</article>`).join(''):'<p class="small-muted">Nenhuma solicitação registrada até agora.</p>') : ''}</div>
     <p class="small-muted">Contato alternativo: <a href="mailto:moderacao.boraprorole@gmail.com">moderacao.boraprorole@gmail.com</a>. As respostas neste painel não são enviadas por e-mail.</p>`);
+  $('bpr-tour-restart')?.addEventListener('click',()=>{closeModal();setTimeout(()=>startBprTour(true),50);});
   const form=$('bpr-help-form');
   if(form) form.addEventListener('input',()=>{bprPendingHelpKey=null;});
   if(form) form.addEventListener('submit', async event=>{
@@ -2524,6 +2743,10 @@ function applyTheme(theme) {
   $('theme-toggle').innerHTML = theme === 'dark' ? '<i data-lucide="sun"></i>' : '<i data-lucide="moon"></i>';
   icons();
 }
+$('bpr-scheduled-strip')?.querySelector('[data-action="scheduled-info"]')?.addEventListener('click', () => {
+  const s=bprControl.settings;
+  showModal('Atualização do Bora Pro Rolê', `<p>${html(s?.announcement || s?.message || 'Estamos preparando novidades.')}</p><p class="small-muted">O aplicativo continua disponível normalmente neste aviso. Nenhuma manutenção bloqueante foi ativada.</p>`);
+});
 $('theme-toggle').addEventListener('click', () => applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'));
 applyTheme(document.documentElement.dataset.theme || 'dark');
 window.addEventListener('storage', (event) => {
@@ -2536,13 +2759,16 @@ debugBanner.classList.add('hidden');
 showGate('loading');
 if (!db) showGate('offline');
 else {
-  let recoveringPassword = false;
-  let confirmingEmail = emailConfirmationReturn;
+  let recoveringPassword = recoveryReturn;
+  let confirmingEmail = emailConfirmationReturn && !recoveryReturn;
   db.auth.onAuthStateChange((event) => {
     if (confirmingEmail) return; // Não abrir automaticamente a área social durante a confirmação.
     if (event === 'PASSWORD_RECOVERY') { recoveringPassword = true; return showGate('reset'); }
-    if (recoveringPassword && event !== 'SIGNED_OUT' && event !== 'USER_UPDATED') return;
-    if (event === 'USER_UPDATED') recoveringPassword = false;
+    if (recoveringPassword) {
+      if (event === 'SIGNED_OUT') { recoveringPassword=false; return; }
+      if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') return;
+      return; // Redefinição termina exclusivamente em Login, nunca abre o feed.
+    }
     if (event === 'TOKEN_REFRESHED' && state.opened) return;
     setTimeout(() => syncSession().catch((err) => { showGate('blocked'); feedback(err.message); }), 0);
   });
@@ -2568,6 +2794,14 @@ else {
         feedback(err.message || 'Não foi possível confirmar seu e-mail. Solicite um novo link.');
       }
     })();
+  } else if (recoveringPassword) {
+    // A URL de recuperação nunca leva direto para o conteúdo social.
+    db.auth.getSession().then(({data,error}) => {
+      if (error || authReturnError || !data?.session) {
+        recoveringPassword=false; history.replaceState(history.state,'',currentRedirect());
+        showGate('login'); feedback('O link de recuperação expirou ou não é válido. Solicite um novo link.');
+      } else showGate('reset');
+    }).catch(() => {recoveringPassword=false;showGate('forgot');feedback('Não foi possível validar o link. Solicite outro.');});
   } else {
     syncSession().catch((err) => { showGate('blocked'); feedback(err.message); });
   }
