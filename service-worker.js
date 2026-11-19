@@ -1,6 +1,6 @@
-const CACHE = 'bora-pro-role-navegacao-v20-v5';
+const CACHE = 'bora-pro-role-jogos-v21-v51';
 const APP_SHELL = ['./', './index.html', './app.js', './style.css', './manifest.webmanifest',
-  './banner-tem-gogo.webp', './icon-192.png', './icon-512.png', './icon.svg',
+  './banner-tem-gogo.webp', './games.js', './icon-192.png', './icon-512.png', './icon.svg',
   './termos.html', './privacidade.html', './comunidade.html'];
 
 self.addEventListener('install', event => {

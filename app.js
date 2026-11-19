@@ -133,8 +133,20 @@ function applyBprPublicSettings(settings) {
     }
   }
   bprControl.settings = config;
+  const gamesOn = Boolean(config.squad_games_enabled && config.mode !== 'maintenance');
+  document.querySelectorAll('.bpr-games-entry').forEach(el => {
+    el.classList.toggle('hidden', !gamesOn);
+    el.hidden = !gamesOn;
+  });
+  document.querySelector('[data-room-tab="games"]')?.toggleAttribute('hidden', !gamesOn);
+  if (!gamesOn) {
+    window.BPRGames?.close();
+    if (state?.opened && activeScreen() === 'jogos') navigate('explorar');
+    if (state.activeRoom?.type === 'squad' && document.querySelector('[data-room-tab="games"].active')) {
+      changeRoomTab('chat').catch(() => {});
+    }
+  }
   refreshBprFeatures();
-  if (!config.squad_games_enabled && !$('modal').classList.contains('hidden') && $('dialog-body').querySelector('[data-bpr-next]')) closeModal();
   if (state?.opened && activeScreen() === 'squad') renderSquadGames();
 }
 async function refreshBprPublicSettings(force=false) {
@@ -550,6 +562,7 @@ function closeModal(fromHistory = false) {
 function navigate(page, fromHistory = false) {
   if (!state.user || !$('auth-gate').classList.contains('hidden')) return;
   if (page === 'criar') return openCreate();
+  if (page === 'jogos' && !window.BPRGamesAllowed?.()) return toast('Os jogos estão desativados pela administração.');
   const previousScreen = activeScreen();
   document.querySelectorAll('.screen').forEach((screen) => screen.classList.toggle('active', screen.id === `screen-${page}`));
   document.querySelectorAll('[data-nav]').forEach((button) => button.classList.toggle('active', button.dataset.nav === page));
@@ -1437,67 +1450,21 @@ document.addEventListener('click',e=>{
   }
 });
 
-const bprSquadGames = {
-  nunca: {
-    title:'Eu Nunca', icon:'🙈', description:'Quem já viveu isso pode contar — ou passar.',
-    cards:['Eu nunca fui a um rolê e encontrei alguém por acaso.',
-      'Eu nunca me perdi indo encontrar a galera.',
-      'Eu nunca fui ao cinema só pela pipoca.',
-      'Eu nunca saí de casa sem saber onde a noite ia terminar.',
-      'Eu nunca fiz amizade em uma fila.',
-      'Eu nunca cantei karaokê com muita confiança e pouca afinação.',
-      'Eu nunca precisei mandar a localização para achar meus amigos.',
-      'Eu nunca fui ao rolê errado por engano.']
-  },
-  quem: {
-    title:'Quem Sou Eu?', icon:'🕵️', description:'Dê pistas sem dizer o nome da carta.',
-    cards:['Astronauta','Chef de cozinha','Detetive','Cantora de karaokê',
-      'Super-herói','Turista perdido','Apresentador de TV','DJ da festa',
-      'Pirata','Cineasta','Jogador de futebol','Mágico']
-  },
-  escolha: {
-    title:'Isso ou Aquilo?', icon:'⚡', description:'Escolhas rápidas para descobrir a vibe da galera.',
-    cards:['Praia ou montanha?','Show ou cinema?','Rolê planejado ou surpresa?',
-      'Karaokê ou pista de dança?','Café da manhã ou jantar?',
-      'Cidade grande ou interior?','Festival ou barzinho?',
-      'Aventura ao ar livre ou noite de jogos?']
-  }
-};
-let bprLastGameCard = {};
+// V5.1 — baralhos e rodadas são executados somente no navegador (games.js).
+// A única chave de ativação é a flag global da Central. Não existem controles por Squad.
 function renderSquadGames() {
-  const extras = $('squad-live-extras');
-  if (!extras) return;
-  let area = $('bpr-squad-games');
-  if (!area) {
-    area = document.createElement('section');
-    area.id = 'bpr-squad-games';
-    area.className = 'bpr-squad-games';
-    extras.insertAdjacentElement('afterend',area);
-  }
-  const current = state.squads.find(row => row.id === state.activeSquad);
-  const available = !!(bprControl.settings?.squad_games_enabled && current && state.user && state.opened);
-  area.classList.add('hidden'); // Jogos disponíveis apenas dentro da conversa do Squad
-  if (!available) { area.replaceChildren(); return; }
-  area.innerHTML = `<div class="bpr-games-heading"><div><span class="eyebrow">QUEBRA-GELO</span><h3>Jogos para a sua galera 🎲</h3><p>Cartas rápidas para brincar pelo chat ou pessoalmente. Sem placares e sem guardar respostas.</p></div></div>
-  <div class="bpr-games-grid">${Object.entries(bprSquadGames).map(([key,game])=>`<button type="button" class="bpr-game-tile" data-bpr-game="${key}"><span aria-hidden="true">${game.icon}</span><strong>${html(game.title)}</strong><small>${html(game.description)}</small></button>`).join('')}</div>
-  <p class="small-muted">Ninguém precisa responder a uma pergunta desconfortável. A ativação geral é controlada pela administração da plataforma.</p>`;
+  // Remove os cartões legados fora da sala do Squad; jogos ficam na aba da sala
+  // ou na Central de Jogos independente, sem exigir participação em Squad.
+  document.getElementById('bpr-squad-games')?.remove();
 }
-function nextBprGameCard(kind) {
-  const game = bprSquadGames[kind];
-  if (!game || !bprControl.settings?.squad_games_enabled) return;
-  const previous = bprLastGameCard[kind];
-  const choices = game.cards.filter(card => card !== previous);
-  const card = choices[Math.floor(Math.random() * choices.length)];
-  bprLastGameCard[kind] = card;
-  showModal(`${game.icon} ${game.title}`, `<div class="bpr-game-modal"><p>${html(game.description)}</p><div class="bpr-game-question" role="status">${html(card)}</div><button type="button" class="btn btn-pink" data-bpr-next="${kind}">Outra carta</button><p class="small-muted">Brinquem no chat existente do Squad ou pessoalmente. Não há respostas registradas pelo jogo.</p></div>`);
+window.BPRGamesAllowed = () => Boolean(
+  state.user && state.opened &&
+  bprControl.settings?.squad_games_enabled &&
+  bprControl.settings?.mode !== 'maintenance'
+);
+function bprGamesTiles() {
+  return window.BPRGames?.tiles() || '';
 }
-document.addEventListener('click',(event)=>{
-  const choice=event.target.closest('[data-bpr-game],[data-bpr-next]');
-  if (!choice) return;
-  const key=choice.dataset.bprGame || choice.dataset.bprNext;
-  if (!bprControl.settings?.squad_games_enabled || state.activeRoom?.type !== 'squad') return;
-  nextBprGameCard(key);
-});
 
 function openSquadCreateForm(eventId = null) {
   const origin = eventId ? state.events.find((event) => event.id === eventId) : null;
@@ -1732,7 +1699,7 @@ async function openRoom(type, id) {
     <div class="chat-tabs"><button class="active" data-room-tab="chat">Chat</button><button data-room-tab="mural">Informações 📌</button>
     <button data-room-tab="polls">Enquetes 📊</button>
     ${type === 'event' ? '<button data-room-tab="music">Músicas 🎵</button>' : ''}
-    ${type === 'squad' ? `<button data-room-tab="games">Jogos 🎲</button><button data-room-tab="album">Álbum 📸</button><button data-room-tab="members">Integrantes</button>${['owner','moderator'].includes(state.squadRoles.get(id))?'<button data-room-tab="settings">⚙️ Gestão</button>':''}` : ''}
+    ${type === 'squad' ? `<button data-room-tab="games" ${bprControl.settings?.squad_games_enabled ? '' : 'hidden'}>Jogos 🎲</button><button data-room-tab="album">Álbum 📸</button><button data-room-tab="members">Integrantes</button>${['owner','moderator'].includes(state.squadRoles.get(id))?'<button data-room-tab="settings">⚙️ Gestão</button>':''}` : ''}
     <button data-action="report" data-kind="${type}" data-id="${html(id)}">Denunciar</button></div>
     <div id="room-content" class="room-content"></div>`);
   $('dialog-body').className = 'dialog-content room-panel';
@@ -1771,7 +1738,7 @@ async function changeRoomTab(tab) {
     if(!bprControl.settings?.squad_games_enabled) {
       target.innerHTML='<p class="small-muted">Os jogos estão desativados pela administração da plataforma.</p>';
     } else {
-      target.innerHTML=`<h3>Jogos da galera 🎲</h3><p class="small-muted">Cartas para brincar juntos no chat ou pessoalmente, sem registrar respostas ou placar.</p><div class="bpr-room-games">${Object.entries(bprSquadGames).map(([key,g])=>`<button type="button" class="bpr-game-tile" data-bpr-game="${key}"><strong>${g.icon} ${html(g.title)}</strong><small>${html(g.description)}</small></button>`).join('')}</div>`;
+      target.innerHTML=`<h3>Jogos da galera 🎲</h3><p class="small-muted">Cartas para brincar juntos no chat ou pessoalmente, sem registrar respostas ou placar.</p><div class="bpr-room-games">${bprGamesTiles()}</div>`;
     }
   } else if (tab === 'members' && room.type === 'squad') {
     target.innerHTML='<h3>Integrantes do Squad</h3><p>Consulte os participantes e os cargos autorizados.</p><button type="button" class="btn btn-ghost" data-action="squad-roster" data-id="'+html(room.id)+'">Ver integrantes</button>';
@@ -2540,7 +2507,7 @@ else {
 
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   // Atualização explícita do worker: evita manter uma instalação antiga do PWA.
-  navigator.serviceWorker.register('./service-worker.js?v=20261119-comunidade-v19', {updateViaCache:'none'}).catch(() => {});
+  navigator.serviceWorker.register('./service-worker.js?v=20261119-jogos-v21', {updateViaCache:'none'}).catch(() => {});
 }
 
 async function inviteNickname(event, squadId) {

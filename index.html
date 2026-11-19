@@ -43,6 +43,7 @@
         <button class="nav-link" data-nav="meus"><i data-lucide="calendar-heart"></i><span>Meus rolês</span></button>
         <button class="nav-link" data-nav="criar"><i data-lucide="circle-plus"></i><span>Criar rolê</span></button>
         <button class="nav-link" data-nav="squad"><i data-lucide="users-round"></i><span>Meus squads</span></button>
+        <button class="nav-link bpr-games-entry hidden" data-nav="jogos" hidden><i data-lucide="gamepad-2"></i><span>Jogos</span></button>
         <button class="nav-link" data-nav="perfil"><i data-lucide="user-round"></i><span>Meu perfil</span></button>
       </nav>
       <div class="sidebar-spacer"></div>
@@ -64,6 +65,11 @@
         <section class="screen active" id="screen-explorar" aria-label="Descobrir rolês">
           <div class="welcome"><div><span class="eyebrow">O seu rolê começa aqui</span><h1>Pra onde a gente vai? <span aria-hidden="true">✌️</span></h1><p>Descubra planos incríveis e encontre companhia pra ir junto.</p></div><button class="btn btn-pink" data-action="create"><i data-lucide="plus"></i> Criar rolê</button></div>
           <section class="bpr-feature-carousel" aria-label="Destaques da comunidade" aria-roledescription="carrossel"><div class="bpr-feature-track"><div class="bpr-feature-slide" data-slide="0"><div class="hero"><div class="hero-copy"><span class="kicker" id="hero-kicker">⚡ COM GENTE É MELHOR</span><h2 id="hero-headline">A vida acontece<br>fora do feed.</h2><p id="hero-message">Do cinema à rave, das boas conversas às amizades que ficam.</p></div><div class="hero-stickers"><img class="hero-brand-logo" src="./icon-512.png" alt="Símbolo Bora Pro Rolê" loading="lazy"></div></div></div><div class="bpr-feature-slide" data-slide="1" hidden><a class="bpr-feature-card bpr-feature-tem" id="bpr-feature-tem" href="https://appspwa-zlsp.github.io/tem-gogo/" target="_blank" rel="noopener noreferrer"><img src="./banner-tem-gogo.webp" loading="lazy" alt="Tem Gogó: karaokê interativo"><span><small>PARCERIA</small><strong>Conheça o Tem Gogó!</strong><span>O próximo rolê pode virar um show.</span><b>Conhecer aplicativo ↗</b></span></a></div><div class="bpr-feature-slide" data-slide="2" hidden><a class="bpr-feature-card bpr-feature-social" href="https://www.instagram.com/boraprorole.app/" target="_blank" rel="noopener noreferrer"><span><small>INSTAGRAM OFICIAL</small><strong>Continue o rolê nas redes</strong><span>Acompanhe novidades e encontros.</span><b>Visitar Instagram ↗</b></span></a></div><div class="bpr-feature-slide" data-slide="3" hidden><div class="bpr-feature-card bpr-feature-music"><span><small>PLAYLIST OFICIAL</small><strong>O som do seu rolê</strong><span>Abra a playlist oficial na seção Música.</span><button type="button" data-bpr-open-music>Ver playlist ↓</button></span></div></div><div class="bpr-feature-slide" data-slide="4" hidden><article class="bpr-feature-card bpr-feature-message" id="bpr-feature-message" data-kind="info"><span><small>COMUNICADO</small><strong>Recado da comunidade</strong><span id="bpr-feature-message-text"></span></span></article></div><div class="bpr-feature-slide" data-slide="5" hidden><article class="bpr-feature-card bpr-feature-message" id="bpr-feature-celebration"><span><small>RECADO ESPECIAL</small><strong id="bpr-feature-card-title"></strong><span id="bpr-feature-card-body"></span><a id="bpr-feature-card-link" hidden target="_blank" rel="noopener noreferrer">Saiba mais ↗</a></span></article></div></div><div class="bpr-feature-controls"><button type="button" id="bpr-feature-prev" aria-label="Destaque anterior">‹</button><span id="bpr-feature-indicator" aria-live="polite">1 de 4</span><button type="button" id="bpr-feature-next" aria-label="Próximo destaque">›</button></div></section>
+          <section class="bpr-game-entry-card bpr-games-entry hidden" hidden aria-label="Central de Jogos">
+            <span class="bpr-game-entry-icon" aria-hidden="true">🎲</span>
+            <div class="bpr-game-entry-copy"><span class="eyebrow">DIVERSÃO PRA TODO MUNDO</span><h2>Central de Jogos</h2><p>Não precisa ter Squad. Escolha uma brincadeira e reúna a galera, presencialmente ou por chamada.</p></div>
+            <button type="button" class="btn bpr-game-entry-button" data-nav="jogos">Jogar agora <span aria-hidden="true">→</span></button>
+          </section>
           <div class="section-top"><div><h2>Encontre seu próximo rolê</h2><p>De perto, do seu jeito e com a sua vibe.</p></div><div class="view-switch" aria-label="Visualização"><button class="active" data-view="mapa"><i data-lucide="map"></i> Mapa</button><button data-view="lista"><i data-lucide="layout-grid"></i> Lista</button><button data-view="calendario"><i data-lucide="calendar-days"></i> Calendário</button></div></div>
           <div class="pill-line" id="category-chips" aria-label="Filtrar categoria"></div>
           <div class="map-frame" id="map-frame"><div class="map-hint">📍 Rolês por São Paulo<small>Toque em um alfinete para conhecer</small></div><div class="map" id="map"></div><div class="map-legend">🩷 Rolês disponíveis</div></div>
@@ -97,6 +103,17 @@
             <button type="button" aria-pressed="false" data-my-tab="saved">Salvos <span id="bpr-count-saved">0</span></button>
             <button type="button" aria-pressed="false" data-my-tab="created">Publicados por mim <span id="bpr-count-created">0</span></button>
           </div><div class="two-col"><div class="panel" data-my-panel="joined"><h3>✨ Vou participar</h3><div id="joined-list"></div></div><div class="panel" data-my-panel="saved"><h3>💗 Rolês salvos</h3><div id="saved-list"></div></div></div><div class="panel" data-my-panel="created"><h3>📣 Rolês que publiquei</h3><div id="created-list"></div></div></section>
+        <section class="screen bpr-games-screen" id="screen-jogos" aria-label="Central de Jogos">
+          <div class="bpr-game-page-header">
+            <button type="button" class="bpr-games-back" data-nav="explorar" aria-label="Voltar para Explorar">← Voltar</button>
+            <div class="bpr-game-heading-icon" aria-hidden="true">🎲</div>
+            <span class="eyebrow">CENTRAL DE JOGOS</span>
+            <h1>Partiu jogar?</h1>
+            <p>Sozinho, com amigos ou por chamada: escolha um jogo e passe o celular. Não precisa participar de nenhum Squad.</p>
+          </div>
+          <div id="bpr-global-games" class="bpr-games-grid bpr-games-library" aria-label="Escolha um jogo"></div>
+          <div class="bpr-game-page-note"><strong>🎯 Como funciona</strong><p>As cartas são geradas no seu aparelho. O Bora Pro Rolê não grava respostas, rodadas, pontuações ou quem participou. A disponibilidade dos jogos é controlada apenas pela administração da plataforma.</p></div>
+        </section>
         <section class="screen" id="screen-squad"><div class="page-heading"><span class="eyebrow">Amizades que continuam</span><h1>Sua galera, seus squads.</h1><p>O rolê termina, mas as conexões boas continuam. Participe apenas dos grupos que escolher.</p></div><div class="squad-pending" id="squad-invite"><div><strong>💌 Você tem um convite de SQUAD</strong><p>Uma galera do último rolê quer continuar o papo.</p></div><div class="squad-actions"><button class="btn btn-lime btn-small" data-action="accept-squad">Aceitar convite</button><button class="btn btn-ghost btn-small" data-action="decline-squad">Recusar</button></div></div><div class="two-col" style="margin-top:20px"><article class="squad-card"><div class="squad-head" aria-hidden="true">🪩</div><div class="squad-body"><span class="badge green">COMUNIDADE</span><h3 style="margin-top:9px" id="squad-name">Carregando seus squads…</h3><p>Boa música, conversas sem pressa e novos rolês pela cidade.</p><div class="attendees"><span class="mini-avatar" style="background:#f8a0bd">B</span><span class="mini-avatar" style="background:#a8c7ff">L</span><span class="mini-avatar" style="background:#c8f977">M</span><small>Dados do seu grupo aparecerão aqui</small></div><div class="squad-actions" style="margin-top:21px"><button class="btn btn-pink" data-action="open-squad"><i data-lucide="messages-square"></i> Abrir chat</button><button class="btn btn-ghost" data-action="rename-squad"><i data-lucide="pencil"></i></button></div></div></article><div class="panel"><h3>💡 O que é um SQUAD?</h3><p class="small-muted">É um grupo permanente criado depois de um rolê. Todos recebem um convite e decidem se querem entrar. O grupo tem chat próprio, mural de informações e espaço para compartilhar o link de um álbum de fotos.</p><div class="list-row"><div class="icon-disc">🔐</div><div class="grow"><strong>Convites, nunca inclusão automática</strong><p>Você escolhe com quem quer continuar.</p></div></div><div class="list-row"><div class="icon-disc">📌</div><div class="grow"><strong>Mural fixo</strong><p>Links e combinados importantes ficam salvos.</p></div></div><div class="list-row"><div class="icon-disc">🛡️</div><div class="grow"><strong>Proteção e moderação</strong><p>É possível sair, bloquear e denunciar.</p></div></div></div></div></section>
         <section class="screen" id="screen-perfil"><div class="page-heading"><span class="eyebrow">Seu espaço</span><h1>Seu perfil, suas regras.</h1><p>Escolha como se apresentar. Você controla o que os outros conseguem ver.</p></div><div class="profile-cover"></div><div class="profile-panel"><div class="profile-avatar">A</div><div class="profile-title"><div><h2 id="profile-display">Seu nome</h2><p id="profile-handle">@user</p></div><span class="badge green">🔒 Privacidade primeiro</span></div><p class="profile-bio" id="profile-bio">Que tal se apresentar à galera?</p><nav class="bpr-profile-shortcuts" aria-label="Atalhos de conta">
               <button type="button" data-action="profile-toggle-edit"><i data-lucide="pencil" aria-hidden="true"></i> Editar perfil</button>
@@ -141,10 +158,40 @@
       </form>
     </div>
   </div>
+  <div id="bpr-game-overlay" class="bpr-game-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="bpr-game-title" aria-describedby="bpr-game-desc" aria-hidden="true">
+    <div class="bpr-game-shell">
+      <header class="bpr-game-top">
+        <div><span class="bpr-game-kicker">CENTRAL DE JOGOS</span><h2 id="bpr-game-title">Jogo</h2></div>
+        <button type="button" class="bpr-game-icon-button" data-game-control="close" aria-label="Fechar jogo">✕</button>
+      </header>
+      <div id="bpr-game-setup" class="bpr-game-setup">
+        <p id="bpr-game-desc"></p>
+        <label class="bpr-game-field" for="bpr-game-category">Escolha uma categoria
+          <select id="bpr-game-category"></select>
+        </label>
+        <p id="bpr-game-instructions" class="bpr-game-instructions"></p>
+        <button type="button" class="bpr-game-primary" data-game-control="start">Começar a jogar</button>
+        <p class="bpr-game-note">Todas as cartas ficam neste aparelho. Não há mensagens nem respostas registradas pelo jogo.</p>
+      </div>
+      <div id="bpr-game-play" class="bpr-game-play hidden">
+        <div class="bpr-game-play-meta"><span id="bpr-game-progress" aria-live="polite">Carta 1</span><span id="bpr-game-clock" aria-live="polite" class="hidden">60 s</span></div>
+        <div id="bpr-forehead-card" class="bpr-forehead-card" role="status" aria-live="polite" aria-atomic="true"><strong id="bpr-game-word">Preparar carta</strong></div>
+        <p id="bpr-game-play-hint" class="bpr-game-play-hint"></p>
+        <div class="bpr-game-buttons">
+          <button type="button" class="bpr-game-primary" id="bpr-game-next" data-game-control="next">Mostrar carta</button>
+          <button type="button" class="bpr-game-secondary" id="bpr-game-flip" data-game-control="flip" aria-pressed="true">↻ Girar palavra 180°</button>
+          <button type="button" class="bpr-game-secondary" id="bpr-game-timer" data-game-control="timer">⏱ Iniciar 60 s</button>
+          <button type="button" class="bpr-game-secondary" id="bpr-game-fullscreen" data-game-control="fullscreen">⛶ Tela cheia</button>
+          <button type="button" class="bpr-game-secondary" data-game-control="categories">Trocar categoria</button>
+        </div>
+      </div>
+    </div>
+  </div>
   <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
   
 
 
-  <script defer src="./app.js?v=20261119-navegacao-v41"></script>
+  <script defer src="./app.js?v=20261119-jogos-v51"></script>
+  <script defer src="./games.js?v=20261119-jogos-v51"></script>
 </body>
 </html>

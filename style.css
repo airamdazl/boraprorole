@@ -497,3 +497,45 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 @media(prefers-reduced-motion:reduce){.bpr-feature-slide,.bpr-feature-card{animation:none!important;transition:none!important}}
 
 #bpr-squad-games{display:none!important}
+
+/* V5.1 — Centro de Jogos: biblioteca fora dos Squads + jogo de testa acessível. */
+.bpr-game-entry-card{display:flex;align-items:center;gap:18px;background:linear-gradient(115deg,#103c45,#162c3f 68%,#49334d);border:1px solid #40e6c566;border-radius:23px;padding:20px 23px;margin:-10px 0 28px;color:#f7fcff}
+.bpr-game-entry-card[hidden],.bpr-games-entry.hidden{display:none!important}
+.bpr-game-entry-icon{width:70px;height:70px;flex:0 0 70px;display:grid;place-items:center;background:#ffffff19;border:1px solid #ffffff40;border-radius:19px;font-size:35px}
+.bpr-game-entry-copy{flex:1;min-width:0}.bpr-game-entry-copy h2{font-size:25px;color:#fff;margin:4px 0}.bpr-game-entry-copy p{font-size:14px;line-height:1.5;color:#e1f2f0;margin:4px 0}
+.bpr-game-entry-button{background:#40e6c5!important;color:#07313c!important;min-height:48px;white-space:nowrap}
+.bpr-game-page-header{padding:28px 16px 28px;background:linear-gradient(120deg,#104d5b,#1c344c 75%,#573e58);border-radius:24px;border:1px solid #40e6c544;text-align:center;color:#fff;margin-bottom:24px}
+.bpr-game-page-header h1{font-size:clamp(32px,6vw,52px);letter-spacing:-1.5px;margin:5px 0}.bpr-game-page-header p{max-width:550px;margin:8px auto;color:#d8f8f5;line-height:1.6}
+.bpr-game-heading-icon{font-size:44px;margin:8px 0}.bpr-games-back{display:block;background:#ffffff18;color:#fff;border:1px solid #ffffff66;border-radius:12px;padding:11px 15px;min-height:44px;cursor:pointer;text-align:left}
+.bpr-games-library{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;margin-bottom:24px}
+.bpr-games-library .bpr-game-tile,.bpr-room-games .bpr-game-tile{width:100%;min-height:134px;cursor:pointer;align-items:flex-start;justify-content:center;gap:8px;padding:20px;border-color:var(--line);color:var(--text);background:var(--surface2)}
+.bpr-games-library .bpr-game-tile:focus-visible,.bpr-room-games .bpr-game-tile:focus-visible{outline:3px solid #40e6c5;outline-offset:3px}
+.bpr-game-page-note{padding:17px 19px;border:1px solid var(--line);border-radius:16px;background:var(--surface2)}
+.bpr-game-page-note p{margin:7px 0 0;color:var(--muted);line-height:1.55}
+.bpr-game-overlay{position:fixed;inset:0;z-index:3200;background:#07141c;color:#fff;display:grid;place-items:center;padding:max(12px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left));overflow:auto}
+.bpr-game-overlay.hidden{display:none!important}
+body.bpr-game-active{overflow:hidden!important}
+.bpr-game-shell{width:min(100%,790px);min-height:min(100%,660px);border:1px solid #40e6c54d;border-radius:26px;background:linear-gradient(145deg,#132b3d,#101c2f 70%);padding:clamp(14px,3vw,28px);box-shadow:0 20px 80px #0008}
+.bpr-game-top{display:flex;justify-content:space-between;gap:14px;align-items:center;border-bottom:1px solid #ffffff30;padding-bottom:14px}
+.bpr-game-top h2{margin:4px 0;font-size:clamp(21px,4.5vw,30px);color:#fff}
+.bpr-game-kicker{font-size:11px;font-weight:800;letter-spacing:.18em;color:#40e6c5}
+.bpr-game-icon-button{width:48px;height:48px;flex:0 0 48px;border-radius:13px;background:#ffffff12;color:#fff;border:1px solid #ffffff50;font-size:23px;cursor:pointer}
+.bpr-game-setup{display:grid;gap:16px;padding:20px 0}.bpr-game-setup p{color:#e5f3f7;line-height:1.6;margin:0}
+.bpr-game-field{display:grid;gap:10px;font-weight:800;color:#fff}
+.bpr-game-field select{min-height:52px;background:#243b4c;color:#fff;border:1px solid #ffffff66;border-radius:13px;padding:12px;font-size:16px;width:100%}
+.bpr-game-instructions{background:#ffffff12;border-left:4px solid #40e6c5;padding:13px;border-radius:8px}
+.bpr-game-primary,.bpr-game-secondary{border:1px solid #ffffff66;border-radius:14px;min-height:50px;padding:12px 16px;cursor:pointer;font-size:15px;font-weight:800;touch-action:manipulation}
+.bpr-game-primary{background:#40e6c5;color:#092e38;border-color:#40e6c5}
+.bpr-game-secondary{color:#fff;background:#ffffff16}
+.bpr-game-note{font-size:13px;color:#c4d2df!important}
+.bpr-game-play{display:flex;flex-direction:column;gap:12px;padding-top:12px}
+.bpr-game-play.hidden{display:none!important}.bpr-game-play-meta{display:flex;justify-content:space-between;align-items:center;font-weight:800;color:#aaf4e8;min-height:30px}
+.bpr-forehead-card{display:grid;place-items:center;background:linear-gradient(120deg,#fff,#e2fbf5);color:#092738;border:5px solid #40e6c5;border-radius:24px;min-height:clamp(230px,45dvh,420px);padding:23px;text-align:center;overflow:hidden}
+.bpr-forehead-card strong{font-size:clamp(30px,8vw,76px);line-height:1.12;letter-spacing:-.04em;max-width:100%;overflow-wrap:anywhere;display:block;text-wrap:balance;transition:transform .2s ease}
+.bpr-forehead-card.is-flipped strong{transform:rotate(180deg)}
+.bpr-game-play-hint{margin:0;color:#c9e6e4;text-align:center;min-height:25px;font-size:14px}
+.bpr-game-buttons{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.bpr-game-buttons .bpr-game-primary{grid-column:1/-1;font-size:18px}
+.bpr-game-overlay :focus-visible{outline:3px solid #ffb19f;outline-offset:3px}
+@media(max-width:650px){.bpr-game-entry-card{padding:16px;flex-wrap:wrap;gap:12px}.bpr-game-entry-icon{width:55px;height:55px;flex-basis:55px}.bpr-game-entry-copy{flex:1 1 calc(100% - 85px)}.bpr-game-entry-copy h2{font-size:21px}.bpr-game-entry-button{width:100%}.bpr-game-overlay{padding:0}.bpr-game-shell{width:100%;min-height:100dvh;border-radius:0;border:0;padding:18px 15px max(20px,env(safe-area-inset-bottom))}.bpr-forehead-card{min-height:39dvh}.bpr-game-buttons{grid-template-columns:1fr 1fr}.bpr-game-secondary{font-size:12px;padding:12px 8px}.bpr-game-page-header{padding:18px}}
+@media(prefers-reduced-motion:reduce){.bpr-forehead-card strong{transition:none!important}}
