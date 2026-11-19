@@ -71,7 +71,7 @@ const catLabel = (slug) => categories.find((c) => c[0] === slug)?.[2] || 'Rolê'
 function spotifyId(url, type) {
   try {
     const parsed = new URL(String(url || ''));
-    const match = parsed.pathname.match(new RegExp(`^/${type}/([A-Za-z0-9]{22})/?$`));
+    const match = parsed.pathname.match(new RegExp(`^(?:/intl-[a-z]{2,3})?/${type}/([A-Za-z0-9]{22})/?$`, 'i'));
     return parsed.protocol === 'https:' && parsed.hostname === 'open.spotify.com' ? (match?.[1] || '') : '';
   } catch { return ''; }
 }
@@ -107,6 +107,8 @@ function applyBprPublicSettings(settings) {
     promo.classList.toggle('hidden', !config.banner_enabled || !target);
     promo.href = target || defaultBprSettings.banner_url;
     $('bpr-promo-title').textContent = config.banner_title;
+    const featuredBanner=$('bpr-feature-tem');
+    if(featuredBanner) featuredBanner.href=target || defaultBprSettings.banner_url;
   }
   const announcement = $('bpr-announcement');
   if (announcement) {
@@ -799,13 +801,37 @@ async function loadAppData() {
   setTimeout(initMap, 150);
 }
 
+let bprSpotifyId = null;
 async function loadHomePlaylist() {
   const target = $('home-spotify-embed');
+  const link = $('bpr-feature-spotify-link');
+  const preview = $('bpr-feature-spotify-preview');
+  const description = $('bpr-feature-spotify-description');
   try {
     const row = await assertOk(db.from('app_settings').select('value').eq('key','home_spotify_playlist_url').maybeSingle());
-    const url = row?.value || '';
-    target.innerHTML = spotifyEmbed(url) || '<p class="small-muted">🎧 A playlist oficial será publicada aqui em breve. Você também pode ouvir a playlist de cada evento na ficha do rolê.</p>';
-  } catch (err) { target.textContent = `Playlist indisponível: ${err.message}`; }
+    const url = String(row?.value || '').trim();
+    bprSpotifyId = spotifyId(url,'playlist') || null;
+    if(target) target.innerHTML = bprSpotifyId ? spotifyEmbed(`https://open.spotify.com/playlist/${bprSpotifyId}`) : '<p class="small-muted">Nenhuma playlist oficial configurada.</p>';
+    if(bprSpotifyId) {
+      link.href = `https://open.spotify.com/playlist/${bprSpotifyId}`;
+      link.hidden = false;
+      preview.hidden = false;
+      description.textContent = 'Ouça aqui uma prévia ou abra a playlist no Spotify.';
+    } else {
+      link.hidden = true;
+      link.removeAttribute('href');
+      preview.hidden = true;
+      description.textContent = 'A playlist oficial ainda não foi cadastrada.';
+    }
+  } catch (err) {
+    bprSpotifyId = null;
+    if(target) target.textContent = 'Playlist indisponível no momento.';
+    link.hidden = true;
+    link.removeAttribute('href');
+    preview.hidden = true;
+    description.textContent = 'Não conseguimos carregar a playlist. Tente novamente mais tarde.';
+  }
+  refreshBprFeatures();
 }
 
 async function openDetails(id) {
@@ -1362,49 +1388,9 @@ function renderSquads() {
       <div class="list-row"><div class="icon-disc">🔐</div><div class="grow"><strong>Entrada protegida</strong><p>Convites individuais precisam ser aceitos. Quem encontra o SQUAD pela busca solicita entrada e espera aprovação de um admin.</p></div></div>
       <div class="list-row"><div class="icon-disc">🛡️</div><div class="grow"><strong>Decisão em conjunto</strong><p>Excluir alguém do grupo exige concordância de 2 administradores, mesmo quando há 3.</p></div></div>
       <div class="list-row"><div class="icon-disc">🎂</div><div class="grow"><strong>Aniversários opcionais</strong><p>Quem permite, compartilha apenas dia e mês.</p></div></div></details>`;
-  const extras = $('squad-live-extras');
-  if (!extras) {
-    const section = document.createElement('div');
-    section.id = 'squad-live-extras';
-    section.className = 'panel squad-live-extras';
-    list.insertAdjacentElement('afterend', section);
-  }
-  const current = state.squads.find((row) => row.id === state.activeSquad);
-  const currentRole = current ? state.squadRoles.get(current.id) : null;
-  const manager = ['owner','moderator'].includes(currentRole);
-  $('squad-live-extras').innerHTML = current ? `<div class="squad-extras-head"><div><span class="eyebrow">Comunidade selecionada</span><h3>${html(current.name)}</h3></div>
-      <div class="squad-actions"><button class="btn btn-pink btn-small" data-action="open-squad" data-id="${html(current.id)}">Abrir conversa</button>
-      ${manager ? `<button class="btn btn-ghost btn-small" data-action="rename-squad" data-id="${html(current.id)}">Renomear</button>` : ''}
-      ${manager ? `<button class="btn btn-ghost btn-small" data-action="edit-album-link" data-id="${html(current.id)}">📸 Configurar álbum</button>` : ''}
-      ${state.squadRoles.get(current.id) !== 'owner' ? `<button class="btn btn-ghost btn-small" data-action="leave-squad" data-id="${html(current.id)}">Sair do SQUAD</button>` : ''}</div></div>
-      <div class="squad-guard-panel"><strong>🔐 Descoberta e acesso ao SQUAD</strong><p class="small-muted">As conversas, fotos e a lista de integrantes nunca ficam públicas na pesquisa. Encontrar o grupo só permite solicitar entrada.</p>
-        ${currentRole==='owner' ? `<label class="squad-discovery-switch"><input type="checkbox" id="squad-discoverable" ${current.is_discoverable?'checked':''}> Permitir que encontrem este SQUAD na busca pelo nome</label>` :
-        `<span class="small-muted">${current.is_discoverable?'Aparece nas buscas · acesso somente após aprovação.':'SQUAD privado, não aparece nas buscas.'}</span>`}
-        ${manager ? `<div class="squad-actions"><button class="btn btn-pink btn-small" data-action="squad-join-requests" data-id="${html(current.id)}">💌 Pedidos de entrada</button>
-          <button class="btn btn-ghost btn-small" data-action="squad-removals" data-id="${html(current.id)}">🛡️ Votos de remoção</button>
-          <button class="btn btn-ghost btn-small" data-action="squad-roster" data-id="${html(current.id)}">👥 Integrantes e admins</button></div>`:''}</div>
-      <div class="squad-album-highlight"><div class="squad-album-highlight-icon">📸</div><div><strong>Álbum do SQUAD no Google Drive</strong><p>As fotos ficam na pasta de nuvem escolhida pelos admins, não no Supabase. Somente integrantes do SQUAD veem o atalho aqui; o acesso às fotos depende das permissões da pasta.</p>
-      ${safeDriveFolder(current.album_url) ? `<a class="btn btn-pink btn-small" href="${html(safeDriveFolder(current.album_url))}" target="_blank" rel="noopener noreferrer">Abrir pasta e adicionar fotos ↗</a>` : '<span class="small-muted">Aguardando um admin configurar a pasta.</span>'}</div></div>
-      <div class="two-col"><div><h3>Convidar pelo @user</h3><p class="small-muted">Somente dono ou moderador do SQUAD pode enviar convites.</p>
-      <form id="squad-invite-form" class="friend-finder"><input id="squad-nick" placeholder="@user do amigo" aria-label="User do convidado" maxlength="24"><button class="btn btn-ghost btn-small">Convidar</button></form>
-      <p class="small-muted" id="squad-invite-result"></p></div>
-      <div><div class="calendar-head"><h3>🗓️ Calendário e aniversários</h3><input id="squad-month" type="month" aria-label="Mês do calendário"></div>
-      <div id="squad-calendar"></div><button class="btn btn-ghost btn-small" data-action="add-calendar" data-id="${html(current.id)}">Adicionar encontro</button></div></div>` :
-    '<p class="small-muted">Selecione um SQUAD para visualizar o calendário e enviar convites.</p>';
-  if (current) {
-    $('squad-month').value = new Date().toISOString().slice(0, 7);
-    $('squad-month').addEventListener('change', () => renderSquadCalendar(current.id));
-    $('squad-invite-form').addEventListener('submit', (event) => inviteNickname(event, current.id));
-    if ($('squad-discoverable')) $('squad-discoverable').addEventListener('change', async (event)=>{
-      const checkbox=event.target;
-      try {
-        await assertOk(db.rpc('bora_set_squad_discovery',{_squad:current.id,_enabled:checkbox.checked}));
-        current.is_discoverable=checkbox.checked;
-        toast(checkbox.checked?'Seu SQUAD agora pode ser encontrado pelo nome. Entradas continuam sob aprovação.':'SQUAD removido das buscas públicas.');
-      } catch(err) { checkbox.checked=!checkbox.checked; toast(friendlyError(err)); }
-    });
-    renderSquadCalendar(current.id);
-  }
+  // Os controles e o calendário agora vivem dentro da sala do Squad.
+  // Remover cartão legado com gestão duplicada em 'Meus Squads'.
+  document.getElementById('squad-live-extras')?.remove();
   renderSquadGames();
   icons();
 }
@@ -1412,8 +1398,17 @@ function renderSquads() {
 // Jogos leves e locais: não gravam respostas, rodadas ou pontuação no Supabase.
 // A central só controla se os jogos ficam visíveis. Não é jogo sincronizado em tempo real.
 
-// Carrossel manual: não avança durante leitura, clique ou uso de leitor de tela.
+// Carrossel V5.2: alternância automática, com pausa explícita e sem trocas durante interação.
 let bprFeatureIndex=0;
+let bprFeaturePaused=false;
+let bprFeatureHoldUntil=Date.now()+11000;
+let bprFeaturePointerOver=false;
+let bprFeatureTouchX=null;
+const bprFeatureReducedMotion=window.matchMedia('(prefers-reduced-motion: reduce)');
+const bprFeatureDelay=10500;
+function bprFeatureAvailable() {
+  return [...document.querySelectorAll('.bpr-feature-slide')].filter(x=>x.dataset.available==='true');
+}
 function refreshBprFeatures() {
   const slides=[...document.querySelectorAll('.bpr-feature-slide')];
   if(!slides.length)return;
@@ -1425,30 +1420,96 @@ function refreshBprFeatures() {
   $('bpr-feature-card-title').textContent=card?.title||'';
   $('bpr-feature-card-body').textContent=card?.body||'';
   const cardLink=$('bpr-feature-card-link');
-  if(card?.url?.startsWith('https://')) {cardLink.href=card.url;cardLink.textContent=card.button||'Saiba mais ↗';cardLink.hidden=false;}
+  const safeCardUrl=safeHttps(card?.url);
+  if(safeCardUrl){cardLink.href=safeCardUrl;cardLink.textContent=card.button||'Saiba mais ↗';cardLink.hidden=false;}
   else {cardLink.hidden=true;cardLink.removeAttribute('href');}
-  const visible=slides.filter(slide=> {
+  const visible=slides.filter(slide=>{
     const idx=Number(slide.dataset.slide);
-    const enabled=idx===0||(idx===1&&config.banner_enabled!==false)||idx===2||idx===3||(idx===4&&msg.length>0)||(idx===5&&!!card?.active);
+    const enabled=idx===0||(idx===1&&config.banner_enabled!==false)||idx===2||(idx===3&&!!bprSpotifyId)||(idx===4&&msg.length>0)||(idx===5&&!!card?.active);
     slide.dataset.available=String(enabled);
     return enabled;
   });
+  if(!visible.length)return;
   bprFeatureIndex=Math.min(bprFeatureIndex,visible.length-1);
   slides.forEach(slide=>{slide.hidden=true;});
   visible[bprFeatureIndex].hidden=false;
   $('bpr-feature-indicator').textContent=`${bprFeatureIndex+1} de ${visible.length}`;
+  const control=$('bpr-feature-toggle');
+  if(control) {
+    const paused=bprFeaturePaused||bprFeatureReducedMotion.matches;
+    control.textContent=paused?'▶ Reproduzir':'⏸ Pausar';
+    control.setAttribute('aria-pressed',String(paused));
+    control.setAttribute('aria-label',paused?'Retomar a passagem automática dos destaques':'Pausar a passagem automática dos destaques');
+  }
 }
-document.addEventListener('click',e=>{
-  if(e.target.closest('#bpr-feature-prev,#bpr-feature-next')){
-    const slides=[...document.querySelectorAll('.bpr-feature-slide')].filter(x=>x.dataset.available==='true');
-    bprFeatureIndex=(bprFeatureIndex+(e.target.closest('#bpr-feature-next')?1:-1)+slides.length)%slides.length;
-    refreshBprFeatures();
-  }
-  if(e.target.closest('[data-bpr-open-music]')){
-    document.querySelector('.bpr-connections')?.setAttribute('open','');
-    document.querySelector('.bpr-connections')?.scrollIntoView({behavior:'auto'});
-  }
+function bprFeatureStep(delta) {
+  const slides=bprFeatureAvailable();
+  if(slides.length<2)return;
+  bprFeatureIndex=(bprFeatureIndex+delta+slides.length)%slides.length;
+  bprFeatureHoldUntil=Date.now()+bprFeatureDelay;
+  refreshBprFeatures();
+}
+function bprFeatureHold(duration=20000) {
+  bprFeatureHoldUntil=Date.now()+duration;
+}
+const bprFeatureContainer=$('bpr-feature-toggle')?.closest('.bpr-feature-carousel');
+if (bprFeatureContainer) {
+  bprFeatureContainer.addEventListener('mouseenter',()=>{bprFeaturePointerOver=true;});
+  bprFeatureContainer.addEventListener('mouseleave',()=>{bprFeaturePointerOver=false;bprFeatureHold();});
+  bprFeatureContainer.addEventListener('focusin',()=>bprFeatureHold());
+  bprFeatureContainer.addEventListener('focusout',()=>bprFeatureHold());
+  bprFeatureContainer.addEventListener('touchstart',event=>{
+    bprFeatureTouchX=event.touches[0]?.clientX??null;
+    bprFeatureHold(22000);
+  },{passive:true});
+  bprFeatureContainer.addEventListener('touchend',event=>{
+    const endX=event.changedTouches[0]?.clientX;
+    if(bprFeatureTouchX!==null&&typeof endX==='number') {
+      const shift=endX-bprFeatureTouchX;
+      if(Math.abs(shift)>65) bprFeatureStep(shift<0?1:-1);
+    }
+    bprFeatureTouchX=null;
+    bprFeatureHold(14000);
+  },{passive:true});
+  bprFeatureContainer.addEventListener('keydown',event=>{
+    if(event.key==='ArrowLeft'||event.key==='ArrowRight'){
+      event.preventDefault();bprFeatureStep(event.key==='ArrowRight'?1:-1);
+    }
+  });
+  bprFeatureContainer.addEventListener('click',event=>{
+    if(event.target.closest('a,button')) bprFeatureHold(30000);
+  });
+}
+$('bpr-feature-indicator')?.addEventListener('click',()=>{bprFeatureStep(1);bprFeatureHold(14000);});
+$('bpr-feature-toggle')?.addEventListener('click',()=>{
+  bprFeaturePaused=!bprFeaturePaused;
+  if(!bprFeaturePaused) bprFeatureHold(1500);
+  refreshBprFeatures();
 });
+$('bpr-feature-spotify-preview')?.addEventListener('click',()=>{
+  if(!bprSpotifyId)return;
+  const shell=$('bpr-feature-spotify-player');
+  const open=shell.hidden;
+  if(open){
+    shell.innerHTML=spotifyEmbed(`https://open.spotify.com/playlist/${bprSpotifyId}`);
+    shell.hidden=false;
+    // O visitante decide se carrega o iframe do Spotify (privacidade).
+    bprFeaturePaused=true;
+  }else{
+    shell.replaceChildren();shell.hidden=true;
+  }
+  $('bpr-feature-spotify-preview').textContent=open?'Fechar prévia':'▶ Ouvir prévia aqui';
+  refreshBprFeatures();
+});
+window.setInterval(()=>{
+  if(bprFeaturePaused||bprFeatureReducedMotion.matches||document.hidden||
+     !state.opened||activeScreen()!=='explorar'||
+     bprFeaturePointerOver||
+     bprFeatureContainer?.contains(document.activeElement)||
+     Date.now()<bprFeatureHoldUntil||bprFeatureAvailable().length<2)return;
+  bprFeatureStep(1);
+},1000);
+bprFeatureReducedMotion.addEventListener?.('change',refreshBprFeatures);
 
 // V5.1 — baralhos e rodadas são executados somente no navegador (games.js).
 // A única chave de ativação é a flag global da Central. Não existem controles por Squad.
@@ -1727,9 +1788,16 @@ async function changeRoomTab(tab) {
   } else if (tab === 'mural') {
     target.innerHTML = `<p class="small-muted">Informações e links importantes ficam aqui, mesmo depois da limpeza do chat.</p><div id="mural-items"></div>
       <form id="pin-form" class="pin-form"><input name="title" maxlength="90" required placeholder="Título do aviso"><textarea name="body" maxlength="900" placeholder="Descrição ou combinado"></textarea>
-      <input name="link_url" type="url" placeholder="Link https:// (opcional)"><button class="btn btn-ghost" type="submit">📌 Fixar informação</button></form>`;
+      <input name="link_url" type="url" placeholder="Link https:// (opcional)"><button class="btn btn-ghost" type="submit">📌 Fixar informação</button></form>
+      ${room.type === 'squad' ? `<section class="bpr-room-calendar" aria-label="Calendário do Squad"><div class="calendar-head"><h3>🗓️ Calendário e aniversários</h3><input id="squad-month" type="month" aria-label="Mês do calendário"></div><p class="small-muted">Eventos do grupo e aniversários compartilhados com autorização.</p><div id="squad-calendar" role="status"></div></section>` : ''}`;
     $('pin-form').addEventListener('submit', addPin);
     await refreshRoomPins();
+    if(room.type === 'squad' && $('squad-month')) {
+      const d = new Date();
+      $('squad-month').value = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+      $('squad-month').addEventListener('change',()=>renderSquadCalendar(room.id));
+      await renderSquadCalendar(room.id);
+    }
   } else if (tab === 'polls') {
     target.innerHTML = `<p class="small-muted">📊 Faça uma pergunta com 2 a 6 alternativas. Só integrantes votam; a identidade dos votantes não aparece.</p>
       <button class="btn btn-ghost btn-small" data-action="create-poll">+ Criar enquete</button><div id="poll-list"></div>`;
@@ -1750,7 +1818,20 @@ async function changeRoomTab(tab) {
       <button class="btn btn-ghost" data-action="edit-album-link" data-id="${html(room.id)}">Configurar álbum</button>
       <button class="btn btn-ghost" data-action="squad-join-requests" data-id="${html(room.id)}">Pedidos de entrada</button>
       <button class="btn btn-ghost" data-action="squad-removals" data-id="${html(room.id)}">Votos de remoção</button>
-      <button class="btn btn-ghost" data-action="squad-roster" data-id="${html(room.id)}">Integrantes e cargos</button></div><p class="small-muted">A visibilidade da busca e o calendário permanecem nos controles atuais da página Meus Squads nesta homologação.</p>`;
+      <button class="btn btn-ghost" data-action="squad-roster" data-id="${html(room.id)}">Integrantes e cargos</button>
+      <button class="btn btn-ghost" data-action="add-calendar" data-id="${html(room.id)}">📅 Adicionar ao calendário</button></div>
+      ${state.squadRoles.get(room.id) === 'owner' ? `<label class="squad-discovery-switch bpr-room-visibility"><input type="checkbox" id="squad-discoverable" ${state.squads.find(s=>s.id===room.id)?.is_discoverable?'checked':''}> Permitir que encontrem este Squad na busca pelo nome (entrada sempre mediante aprovação)</label>` : ''}
+      <form id="squad-invite-form" class="bpr-room-invite-form"><label for="squad-nick">Convidar uma pessoa pelo @user</label><div class="friend-finder"><input id="squad-nick" placeholder="@user" maxlength="24" autocomplete="off" required><button type="submit" class="btn btn-ghost">Convidar</button></div><p id="squad-invite-result" class="small-muted" role="status"></p></form>`;
+    $('squad-invite-form')?.addEventListener('submit',(ev)=>inviteNickname(ev,room.id));
+    $('squad-discoverable')?.addEventListener('change',async(ev)=>{
+      const checkbox=ev.target;
+      try {
+        await assertOk(db.rpc('bora_set_squad_discovery',{_squad:room.id,_enabled:checkbox.checked}));
+        const item=state.squads.find(s=>s.id===room.id);
+        if(item) item.is_discoverable=checkbox.checked;
+        toast('Visibilidade da busca atualizada. A entrada continua exigindo aprovação.');
+      } catch(err){checkbox.checked=!checkbox.checked;toast(friendlyError(err));}
+    });
   } else if (tab === 'album' && room.type === 'squad') {
     const squad=state.squads.find(item=>item.id===room.id);
     const album=safeDriveFolder(squad?.album_url);
@@ -2507,7 +2588,7 @@ else {
 
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   // Atualização explícita do worker: evita manter uma instalação antiga do PWA.
-  navigator.serviceWorker.register('./service-worker.js?v=20261119-jogos-v21', {updateViaCache:'none'}).catch(() => {});
+  navigator.serviceWorker.register('./service-worker.js?v=20261119-refinamentos-v22', {updateViaCache:'none'}).catch(() => {});
 }
 
 async function inviteNickname(event, squadId) {
@@ -2554,6 +2635,10 @@ async function renderSquadCalendar(squadId) {
 }
 
 function openCalendarForm(squadId) {
+  if (!['owner','moderator'].includes(state.squadRoles.get(squadId))) {
+    toast('Somente administradores e moderadores do Squad podem adicionar encontros.');
+    return;
+  }
   showModal('Adicionar encontro ao calendário', `<form id="calendar-form"><div class="field"><label>Título<input name="title" minlength="3" maxlength="100" required></label></div>
     <div class="field"><label>Data e hora<input name="starts_at" type="datetime-local" required></label></div>
     <div class="field"><label>Informações (opcional)<textarea name="description" maxlength="700"></textarea></label></div>

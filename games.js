@@ -19,11 +19,12 @@
       }
     },
     nunca: {
-      title:'Eu Nunca',icon:'🙈',description:'Histórias leves: conte se quiser, ou simplesmente passe.',
-      help:'Leia a frase. Quem quiser pode compartilhar uma história, sem pressão ou exposição. Qualquer participante pode pular.',
+      title:'Eu Nunca',icon:'🙈',description:'Perguntas divertidas, incluindo uma categoria apimentada para maiores de 18 anos.',
+      help:'Leia a frase e escolha o tema. A categoria apimentada é para maiores de 18 anos. Participar é sempre opcional: sem pressão, exposição ou contato sem consentimento.',
       categories:{
         'Rolês e amizades':['Eu nunca perdi a hora de encontrar a galera.','Eu nunca cheguei no rolê vestido para outra ocasião.','Eu nunca fiz amizade esperando na fila.','Eu nunca peguei o ônibus errado para um encontro.','Eu nunca fui a uma festa só pela comida.','Eu nunca cantei karaokê desafinado.','Eu nunca fui ao cinema pela pipoca.','Eu nunca mudei de plano de última hora.','Eu nunca organizei um rolê que virou tradição.','Eu nunca fiz amizade com alguém de outra cidade.','Eu nunca esqueci o nome de alguém recém-apresentado.','Eu nunca terminei uma caminhada em uma cafeteria.'],
         'Cotidiano engraçado':['Eu nunca mandei mensagem no grupo errado.','Eu nunca procurei os óculos enquanto os usava.','Eu nunca falei sozinho durante um filme.','Eu nunca deixei o celular na geladeira.','Eu nunca tropecei na calçada e fingi que era dança.','Eu nunca dormi em uma chamada de vídeo.','Eu nunca ri na hora errada.','Eu nunca dei tchau para alguém que não falava comigo.','Eu nunca saí de casa com meias diferentes.','Eu nunca esqueci por que entrei em um cômodo.'],
+        'Apimentado 🔥 (18+)':['Eu nunca tive um crush secreto em alguém do grupo.','Eu nunca fui a um encontro às cegas.','Eu nunca mandei uma mensagem de flerte e apaguei logo depois.','Eu nunca dei um beijo inesperado num rolê.','Eu nunca paquerei alguém numa festa e esqueci o nome.','Eu nunca fiquei com alguém depois de dizer que éramos só amigos.','Eu nunca fui a um encontro só pelo frio na barriga.','Eu nunca mandei uma indireta romântica numa rede social.','Eu nunca tive um romance de viagem.','Eu nunca precisei disfarçar uma paixão.','Eu nunca fui surpreendido por alguém de quem gostava.','Eu nunca me declarei por mensagem.','Eu nunca fiquei nervoso antes do primeiro beijo.','Eu nunca tive um encontro que virou história engraçada.','Eu nunca dancei juntinho com um crush no rolê.','Eu nunca mandei um emoji sugestivo para a pessoa errada.','Eu nunca flertei sem perceber.','Eu nunca me apaixonei por alguém que conheci num show.','Eu nunca inventei uma desculpa para encontrar um crush.','Eu nunca fiquei acordado até tarde conversando com alguém especial.'],
         'Música e cultura':['Eu nunca fui a um show sem conhecer as músicas.','Eu nunca decorei uma coreografia de internet.','Eu nunca cantei a letra de uma música errado.','Eu nunca repeti uma série inteira.','Eu nunca chorei assistindo a um filme.','Eu nunca fui a um museu por acaso.','Eu nunca aprendi uma música para impressionar alguém.','Eu nunca fiquei preso em uma música por dias.','Eu nunca participei de uma apresentação improvisada.','Eu nunca comprei ingresso na última hora.']
       }
     },
@@ -42,7 +43,9 @@
       categories:{
         'Ações engraçadas':['Perder o ônibus','Tentar abrir um guarda-chuva no vento','Cozinhar macarrão','Dançar com chuva','Perseguir uma borboleta','Montar uma barraca','Procurar sinal no celular','Pegar uma mala muito pesada','Tomar sorvete derretendo','Pular corda'],
         'Profissões':['Barbeiro','Motorista de táxi','Padeiro','Mágico','Pintor','Fotógrafo','Bombeiro','DJ','Dentista','Professor'],
-        'Animais':['Pinguim','Canguru','Gato','Caranguejo','Macaco','Elefante','Galinha','Polvo','Gorila','Borboleta']
+        'Animais':['Pinguim','Canguru','Gato','Caranguejo','Macaco','Elefante','Galinha','Polvo','Gorila','Borboleta'],
+        'Filmes 🎬':['Titanic','Jurassic Park','Barbie','Avatar','Homem-Aranha','O Rei Leão','De Volta para o Futuro','Harry Potter','Shrek','Divertida Mente','Procurando Nemo','Star Wars','Velozes e Furiosos','Esqueceram de Mim','Toy Story','Os Incríveis','Frozen','Matrix','Pantera Negra','Indiana Jones'],
+        'Memes da internet 😂':['Nazaré fazendo contas','Cachorro caramelo fugindo','Gato digitando no computador','Pessoa tentando não rir','Gatinho assustado','Dancinha viral','Cachorro dando entrevista','Pessoa fazendo drama na janela','Alguém fingindo surpresa','Criança sorrindo para a câmera','Alguém procurando Wi-Fi','Pessoa escorregando devagar','Gato derrubando um copo','Narrador esportivo empolgado','Pessoa fazendo pose para foto','Alguém fugindo da câmera','Dramática reação ao boleto','Pessoa se escondendo atrás da porta','Gato julgando a galera','Pessoa tentando explicar um meme']
       }
     },
     desafio:{

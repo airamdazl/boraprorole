@@ -539,3 +539,31 @@ body.bpr-game-active{overflow:hidden!important}
 .bpr-game-overlay :focus-visible{outline:3px solid #ffb19f;outline-offset:3px}
 @media(max-width:650px){.bpr-game-entry-card{padding:16px;flex-wrap:wrap;gap:12px}.bpr-game-entry-icon{width:55px;height:55px;flex-basis:55px}.bpr-game-entry-copy{flex:1 1 calc(100% - 85px)}.bpr-game-entry-copy h2{font-size:21px}.bpr-game-entry-button{width:100%}.bpr-game-overlay{padding:0}.bpr-game-shell{width:100%;min-height:100dvh;border-radius:0;border:0;padding:18px 15px max(20px,env(safe-area-inset-bottom))}.bpr-forehead-card{min-height:39dvh}.bpr-game-buttons{grid-template-columns:1fr 1fr}.bpr-game-secondary{font-size:12px;padding:12px 8px}.bpr-game-page-header{padding:18px}}
 @media(prefers-reduced-motion:reduce){.bpr-forehead-card strong{transition:none!important}}
+
+/* V5.2 — Destaques rotativos, banner integral, redes e playlist oficial. */
+.bpr-feature-carousel{position:relative}.bpr-feature-slide{width:100%}
+.bpr-feature-art{display:block;min-height:0;padding:0!important;overflow:hidden;border-radius:20px;background:#160e30}
+.bpr-feature-slide .bpr-feature-art img{display:block;width:100%;height:auto;aspect-ratio:1536/652;object-fit:contain;max-width:none;border-radius:0}
+.bpr-feature-art:focus-visible{outline:3px solid var(--lime);outline-offset:3px}
+.bpr-feature-controls{gap:14px;padding:12px 0;min-height:60px}
+.bpr-feature-controls #bpr-feature-toggle{font-size:14px;min-width:124px;height:46px;padding:0 14px;font-weight:800}
+.bpr-feature-controls #bpr-feature-indicator{font-size:13px;min-width:62px;text-align:center}
+.bpr-feature-social{background:radial-gradient(circle at 12% 24%,#fc9d58a8,transparent 39%),linear-gradient(115deg,#422554,#8d3458 52%,#251d56)}
+.bpr-feature-social .bpr-social-logo{flex:0 0 74px;width:74px;height:74px;border-radius:22px;display:grid;place-items:center;font-size:69px;line-height:1;background:#ffffff20;border:1px solid #ffffff40;color:#fff}
+.bpr-social-copy{display:grid;gap:9px}.bpr-feature-social .bpr-social-copy strong{font-size:clamp(20px,3.7vw,35px)}
+.bpr-feature-music{min-height:172px;background:radial-gradient(circle at 12% 20%,#18b58895,transparent 42%),linear-gradient(110deg,#123e3b,#132d36 60%,#11443b)}
+.bpr-music-mark{display:grid;place-items:center;flex:0 0 75px;width:75px;height:75px;background:#1ed99424;border:1px solid #3ee6b6a0;color:#74ffbc;border-radius:23px;font-size:56px}
+.bpr-music-copy{min-width:0;display:grid;gap:9px}.bpr-music-copy strong{font-size:clamp(21px,3.5vw,35px)}
+.bpr-music-actions{display:flex;flex-wrap:wrap;gap:8px}.bpr-music-action{display:inline-flex;min-height:46px;align-items:center;justify-content:center;text-align:center;gap:5px;padding:10px 15px;border:1px solid #b7ffddb8;border-radius:12px;text-decoration:none;background:#2cf1af;color:#09271e;font-size:13px;font-weight:850;cursor:pointer}
+.bpr-music-action-secondary{background:#ffffff15;color:#f8fff9;border-color:#ffffff75}
+.bpr-feature-spotify-player{background:var(--surface2);border:1px solid var(--line);padding:12px;margin-top:8px;border-radius:16px}.bpr-feature-spotify-player[hidden],.bpr-music-action[hidden]{display:none!important}
+.bpr-feature-spotify-player .spotify-optin{color:var(--text)}.bpr-feature-spotify-player .spotify-optin iframe{min-height:152px}
+.bpr-room-calendar{border-top:1px solid var(--line);margin-top:22px;padding-top:22px}.bpr-room-calendar .calendar-head{gap:12px}
+.bpr-room-invite-form{margin-top:20px;padding:14px;border-radius:16px;border:1px solid var(--line);background:var(--surface2)}
+.bpr-room-invite-form label{display:block;margin-bottom:10px;font-weight:750}
+.bpr-room-invite-form input{width:100%;min-height:44px}
+.bpr-room-visibility{display:flex;align-items:flex-start;gap:10px;margin-top:18px;padding:12px;border:1px solid var(--line);border-radius:12px}
+@media(max-width:650px){.bpr-feature-social .bpr-social-logo,.bpr-music-mark{flex-basis:52px;width:52px;height:52px;border-radius:16px;font-size:43px}.bpr-feature-social,.bpr-feature-music{padding:16px;min-height:175px;gap:10px}.bpr-music-actions{flex-direction:column}.bpr-music-action{width:100%}.bpr-feature-art{border-radius:15px}}
+@media(prefers-reduced-motion:reduce){.bpr-feature-carousel *{scroll-behavior:auto!important}}
+
+.bpr-feature-controls #bpr-feature-indicator{font-size:13px;width:auto;min-width:86px;padding:0 12px;height:46px;border:1px solid var(--line);border-radius:14px;background:var(--surface2);color:var(--text);font-weight:800}
