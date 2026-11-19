@@ -133,6 +133,7 @@ function applyBprPublicSettings(settings) {
     }
   }
   bprControl.settings = config;
+  refreshBprFeatures();
   if (!config.squad_games_enabled && !$('modal').classList.contains('hidden') && $('dialog-body').querySelector('[data-bpr-next]')) closeModal();
   if (state?.opened && activeScreen() === 'squad') renderSquadGames();
 }
@@ -977,7 +978,7 @@ function openCreate() {
     <div class="field"><label for="new-spend-notes">O que está incluído? (opcional)</label><input id="new-spend-notes" maxlength="250" placeholder="Ex.: ingresso já inclui open bar; consumo à parte"></div>
     <div class="field"><label for="new-cover">Foto de capa (WebP/JPG/PNG, opcional)</label><label class="file-picker" for="new-cover"><input id="new-cover" type="file" accept="image/*"><span class="file-picker-button">📷 Escolher capa</span><span class="file-picker-name" id="new-cover-name" aria-live="polite">Nenhuma imagem selecionada</span></label></div>
     </div></details>
-    <p class="small-muted">📍 Toque no mapa para marcar o local exato do evento. A localização não é a da sua residência.</p>
+    <div class="field"><label for="bpr-map-link">📍 Link do Google Maps (alternativa ao endereço)</label><input id="bpr-map-link" type="url" placeholder="https://maps.app.goo.gl/... ou https://www.google.com/maps/..."><small class="small-muted">Cole o link ou preencha o endereço acima. Links encurtados podem não informar as coordenadas; nesse caso use a busca por endereço.</small></div><button type="button" id="bpr-resolve-address" class="btn btn-ghost">Localizar endereço e conferir no mapa</button><p class="small-muted">O mapa é uma prévia, não aceita pinos por toque. Confirme se o endereço localizado corresponde ao local público escolhido.</p>
     <div id="map-picker" class="map-picker"></div><div id="picker-location" class="small-muted">Nenhum local marcado.</div>
     <div class="field"><label for="new-audience">Quem pode confirmar presença?</label><select id="new-audience"><option value="all">🌎 Todas as pessoas</option><option value="women">👩 Somente mulheres</option><option value="men">👨 Somente homens</option><option value="lgbtq">🏳️‍🌈 Somente pessoas LGBTQIA+</option></select><small class="small-muted">A participação em rolês direcionados usa a identificação autodeclarada e privada do perfil. A convivência deve respeitar as regras antidiscriminação.</small></div>
     <label class="check-label"><input id="new-verified" type="checkbox"> O local exige documento para entrada e só aceita maiores de 18 anos.</label>
@@ -997,16 +998,55 @@ function openCreate() {
     state.pickerMap = L.map('map-picker', {scrollWheelZoom: false}).setView(location.slice(0,2), userCity && cityCoordinates[cityKey(userCity)] ? 11 : 4);
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom: 19,
       attribution: '&copy; OpenStreetMap contributors'}).addTo(state.pickerMap);
-    let marker;
-    state.pickerMap.on('click', (ev) => {
-      state.pickedCoords = {lat: ev.latlng.lat, lng: ev.latlng.lng};
-      if (marker) marker.setLatLng(ev.latlng);
-      else marker = L.marker(ev.latlng).addTo(state.pickerMap);
-      $('picker-location').textContent = `✓ Pino escolhido: ${ev.latlng.lat.toFixed(5)}, ${ev.latlng.lng.toFixed(5)}`;
-    });
+    state.pickerMarker = null;
+    state.pickerMap.getContainer().setAttribute('aria-label','Prévia da localização, sem edição por toque');
     setTimeout(() => state.pickerMap?.invalidateSize(), 180);
   }
+  $('new-address').addEventListener('input', () => {state.pickedCoords=null; $('picker-location').textContent='Endereço alterado. Localize novamente antes de publicar.';});
+  for (const id of ['new-city','new-state','bpr-map-link']) $(id).addEventListener('input', () => {state.pickedCoords=null; $('picker-location').textContent='Localize e confirme o endereço novamente.';});
+  $('bpr-resolve-address').addEventListener('click', resolveBprLocation);
   $('event-form').addEventListener('submit', submitEvent);
+}
+
+
+// Geocodificação iniciada pelo usuário: nunca inventar coordenadas de links sem posição.
+async function resolveBprLocation() {
+  const button=$('bpr-resolve-address');
+  const link=$('bpr-map-link').value.trim();
+  let coords=null;
+  if(link) {
+    try {
+      const url=new URL(link);
+      if(url.protocol!=='https:' || !/(^|\.)(google\.com|google\.com\.br|maps\.app\.goo\.gl|goo\.gl)$/.test(url.hostname)) throw Error('Use um link HTTPS do Google Maps.');
+      const str=decodeURIComponent(url.pathname+url.search);
+      const patterns=[/@(-?\d{1,2}\.\d+),(-?\d{1,3}\.\d+)/, /[?&](?:q|query|ll)=(-?\d{1,2}\.\d+),(-?\d{1,3}\.\d+)/, /!3d(-?\d{1,2}\.\d+)!4d(-?\d{1,3}\.\d+)/];
+      for(const pat of patterns){const m=str.match(pat);if(m){coords={lat:Number(m[1]),lng:Number(m[2])};break;}}
+      if(coords && (Math.abs(coords.lat)>90 || Math.abs(coords.lng)>180)) coords=null;
+    } catch(err){return toast(err.message||'Link inválido. Digite o endereço e tente novamente.');}
+  }
+  if(!coords){
+    const address=$('new-address').value.trim(), city=$('new-city').value.trim(), uf=$('new-state').value.trim();
+    if(address.length<7 || city.length<2 || uf.length!==2) return toast('Preencha endereço completo, cidade e UF antes de localizar.');
+    button.disabled=true;
+    try {
+      const query=encodeURIComponent(`${address}, ${city}, ${uf}, Brasil`);
+      const response=await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=br&q=${query}`,{headers:{'Accept':'application/json'}});
+      if(!response.ok) throw Error('Serviço de localização indisponível.');
+      const candidates=await response.json();
+      if(!candidates.length) throw Error('Não foi possível localizar este endereço. Confira rua, número e cidade.');
+      coords={lat:Number(candidates[0].lat),lng:Number(candidates[0].lon)};
+      $('picker-location').textContent=`Local encontrado: ${candidates[0].display_name}. Confira a prévia.`;
+    } catch(err) { state.pickedCoords=null; return toast(err.message||'Não foi possível localizar.'); }
+    finally {button.disabled=false;}
+  }
+  state.pickedCoords=coords;
+  if(state.pickerMap){
+    state.pickerMap.setView([coords.lat,coords.lng],16);
+    if(state.pickerMarker) state.pickerMarker.setLatLng([coords.lat,coords.lng]);
+    else state.pickerMarker=L.marker([coords.lat,coords.lng]).addTo(state.pickerMap);
+  }
+  $('picker-location').textContent=`📍 Local encontrado (${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}). Confira se corresponde ao endereço informado.`;
+  toast('Local encontrado. Confira o endereço e o mapa antes de publicar.');
 }
 
 async function compressWebp(file, maxBytes = 314572) {
@@ -1031,7 +1071,7 @@ async function compressWebp(file, maxBytes = 314572) {
 
 async function submitEvent(event) {
   event.preventDefault();
-  if (!state.pickedCoords) return toast('Marque o local no mapa antes de publicar.');
+  if (!state.pickedCoords) return toast('Localize e confirme o endereço antes de publicar.');
   const start = new Date($('new-start').value);
   const end = new Date($('new-end').value);
   if (!(start > new Date()) || !(end > start)) return toast('Confira as datas: o término precisa ocorrer após o início.');
@@ -1358,6 +1398,45 @@ function renderSquads() {
 
 // Jogos leves e locais: não gravam respostas, rodadas ou pontuação no Supabase.
 // A central só controla se os jogos ficam visíveis. Não é jogo sincronizado em tempo real.
+
+// Carrossel manual: não avança durante leitura, clique ou uso de leitor de tela.
+let bprFeatureIndex=0;
+function refreshBprFeatures() {
+  const slides=[...document.querySelectorAll('.bpr-feature-slide')];
+  if(!slides.length)return;
+  const config=bprControl.settings||{};
+  const msg=String(config.announcement||'').trim();
+  const card=config.community_card;
+  $('bpr-feature-message-text').textContent=msg;
+  $('bpr-feature-message').dataset.kind=config.notice_kind||'info';
+  $('bpr-feature-card-title').textContent=card?.title||'';
+  $('bpr-feature-card-body').textContent=card?.body||'';
+  const cardLink=$('bpr-feature-card-link');
+  if(card?.url?.startsWith('https://')) {cardLink.href=card.url;cardLink.textContent=card.button||'Saiba mais ↗';cardLink.hidden=false;}
+  else {cardLink.hidden=true;cardLink.removeAttribute('href');}
+  const visible=slides.filter(slide=> {
+    const idx=Number(slide.dataset.slide);
+    const enabled=idx===0||(idx===1&&config.banner_enabled!==false)||idx===2||idx===3||(idx===4&&msg.length>0)||(idx===5&&!!card?.active);
+    slide.dataset.available=String(enabled);
+    return enabled;
+  });
+  bprFeatureIndex=Math.min(bprFeatureIndex,visible.length-1);
+  slides.forEach(slide=>{slide.hidden=true;});
+  visible[bprFeatureIndex].hidden=false;
+  $('bpr-feature-indicator').textContent=`${bprFeatureIndex+1} de ${visible.length}`;
+}
+document.addEventListener('click',e=>{
+  if(e.target.closest('#bpr-feature-prev,#bpr-feature-next')){
+    const slides=[...document.querySelectorAll('.bpr-feature-slide')].filter(x=>x.dataset.available==='true');
+    bprFeatureIndex=(bprFeatureIndex+(e.target.closest('#bpr-feature-next')?1:-1)+slides.length)%slides.length;
+    refreshBprFeatures();
+  }
+  if(e.target.closest('[data-bpr-open-music]')){
+    document.querySelector('.bpr-connections')?.setAttribute('open','');
+    document.querySelector('.bpr-connections')?.scrollIntoView({behavior:'auto'});
+  }
+});
+
 const bprSquadGames = {
   nunca: {
     title:'Eu Nunca', icon:'🙈', description:'Quem já viveu isso pode contar — ou passar.',
@@ -1397,7 +1476,7 @@ function renderSquadGames() {
   }
   const current = state.squads.find(row => row.id === state.activeSquad);
   const available = !!(bprControl.settings?.squad_games_enabled && current && state.user && state.opened);
-  area.classList.toggle('hidden', !available);
+  area.classList.add('hidden'); // Jogos disponíveis apenas dentro da conversa do Squad
   if (!available) { area.replaceChildren(); return; }
   area.innerHTML = `<div class="bpr-games-heading"><div><span class="eyebrow">QUEBRA-GELO</span><h3>Jogos para a sua galera 🎲</h3><p>Cartas rápidas para brincar pelo chat ou pessoalmente. Sem placares e sem guardar respostas.</p></div></div>
   <div class="bpr-games-grid">${Object.entries(bprSquadGames).map(([key,game])=>`<button type="button" class="bpr-game-tile" data-bpr-game="${key}"><span aria-hidden="true">${game.icon}</span><strong>${html(game.title)}</strong><small>${html(game.description)}</small></button>`).join('')}</div>
@@ -1416,7 +1495,7 @@ document.addEventListener('click',(event)=>{
   const choice=event.target.closest('[data-bpr-game],[data-bpr-next]');
   if (!choice) return;
   const key=choice.dataset.bprGame || choice.dataset.bprNext;
-  if (!bprControl.settings?.squad_games_enabled || activeScreen() !== 'squad') return;
+  if (!bprControl.settings?.squad_games_enabled || state.activeRoom?.type !== 'squad') return;
   nextBprGameCard(key);
 });
 
@@ -1653,7 +1732,7 @@ async function openRoom(type, id) {
     <div class="chat-tabs"><button class="active" data-room-tab="chat">Chat</button><button data-room-tab="mural">Informações 📌</button>
     <button data-room-tab="polls">Enquetes 📊</button>
     ${type === 'event' ? '<button data-room-tab="music">Músicas 🎵</button>' : ''}
-    ${type === 'squad' ? '<button data-room-tab="album">Álbum 📸</button>' : ''}
+    ${type === 'squad' ? `<button data-room-tab="games">Jogos 🎲</button><button data-room-tab="album">Álbum 📸</button><button data-room-tab="members">Integrantes</button>${['owner','moderator'].includes(state.squadRoles.get(id))?'<button data-room-tab="settings">⚙️ Gestão</button>':''}` : ''}
     <button data-action="report" data-kind="${type}" data-id="${html(id)}">Denunciar</button></div>
     <div id="room-content" class="room-content"></div>`);
   $('dialog-body').className = 'dialog-content room-panel';
@@ -1688,6 +1767,23 @@ async function changeRoomTab(tab) {
     target.innerHTML = `<p class="small-muted">📊 Faça uma pergunta com 2 a 6 alternativas. Só integrantes votam; a identidade dos votantes não aparece.</p>
       <button class="btn btn-ghost btn-small" data-action="create-poll">+ Criar enquete</button><div id="poll-list"></div>`;
     await refreshPolls();
+  } else if (tab === 'games' && room.type === 'squad') {
+    if(!bprControl.settings?.squad_games_enabled) {
+      target.innerHTML='<p class="small-muted">Os jogos estão desativados pela administração da plataforma.</p>';
+    } else {
+      target.innerHTML=`<h3>Jogos da galera 🎲</h3><p class="small-muted">Cartas para brincar juntos no chat ou pessoalmente, sem registrar respostas ou placar.</p><div class="bpr-room-games">${Object.entries(bprSquadGames).map(([key,g])=>`<button type="button" class="bpr-game-tile" data-bpr-game="${key}"><strong>${g.icon} ${html(g.title)}</strong><small>${html(g.description)}</small></button>`).join('')}</div>`;
+    }
+  } else if (tab === 'members' && room.type === 'squad') {
+    target.innerHTML='<h3>Integrantes do Squad</h3><p>Consulte os participantes e os cargos autorizados.</p><button type="button" class="btn btn-ghost" data-action="squad-roster" data-id="'+html(room.id)+'">Ver integrantes</button>';
+  } else if (tab === 'settings' && room.type === 'squad') {
+    const manager=['owner','moderator'].includes(state.squadRoles.get(room.id));
+    if(!manager) { target.textContent='Acesso reservado aos responsáveis pelo Squad.'; return; }
+    target.innerHTML=`<h3>⚙️ Gestão deste Squad</h3><p class="small-muted">Os comandos existentes continuam sujeitos às permissões do banco de dados.</p><div class="bpr-squad-settings-actions">
+      <button class="btn btn-ghost" data-action="rename-squad" data-id="${html(room.id)}">Renomear Squad</button>
+      <button class="btn btn-ghost" data-action="edit-album-link" data-id="${html(room.id)}">Configurar álbum</button>
+      <button class="btn btn-ghost" data-action="squad-join-requests" data-id="${html(room.id)}">Pedidos de entrada</button>
+      <button class="btn btn-ghost" data-action="squad-removals" data-id="${html(room.id)}">Votos de remoção</button>
+      <button class="btn btn-ghost" data-action="squad-roster" data-id="${html(room.id)}">Integrantes e cargos</button></div><p class="small-muted">A visibilidade da busca e o calendário permanecem nos controles atuais da página Meus Squads nesta homologação.</p>`;
   } else if (tab === 'album' && room.type === 'squad') {
     const squad=state.squads.find(item=>item.id===room.id);
     const album=safeDriveFolder(squad?.album_url);
@@ -2507,3 +2603,6 @@ function openCalendarForm(squadId) {
     } catch (err) { toast(err.message); }
   });
 }
+
+// Iniciar carrossel com valores padrão, até a configuração remota ser consultada.
+refreshBprFeatures();

@@ -482,3 +482,18 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
   .bpr-squad-guide>summary span{font-size:11px}
 }
 @media(prefers-reduced-motion:reduce){.bpr-account-popup{scroll-behavior:auto}}
+
+/* V5 — carrossel acessível e interior dos Squads */
+.bpr-feature-carousel{margin-bottom:26px}.bpr-feature-slide[hidden]{display:none!important}
+.bpr-feature-slide .hero{margin-bottom:0}.bpr-feature-card{min-height:200px;border-radius:23px;padding:24px;display:flex;align-items:center;gap:22px;color:#fff;text-decoration:none;background:linear-gradient(130deg,#132b40,#155868);border:1px solid #ffffff2a}
+.bpr-feature-card img{width:clamp(96px,25%,170px);aspect-ratio:1;object-fit:contain;border-radius:14px}
+.bpr-feature-card>span{display:grid;gap:12px}.bpr-feature-card strong{font-size:clamp(22px,3.4vw,35px);line-height:1.12}.bpr-feature-card small{font-weight:800;letter-spacing:.14em}.bpr-feature-card b{color:#6ffff0}
+.bpr-feature-tem{background:linear-gradient(120deg,#2c143b,#542253)}.bpr-feature-social{background:linear-gradient(120deg,#273155,#b23c65)}.bpr-feature-music{background:linear-gradient(120deg,#11433b,#1c6a4b)}.bpr-feature-message{background:linear-gradient(120deg,#183349,#16546b)}
+.bpr-feature-message[data-kind="warning"]{background:linear-gradient(120deg,#60421f,#8d6330)}.bpr-feature-message[data-kind="partnership"]{background:linear-gradient(120deg,#4a235b,#862f6f)}
+.bpr-feature-controls{display:flex;justify-content:center;align-items:center;gap:18px;padding:9px}.bpr-feature-controls button{width:48px;height:48px;border-radius:14px;border:1px solid var(--line);background:var(--surface2);color:var(--text);font-size:28px;cursor:pointer}.bpr-feature-controls button:focus-visible{outline:3px solid var(--lime);outline-offset:2px}.bpr-feature-controls span{color:var(--muted);font-size:12px;font-weight:800}
+.bpr-feature-secondary{display:none!important}.bpr-room-games,.bpr-squad-settings-actions{display:grid;gap:10px}.bpr-room-games{grid-template-columns:repeat(auto-fit,minmax(145px,1fr))}.bpr-room-games .bpr-game-tile{min-height:110px}.bpr-room-games button,.bpr-squad-settings-actions button{min-height:48px}
+#bpr-resolve-address{margin:8px 0 15px;white-space:normal}.chat-tabs{overflow:visible;flex-wrap:wrap}.chat-tabs button{min-height:44px}.bpr-feature-slide .hero{min-height:205px}
+@media(max-width:610px){.bpr-feature-card{min-height:195px;padding:17px;gap:12px}.bpr-feature-card img{width:110px}.bpr-feature-card strong{font-size:20px}.bpr-feature-card>span{gap:7px}.bpr-feature-slide .hero{min-height:190px}}
+@media(prefers-reduced-motion:reduce){.bpr-feature-slide,.bpr-feature-card{animation:none!important;transition:none!important}}
+
+#bpr-squad-games{display:none!important}

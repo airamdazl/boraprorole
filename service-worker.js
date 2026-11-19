@@ -1,4 +1,4 @@
-const CACHE = 'bora-pro-role-navegacao-v20';
+const CACHE = 'bora-pro-role-navegacao-v20-v5';
 const APP_SHELL = ['./', './index.html', './app.js', './style.css', './manifest.webmanifest',
   './banner-tem-gogo.webp', './icon-192.png', './icon-512.png', './icon.svg',
   './termos.html', './privacidade.html', './comunidade.html'];
