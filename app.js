@@ -86,7 +86,8 @@ const bprControl = { settings: null, lastRead: 0, promise: null, lastSuccess: fa
 const defaultBprSettings = {
   mode:'normal', message:'Estamos preparando novidades. Voltamos em breve!', announcement:'',
   banner_enabled:true, banner_title:'Conheça o Tem Gogó!',
-  banner_url:'https://appspwa-zlsp.github.io/tem-gogo/'
+  banner_url:'https://appspwa-zlsp.github.io/tem-gogo/',
+  notice_kind:'info', squad_games_enabled:false, community_card:null
 };
 function applyBprPublicSettings(settings) {
   const config = {...defaultBprSettings, ...(settings || {})};
@@ -111,9 +112,29 @@ function applyBprPublicSettings(settings) {
   if (announcement) {
     const notice = config.announcement || (config.mode === 'scheduled' ? 'Manutenção programada. Acompanhe as próximas atualizações.' : '');
     announcement.textContent = notice;
+    announcement.dataset.kind = ['info','news','warning','partnership'].includes(config.notice_kind) ? config.notice_kind : 'info';
     announcement.classList.toggle('hidden', !notice);
   }
+  const card = config.community_card;
+  const cardEl = $('bpr-public-card');
+  if (cardEl) {
+    const visible = !!(card && card.active === true && typeof card.title === 'string' && typeof card.body === 'string');
+    cardEl.classList.toggle('hidden', !visible);
+    if (visible) {
+      cardEl.dataset.kind = ['celebration','info','warning','partnership'].includes(card.style) ? card.style : 'celebration';
+      $('bpr-card-label').textContent = cardEl.dataset.kind === 'celebration' ? '💌 CARTÃO PARA A GALERA' : 'RECADO DA COMUNIDADE';
+      $('bpr-card-title').textContent = card.title;
+      $('bpr-card-body').textContent = card.body;
+      const link = $('bpr-card-link');
+      const url = safeHttps(card.url);
+      link.classList.toggle('hidden', !url || !card.button);
+      if (url && card.button) { link.href = url; link.textContent = card.button + ' ↗'; }
+      else link.removeAttribute('href');
+    }
+  }
   bprControl.settings = config;
+  if (!config.squad_games_enabled && !$('modal').classList.contains('hidden') && $('dialog-body').querySelector('[data-bpr-next]')) closeModal();
+  if (state?.opened && activeScreen() === 'squad') renderSquadGames();
 }
 async function refreshBprPublicSettings(force=false) {
   if (!db) return defaultBprSettings;
@@ -533,7 +554,13 @@ function navigate(page, fromHistory = false) {
   document.querySelectorAll('[data-nav]').forEach((button) => button.classList.toggle('active', button.dataset.nav === page));
   window.scrollTo({ top: 0, behavior: 'instant' });
   if (page === 'explorar') setTimeout(() => state.map?.invalidateSize(), 140);
-  if (page === 'meus') renderMine();
+  if (page === 'meus') {
+    renderMine();
+    const selected = document.querySelector('[data-my-tab].active')?.dataset.myTab || 'joined';
+    document.querySelectorAll('[data-my-panel]').forEach(panel => {
+      panel.hidden = panel.dataset.myPanel !== selected;
+    });
+  }
   if (page === 'squad') renderSquads();
   if (!fromHistory && (previousScreen !== page || !history.state?.[BORA_HISTORY_KEY])) {
     updateAppHistory(page, false, !history.state?.[BORA_HISTORY_KEY]);
@@ -568,7 +595,7 @@ const heroMessages = [
   ['⚡ COM GENTE É MELHOR','A vida acontece<br>fora do feed.','Do cinema à rave, das boas conversas às amizades que ficam.'],
   ['🤝 RESPEITO SEMPRE','Toda vibe merece<br>respeito.','Aqui ninguém precisa esconder quem é. Diversidade e consentimento vêm primeiro.'],
   ['🛡️ ROLÊ SEGURO','Curta a noite.<br>Cuide da galera.','Marque encontros em locais públicos e denuncie assédio, preconceito e golpes.'],
-  ['💜 AMIZADE REAL','Seu jeito.<br>Sua turma.','Converse, combine e compartilhe bons momentos sem pressão.']
+  ['🌐 CONEXÃO REAL','Seu jeito.<br>Sua turma.','Converse, combine e compartilhe bons momentos sem pressão.']
 ];
 let heroIndex = 0;
 setInterval(() => {
@@ -912,6 +939,15 @@ async function saveEvent(id) {
 }
 
 function renderMine() {
+  const myCounts = {
+    joined: state.events.filter(event => state.joined.has(event.id)).length,
+    saved: state.events.filter(event => state.saved.has(event.id)).length,
+    created: state.events.filter(event => event.creatorId === state.user?.id).length
+  };
+  for (const [kind, count] of Object.entries(myCounts)) {
+    const target = $(`bpr-count-${kind}`);
+    if (target) target.textContent = String(count);
+  }
   const item = (event) => `<div class="list-row"><div class="icon-disc">${categories.find((c) => c[0] === event.category)?.[1] || '✨'}</div>
     <div class="grow"><strong>${html(event.title)}</strong><p>${html(shortDate(event.date))} · ${html(event.address)}</p></div>
     <button class="btn btn-ghost btn-small" data-event="${html(event.id)}">Ver</button>
@@ -934,11 +970,13 @@ function openCreate() {
     <div class="field"><label for="new-address">Endereço completo *</label><input id="new-address" maxlength="220" required placeholder="Rua, número, bairro"></div>
     <div class="fields"><div class="field"><label for="new-city">Cidade *</label><input id="new-city" maxlength="90" value="São Paulo" required></div><div class="field"><label for="new-state">UF *</label><input id="new-state" maxlength="2" value="SP" required></div></div>
     <div class="field"><label for="new-description">Descrição e combinados *</label><textarea id="new-description" minlength="10" maxlength="2000" required placeholder="Como será? Tem ingresso? Qual será o ponto de encontro?"></textarea></div>
+    <details class="bpr-create-extras"><summary>Mais opções do rolê <small>Instagram, ingressos, playlist, gastos e capa (opcional)</small></summary><div class="bpr-create-extras-body">
     <div class="fields"><div class="field"><label for="new-insta">Instagram do local</label><input id="new-insta" placeholder="@local ou https://..."></div><div class="field"><label for="new-ticket">Link do ingresso</label><input id="new-ticket" type="url" placeholder="https://..."></div></div>
     <div class="field"><label for="new-playlist">Playlist do rolê no Spotify (opcional)</label><input id="new-playlist" type="url" placeholder="https://open.spotify.com/playlist/..."></div>
     <div class="field"><label for="new-spend">💸 Média de gasto por pessoa no local (R$)</label><input id="new-spend" type="number" min="0" max="100000" step="0.01" placeholder="Deixe vazio se não souber"><small class="small-muted">Estimativa opcional, além do ingresso. Vazio significa “Não sei informar”.</small></div>
     <div class="field"><label for="new-spend-notes">O que está incluído? (opcional)</label><input id="new-spend-notes" maxlength="250" placeholder="Ex.: ingresso já inclui open bar; consumo à parte"></div>
     <div class="field"><label for="new-cover">Foto de capa (WebP/JPG/PNG, opcional)</label><label class="file-picker" for="new-cover"><input id="new-cover" type="file" accept="image/*"><span class="file-picker-button">📷 Escolher capa</span><span class="file-picker-name" id="new-cover-name" aria-live="polite">Nenhuma imagem selecionada</span></label></div>
+    </div></details>
     <p class="small-muted">📍 Toque no mapa para marcar o local exato do evento. A localização não é a da sua residência.</p>
     <div id="map-picker" class="map-picker"></div><div id="picker-location" class="small-muted">Nenhum local marcado.</div>
     <div class="field"><label for="new-audience">Quem pode confirmar presença?</label><select id="new-audience"><option value="all">🌎 Todas as pessoas</option><option value="women">👩 Somente mulheres</option><option value="men">👨 Somente homens</option><option value="lgbtq">🏳️‍🌈 Somente pessoas LGBTQIA+</option></select><small class="small-muted">A participação em rolês direcionados usa a identificação autodeclarada e privada do perfil. A convivência deve respeitar as regras antidiscriminação.</small></div>
@@ -1085,12 +1123,17 @@ function hydrateProfile() {
     });
     $('avatar-form').addEventListener('submit', saveAvatar);
   }
+  const editPanel = document.querySelector('#screen-perfil .profile-panel .two-col > .panel:first-child');
+  if (editPanel && !editPanel.id) editPanel.id = 'bpr-edit-profile-panel';
+  if (editPanel && !editPanel.classList.contains('bpr-edit-profile-panel')) {
+    editPanel.classList.add('bpr-edit-profile-panel');
+    editPanel.classList.add('bpr-collapsed');
+  }
   if (!$('profile-account-options')) {
     const options = document.createElement('div');
     options.id = 'profile-account-options';
     options.innerHTML = `<div class="switch-line"><label for="birthday-consent"><strong>🎂 Avisar meu aniversário aos SQUADs</strong>
         <small>Somente dia e mês, se você autorizar.</small></label><input type="checkbox" id="birthday-consent"></div>
-      <button class="btn btn-ghost account-logout" data-action="logout"><i data-lucide="log-out"></i> Sair da minha conta</button>
       <button class="btn btn-ghost hidden" id="moderation-entry" data-action="moderation">🛡️ Painel de moderação</button>`;
     document.querySelector('#screen-perfil .profile-panel .two-col > .panel:last-child').append(options);
   }
@@ -1101,11 +1144,16 @@ function hydrateProfile() {
       <span class="eyebrow">Encontre sua galera</span><h2>Gente nova, SQUAD novo. ✌️</h2>
       <p>Procure pessoas pelo @user ou SQUADs pelo nome. Perfis e grupos só aparecem conforme a privacidade escolhida.</p></div></div>
       <form id="friend-form" class="friend-finder"><input id="friend-nick" placeholder="@user ou nome do SQUAD" maxlength="65" aria-label="Buscar pessoas ou SQUADs"><button class="btn btn-pink" type="submit">🔎 Buscar</button></form>
-      <div class="friend-results" id="friend-result" role="status" aria-live="polite">A pesquisa não revela fotos, conversas ou integrantes privados.</div>
-      <div class="blocked-profile-box"><h3>🔒 Controle de bloqueios</h3><p class="small-muted">Você pode bloquear qualquer @user, mesmo que o perfil não apareça nas pesquisas.</p>
+      <div class="friend-results" id="friend-result" role="status" aria-live="polite">A pesquisa não revela fotos, conversas ou integrantes privados.</div>`;
+    // Busca unificada aparece abaixo dos grupos do usuário, sem alterar RPCs.
+    document.querySelector('#screen-squad .two-col').after(finder);
+    const blocks = document.createElement('section');
+    blocks.className = 'panel blocked-profile-box';
+    blocks.id = 'bpr-blocking-profile';
+    blocks.innerHTML = `<h3>🔒 Controle de bloqueios</h3><p class="small-muted">Você pode bloquear qualquer @user, mesmo que o perfil não apareça nas pesquisas.</p>
       <form id="nickname-block-form" class="friend-finder"><input id="block-nick" placeholder="@user a bloquear" maxlength="24" aria-label="Bloquear pelo @user"><button class="btn btn-ghost" type="submit">Bloquear</button></form>
-      <button class="inline-button" data-action="manage-blocks">Ver e gerenciar meus bloqueios</button></div>`;
-    document.querySelector('#screen-perfil .profile-panel').after(finder);
+      <button class="inline-button" data-action="manage-blocks">Ver e gerenciar meus bloqueios</button>`;
+    document.querySelector('#screen-perfil .profile-panel').after(blocks);
     $('friend-form').addEventListener('submit', followNickname);
     $('nickname-block-form').addEventListener('submit', blockNicknameFromForm);
   }
@@ -1257,10 +1305,10 @@ function renderSquads() {
   list.innerHTML = `<div class="panel"><div class="squad-extras-head"><h3>Meus SQUADs</h3><button class="btn btn-pink btn-small" data-action="create-independent-squad">+ Criar SQUAD</button></div>
     ${state.squads.length ? state.squads.map((squad) => `<div class="list-row"><div class="icon-disc">🫶</div><div class="grow"><strong>${html(squad.name)}</strong><p>${html(squad.description || 'Comunidade de amigos')}</p></div>
       <button class="btn btn-pink btn-small" data-action="open-squad" data-id="${html(squad.id)}">Abrir</button></div>`).join('') : '<p class="small-muted">Ainda não participa de SQUAD. Você já pode criar um, sem precisar ir a um rolê antes.</p>'}</div>
-    <div class="panel"><h3>O que é um SQUAD?</h3><p class="small-muted">Uma galera organizada com chat, enquetes, álbum compartilhado no Google Drive, mural, convites por @user e até 3 administradores.</p>
+    <details class="panel bpr-squad-guide"><summary>O que é um SQUAD? <span>Ver orientações</span></summary><p class="small-muted">Uma galera organizada com chat, enquetes, álbum compartilhado no Google Drive, mural, convites por @user e até 3 administradores.</p>
       <div class="list-row"><div class="icon-disc">🔐</div><div class="grow"><strong>Entrada protegida</strong><p>Convites individuais precisam ser aceitos. Quem encontra o SQUAD pela busca solicita entrada e espera aprovação de um admin.</p></div></div>
       <div class="list-row"><div class="icon-disc">🛡️</div><div class="grow"><strong>Decisão em conjunto</strong><p>Excluir alguém do grupo exige concordância de 2 administradores, mesmo quando há 3.</p></div></div>
-      <div class="list-row"><div class="icon-disc">🎂</div><div class="grow"><strong>Aniversários opcionais</strong><p>Quem permite, compartilha apenas dia e mês.</p></div></div></div>`;
+      <div class="list-row"><div class="icon-disc">🎂</div><div class="grow"><strong>Aniversários opcionais</strong><p>Quem permite, compartilha apenas dia e mês.</p></div></div></details>`;
   const extras = $('squad-live-extras');
   if (!extras) {
     const section = document.createElement('div');
@@ -1304,8 +1352,73 @@ function renderSquads() {
     });
     renderSquadCalendar(current.id);
   }
+  renderSquadGames();
   icons();
 }
+
+// Jogos leves e locais: não gravam respostas, rodadas ou pontuação no Supabase.
+// A central só controla se os jogos ficam visíveis. Não é jogo sincronizado em tempo real.
+const bprSquadGames = {
+  nunca: {
+    title:'Eu Nunca', icon:'🙈', description:'Quem já viveu isso pode contar — ou passar.',
+    cards:['Eu nunca fui a um rolê e encontrei alguém por acaso.',
+      'Eu nunca me perdi indo encontrar a galera.',
+      'Eu nunca fui ao cinema só pela pipoca.',
+      'Eu nunca saí de casa sem saber onde a noite ia terminar.',
+      'Eu nunca fiz amizade em uma fila.',
+      'Eu nunca cantei karaokê com muita confiança e pouca afinação.',
+      'Eu nunca precisei mandar a localização para achar meus amigos.',
+      'Eu nunca fui ao rolê errado por engano.']
+  },
+  quem: {
+    title:'Quem Sou Eu?', icon:'🕵️', description:'Dê pistas sem dizer o nome da carta.',
+    cards:['Astronauta','Chef de cozinha','Detetive','Cantora de karaokê',
+      'Super-herói','Turista perdido','Apresentador de TV','DJ da festa',
+      'Pirata','Cineasta','Jogador de futebol','Mágico']
+  },
+  escolha: {
+    title:'Isso ou Aquilo?', icon:'⚡', description:'Escolhas rápidas para descobrir a vibe da galera.',
+    cards:['Praia ou montanha?','Show ou cinema?','Rolê planejado ou surpresa?',
+      'Karaokê ou pista de dança?','Café da manhã ou jantar?',
+      'Cidade grande ou interior?','Festival ou barzinho?',
+      'Aventura ao ar livre ou noite de jogos?']
+  }
+};
+let bprLastGameCard = {};
+function renderSquadGames() {
+  const extras = $('squad-live-extras');
+  if (!extras) return;
+  let area = $('bpr-squad-games');
+  if (!area) {
+    area = document.createElement('section');
+    area.id = 'bpr-squad-games';
+    area.className = 'bpr-squad-games';
+    extras.insertAdjacentElement('afterend',area);
+  }
+  const current = state.squads.find(row => row.id === state.activeSquad);
+  const available = !!(bprControl.settings?.squad_games_enabled && current && state.user && state.opened);
+  area.classList.toggle('hidden', !available);
+  if (!available) { area.replaceChildren(); return; }
+  area.innerHTML = `<div class="bpr-games-heading"><div><span class="eyebrow">QUEBRA-GELO</span><h3>Jogos para a sua galera 🎲</h3><p>Cartas rápidas para brincar pelo chat ou pessoalmente. Sem placares e sem guardar respostas.</p></div></div>
+  <div class="bpr-games-grid">${Object.entries(bprSquadGames).map(([key,game])=>`<button type="button" class="bpr-game-tile" data-bpr-game="${key}"><span aria-hidden="true">${game.icon}</span><strong>${html(game.title)}</strong><small>${html(game.description)}</small></button>`).join('')}</div>
+  <p class="small-muted">Ninguém precisa responder a uma pergunta desconfortável. A ativação geral é controlada pela administração da plataforma.</p>`;
+}
+function nextBprGameCard(kind) {
+  const game = bprSquadGames[kind];
+  if (!game || !bprControl.settings?.squad_games_enabled) return;
+  const previous = bprLastGameCard[kind];
+  const choices = game.cards.filter(card => card !== previous);
+  const card = choices[Math.floor(Math.random() * choices.length)];
+  bprLastGameCard[kind] = card;
+  showModal(`${game.icon} ${game.title}`, `<div class="bpr-game-modal"><p>${html(game.description)}</p><div class="bpr-game-question" role="status">${html(card)}</div><button type="button" class="btn btn-pink" data-bpr-next="${kind}">Outra carta</button><p class="small-muted">Brinquem no chat existente do Squad ou pessoalmente. Não há respostas registradas pelo jogo.</p></div>`);
+}
+document.addEventListener('click',(event)=>{
+  const choice=event.target.closest('[data-bpr-game],[data-bpr-next]');
+  if (!choice) return;
+  const key=choice.dataset.bprGame || choice.dataset.bprNext;
+  if (!bprControl.settings?.squad_games_enabled || activeScreen() !== 'squad') return;
+  nextBprGameCard(key);
+});
 
 function openSquadCreateForm(eventId = null) {
   const origin = eventId ? state.events.find((event) => event.id === eventId) : null;
@@ -2091,6 +2204,16 @@ async function handleAction(action, element) {
       case 'edit-event': return await editEvent(id);
       case 'cancel-event': return await cancelEvent(id);
       case 'safety': closeAndLeaveRoom(); return navigate('seguranca');
+      case 'profile-toggle-edit': {
+        const panel = $('bpr-edit-profile-panel');
+        if (!panel) return;
+        panel.classList.toggle('bpr-collapsed');
+        if (!panel.classList.contains('bpr-collapsed')) {
+          panel.scrollIntoView({behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',block:'nearest'});
+          $('edit-name')?.focus({preventScroll:true});
+        }
+        return;
+      }
       case 'save-profile': return await saveProfile();
       case 'follow-found-user': return await followFoundUser(id,element.dataset.nick);
       case 'block-found-user': return await blockFoundNickname(element.dataset.nick);
@@ -2110,7 +2233,22 @@ async function handleAction(action, element) {
       case 'moderation': return await openModeration();
       case 'mod-event': case 'mod-report': case 'mod-remove': case 'mod-suspend': case 'mod-privacy': case 'mod-cancel':
         return await performModeration(action, element);
-      case 'logout': return await authAction('logout');
+      case 'logout': {
+        const profileEditor = document.querySelector('#bpr-edit-profile-panel');
+        const unsavedProfile = Boolean(profileEditor && state.profile && (
+          $('edit-name')?.value.trim() !== (state.profile.display_name || '') ||
+          $('edit-handle')?.value.trim() !== (state.profile.username || '') ||
+          $('edit-city')?.value.trim() !== (state.profile.city || '') ||
+          $('edit-bio')?.value.trim() !== (state.profile.bio || '') ||
+          $('edit-insta')?.value.trim() !== (state.profile.instagram || '')
+        ));
+        const question = unsavedProfile ?
+          'Você tem alterações não salvas no perfil. Sair agora descarta essas alterações. Deseja continuar?' :
+          'Deseja encerrar sua sessão neste dispositivo?';
+        if (!await appConfirm(question, {title:'Sair da conta',confirmLabel:'Sim, sair',danger:true})) return;
+        $('bpr-account-menu')?.removeAttribute('open');
+        return await authAction('logout');
+      }
       case 'open-squad': return await openRoom('squad', id);
       case 'create-squad': return await createSquad(id);
       case 'create-independent-squad': return await createIndependentSquad();
@@ -2146,6 +2284,11 @@ async function handleAction(action, element) {
 }
 
 document.addEventListener('click', (event) => {
+  const accountMenu = $('bpr-account-menu');
+  if (accountMenu?.open && !accountMenu.contains(event.target)) accountMenu.removeAttribute('open');
+  if (event.target.closest('#bpr-account-menu [data-nav], #bpr-account-menu [data-action]')) {
+    accountMenu?.removeAttribute('open');
+  }
   const authButton = event.target.closest('[data-auth]');
   if (authButton) { event.preventDefault(); return authAction(authButton.dataset.auth); }
 
@@ -2153,6 +2296,20 @@ document.addEventListener('click', (event) => {
   if (save) { event.preventDefault(); event.stopPropagation(); return saveEvent(save.dataset.save); }
   const actionButton = event.target.closest('[data-action]');
   if (actionButton) { event.preventDefault(); return handleAction(actionButton.dataset.action, actionButton); }
+  const myTab = event.target.closest('[data-my-tab]');
+  if (myTab) {
+    event.preventDefault();
+    const selected = myTab.dataset.myTab;
+    document.querySelectorAll('[data-my-tab]').forEach(button => {
+      const active = button.dataset.myTab === selected;
+      button.classList.toggle('active', active);
+      button.setAttribute('aria-pressed', String(active));
+    });
+    document.querySelectorAll('[data-my-panel]').forEach(panel => {
+      panel.hidden = panel.dataset.myPanel !== selected;
+    });
+    return;
+  }
   const nav = event.target.closest('[data-nav]');
   if (nav) return navigate(nav.dataset.nav);
   const screenLink = event.target.closest('[data-screen-link]');
@@ -2167,6 +2324,13 @@ document.addEventListener('click', (event) => {
   if (eventCard) return openDetails(eventCard.dataset.event);
   const season = event.target.closest('[data-season]');
   if (season) { state.category = season.dataset.season; renderChips(); renderEvents(); navigate('explorar'); }
+});
+
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && $('bpr-account-menu')?.open) {
+    $('bpr-account-menu').removeAttribute('open');
+    $('bpr-account-menu summary')?.focus();
+  }
 });
 
 document.addEventListener('submit', (event) => {
@@ -2280,7 +2444,7 @@ else {
 
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   // Atualização explícita do worker: evita manter uma instalação antiga do PWA.
-  navigator.serviceWorker.register('./service-worker.js?v=20261117-central-1', {updateViaCache:'none'}).catch(() => {});
+  navigator.serviceWorker.register('./service-worker.js?v=20261119-comunidade-v19', {updateViaCache:'none'}).catch(() => {});
 }
 
 async function inviteNickname(event, squadId) {

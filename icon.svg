@@ -1,11 +1,16 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <defs>
-    <linearGradient id="bg" x1="0" x2="1" y2="1"><stop stop-color="#FF6085"/><stop offset="1" stop-color="#8E5BE8"/></linearGradient>
-  </defs>
-  <rect width="512" height="512" rx="118" fill="#171425"/>
-  <circle cx="256" cy="256" r="178" fill="url(#bg)"/>
-  <path d="M256 114c-9 48-48 71-55 119-18-17-23-42-20-59-52 48-79 97-79 147 0 85 66 143 154 143s154-58 154-143c0-73-52-126-82-154-5 37-21 58-36 70-2-46-19-88-36-123z" fill="#fff"/>
-  <path d="M258 263c-12 33-44 59-44 97 0 30 19 52 42 52 30 0 52-22 52-52 0-31-27-68-50-97z" fill="#FF6085"/>
-  <circle cx="374" cy="121" r="37" fill="#C8F977"/>
-  <path d="M374 100v42m-21-21h42" stroke="#171425" stroke-width="9" stroke-linecap="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Bora Pro Rolê: símbolo B em rotas conectadas">
+ <defs>
+  <linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#FF7568"/><stop offset="1" stop-color="#FF5B65"/></linearGradient>
+  <linearGradient id="m" x1="0" y1="1" x2="1" y2="0"><stop stop-color="#2EDCC2"/><stop offset="1" stop-color="#4AEED0"/></linearGradient>
+ </defs>
+ <rect x="0" y="0" width="512" height="512" rx="106" fill="#0C1A29"/>
+ <circle cx="393" cy="100" r="117" fill="#1D3F4A" opacity="0.6"/>
+ <circle cx="83" cy="412" r="113" fill="#17344B" opacity="0.75"/>
+ <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M158 127 L158 389" stroke="#F6FAFA" stroke-width="41"/>
+  <path d="M174 145 H256 C331 145 344 225 267 243 H173" stroke="url(#g)" stroke-width="39"/>
+  <path d="M176 252 H274 C360 252 374 370 280 370 H174" stroke="url(#m)" stroke-width="39"/>
+ </g>
+ <circle cx="338" cy="143" r="13" fill="#FF7568"/>
+ <circle cx="358" cy="382" r="13" fill="#2EDCC2"/>
 </svg>
