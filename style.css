@@ -349,3 +349,18 @@
   line-height:1.45;
   max-width:min(90vw,440px);
 }
+
+
+/* ETAPA 1: promoção configurável, aviso e manutenção. Sem alterar telas atuais. */
+.bpr-announcement{border:1px solid #e992c6;background:linear-gradient(130deg,#512350,#2c1a47);color:#fff;border-radius:15px;padding:15px 18px;font-weight:700;margin:20px 0;overflow-wrap:anywhere}
+.bpr-promo{display:flex;align-items:center;gap:19px;margin:21px 0 27px;border:1px solid #a848a2;background:linear-gradient(110deg,#291338,#452050,#1a1534);border-radius:20px;padding:13px;max-width:100%;text-decoration:none;color:#fff;box-shadow:0 12px 26px #a943ad1c;overflow:hidden;transition:transform .15s,border-color .15s}
+.bpr-promo:hover{transform:translateY(-2px);border-color:#fa5bbd}.bpr-promo img{width:156px;height:156px;object-fit:contain;flex:none;border-radius:14px;background:#241231}
+.bpr-promo-body{display:flex;flex-direction:column;align-items:flex-start;gap:8px;min-width:0}.bpr-promo-body strong{font:900 clamp(18px,2.5vw,26px) Outfit,sans-serif;line-height:1.1}.bpr-promo-body small{color:#f9d4f4;font-size:13px;line-height:1.55}.bpr-promo-action{padding:9px 13px;border-radius:9px;background:linear-gradient(90deg,#e62697,#ad2bd1);font-weight:900;font-size:12px}
+.bpr-maintenance{position:fixed;inset:0;z-index:999999;display:grid;place-items:center;padding:20px;background:radial-gradient(circle at 50% 25%,#561d64,#140e23 65%);overflow:auto}
+.bpr-maintenance-card{border:1px solid #96409a;background:linear-gradient(140deg,#32143e,#1b162e);padding:clamp(24px,4vw,50px);max-width:600px;width:100%;text-align:center;border-radius:25px;box-shadow:0 30px 80px #0008;color:white}
+.bpr-maintenance-card h1{font:900 clamp(28px,6vw,44px) Outfit,sans-serif;color:#fff;margin:12px 0}.bpr-maintenance-card p{color:#f1dce9;line-height:1.7;overflow-wrap:anywhere}.bpr-maintenance-card .small-muted{color:#c9bbcc}.bpr-maintenance-card button{margin-top:12px}.bpr-maintenance-icon{display:block;font-size:50px}
+body.bpr-maintenance-active{overflow:hidden}
+@media(max-width:600px){.bpr-promo{gap:12px;padding:10px}.bpr-promo img{width:104px;height:126px}.bpr-promo-body{gap:5px}.bpr-promo-body .eyebrow{font-size:9px;letter-spacing:.6px}.bpr-promo-body strong{font-size:18px}.bpr-promo-body small{font-size:11px}.bpr-promo-action{font-size:10px;padding:7px}}
+
+/* Atendimento da comunidade: mantém a identidade original do PWA. */
+.bpr-faq{border:1px solid var(--line,#715587);border-radius:14px;padding:14px;margin:14px 0}.bpr-faq summary{font-weight:800;cursor:pointer;min-height:36px}.bpr-faq li{margin:7px 0;line-height:1.55}.bpr-help-history{display:grid;gap:14px}.bpr-help-thread{display:grid;gap:8px;margin:12px 0}.bpr-help-message{padding:12px;border-radius:11px;background:#2a2040;border:1px solid #654675;color:#fff;overflow-wrap:anywhere}.bpr-help-message.team{border-left:3px solid #4de0d4}.bpr-help-message p{white-space:pre-wrap;color:#f0e8f6;margin:6px 0}.bpr-help-message small{opacity:.7}.bpr-help-reply{display:grid;gap:10px;margin-top:12px}.bpr-help-warning{border:1px solid #d8a656;border-radius:13px;padding:12px;background:#44311d;color:#ffe4b6}

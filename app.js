@@ -81,6 +81,66 @@ function spotifyEmbed(url, type = 'playlist') {
   return `<div class="spotify-optin"><div><strong>🎧 Player do Spotify</strong><small>Ao ativar, o Spotify poderá receber dados de navegação conforme suas próprias políticas.</small></div>
     <button class="btn btn-ghost btn-small" data-action="spotify-load" data-spotify-kind="${type}" data-spotify-id="${id}">▶ Ouvir aqui</button></div>`;
 }
+// Preferências públicas da plataforma; no primeiro deploy sem SQL, mantém o comportamento antigo.
+const bprControl = { settings: null, lastRead: 0, promise: null, lastSuccess: false };
+const defaultBprSettings = {
+  mode:'normal', message:'Estamos preparando novidades. Voltamos em breve!', announcement:'',
+  banner_enabled:true, banner_title:'Conheça o Tem Gogó!',
+  banner_url:'https://appspwa-zlsp.github.io/tem-gogo/'
+};
+function applyBprPublicSettings(settings) {
+  const config = {...defaultBprSettings, ...(settings || {})};
+  const wall = $('bpr-maintenance');
+  if (wall) {
+    const on = config.mode === 'maintenance';
+    wall.classList.toggle('hidden', !on);
+    $('bpr-maintenance-message').textContent = config.message;
+    // O status de manutenção se sobrepõe à sessão e não a encerra.
+    document.body.classList.toggle('bpr-maintenance-active', on);
+    $('auth-gate').inert = on;
+    document.querySelector('.shell').inert = on;
+  }
+  const promo = $('bpr-promo');
+  if (promo) {
+    const target = safeHttps(config.banner_url);
+    promo.classList.toggle('hidden', !config.banner_enabled || !target);
+    promo.href = target || defaultBprSettings.banner_url;
+    $('bpr-promo-title').textContent = config.banner_title;
+  }
+  const announcement = $('bpr-announcement');
+  if (announcement) {
+    const notice = config.announcement || (config.mode === 'scheduled' ? 'Manutenção programada. Acompanhe as próximas atualizações.' : '');
+    announcement.textContent = notice;
+    announcement.classList.toggle('hidden', !notice);
+  }
+  bprControl.settings = config;
+}
+async function refreshBprPublicSettings(force=false) {
+  if (!db) return defaultBprSettings;
+  if (bprControl.promise) return bprControl.promise;
+  if (!force && bprControl.lastRead && Date.now() - bprControl.lastRead < 30000) return bprControl.settings;
+  bprControl.promise = (async () => {
+    try {
+      const {data,error} = await db.rpc('bpr_get_public_settings');
+      if (error) throw error;
+      bprControl.lastRead = Date.now();
+      bprControl.lastSuccess = true;
+      const wasMaintenance = bprControl.settings?.mode === 'maintenance';
+      applyBprPublicSettings(data);
+      if (wasMaintenance && data?.mode !== 'maintenance' && !state.opened) {
+        // Saiu da manutenção: retoma o onboarding/login sem perder sessão.
+        setTimeout(() => syncSession().catch(() => {}), 0);
+      }
+      return bprControl.settings;
+    } catch (error) {
+      // Em releases anteriores à instalação das RPCs, não interferir no app.
+      if (!bprControl.lastSuccess) applyBprPublicSettings(defaultBprSettings);
+      return bprControl.settings || defaultBprSettings;
+    } finally { bprControl.promise = null; }
+  })();
+  return bprControl.promise;
+}
+
 const state = {
   user: null, profile: null, events: [], joined: new Set(), saved: new Map(),
   counts: new Map(), squads: [], squadRoles: new Map(), squadInvites: [],
@@ -353,6 +413,8 @@ async function authAction(kind, form) {
 
 async function syncSession() {
   const version = ++state.sessionVersion;
+  await refreshBprPublicSettings();
+  if (bprControl.settings?.mode === 'maintenance') return;
   state.lastSessionCheck = Date.now();
   const session = await assertOk(db.auth.getSession());
   if (version !== state.sessionVersion) return;
@@ -1854,6 +1916,58 @@ async function openAudiencePreferences() {
   }catch(err){toast(err.message);}
 }
 
+// Atendimento próprio: dúvidas/erros/sugestões ficam separados de denúncias e LGPD.
+// Só envia para RPCs autorizadas: nenhuma escrita direta em tabelas administrativas.
+let bprPendingHelpKey = null;
+const bprReplyKeys = new Map();
+const bprHelpLabels = {question:'Dúvida',bug:'Problema técnico',suggestion:'Sugestão',appeal:'Recurso ou revisão'};
+const bprHelpStatuses = {open:'Aberto',in_progress:'Em atendimento',answered:'Respondido',closed:'Encerrado'};
+async function openBprHelp() {
+  if (!state.user) return toast('Entre na sua conta para usar o atendimento.');
+  let rows=[], issue='';
+  try {
+    rows = await assertOk(db.rpc('bpr_help_my_list'));
+    if (!Array.isArray(rows)) rows=[];
+  } catch (error) {
+    issue = 'O atendimento interno ainda não está disponível nesta versão. Você pode utilizar o e-mail de moderação abaixo enquanto a integração é concluída.';
+  }
+  showModal('Ajuda e atendimento 💬', `<p class="small-muted">Fale com a equipe e acompanhe as respostas aqui. Não inclua senhas, documentos ou informações íntimas.</p>
+    <details class="bpr-faq"><summary>Como usar o Bora Pro Rolê? · Guia rápido</summary><ol>
+      <li>Em <strong>Explorar</strong>, busque rolês e consulte os detalhes no mapa ou na lista.</li>
+      <li>Em <strong>Meus rolês</strong>, acompanhe o que salvou ou confirmou.</li>
+      <li>Em <strong>Criar</strong>, publique um evento e revise o endereço.</li>
+      <li>Em <strong>Squads</strong>, converse com os grupos dos quais participa.</li>
+      <li>Em <strong>Perfil</strong>, altere suas informações, privacidade e senha.</li>
+    </ol><p>Para denunciar pessoas ou publicações, use <strong>Denunciar</strong>. Para direitos sobre seus dados, use <strong>Solicitações LGPD</strong>.</p></details>
+    ${issue ? `<p class="bpr-help-warning" role="alert">${html(issue)}</p>` : `<form id="bpr-help-form" class="privacy-form">
+      <label>Tipo de solicitação<select name="category" required>${Object.entries(bprHelpLabels).map(([key,value])=>`<option value="${html(key)}">${html(value)}</option>`).join('')}</select></label>
+      <label>Assunto<input name="subject" minlength="5" maxlength="110" required placeholder="Ex.: Não consigo acessar meu squad"></label>
+      <label>Explique a situação<textarea name="details" minlength="5" maxlength="2000" rows="4" required placeholder="Conte o que aconteceu e o que esperava. Não envie dados sensíveis."></textarea></label>
+      <button type="submit" class="btn btn-pink">Enviar solicitação</button></form>`}
+    <h3>Minhas solicitações</h3><div class="bpr-help-history">${!issue ? (rows.length ? rows.map(row=>`
+      <article class="mod-card"><strong>${html(row.subject)}</strong><small>${html(bprHelpLabels[row.category]||row.category)} · ${html(bprHelpStatuses[row.status]||row.status)} · ${html(shortDate(row.updated_at))}</small>
+      <div class="bpr-help-thread">${(row.messages||[]).map(msg=>`<div class="bpr-help-message ${msg.kind==='team'?'team':''}"><strong>${msg.kind==='team'?'Equipe':'Você'}</strong><p>${html(msg.content)}</p><small>${html(shortDate(msg.created_at))}</small></div>`).join('')}</div>
+      ${row.status!=='closed'?`<form class="bpr-help-reply" data-ticket="${html(row.id)}"><label>Responder neste atendimento<textarea name="message" maxlength="2000" minlength="5" required rows="2" placeholder="Escreva sua mensagem"></textarea></label><button class="btn btn-ghost btn-small" type="submit">Enviar resposta</button></form>`:''}</article>`).join(''):'<p class="small-muted">Nenhuma solicitação registrada até agora.</p>') : ''}</div>
+    <p class="small-muted">Contato alternativo: <a href="mailto:moderacao.boraprorole@gmail.com">moderacao.boraprorole@gmail.com</a>. As respostas neste painel não são enviadas por e-mail.</p>`);
+  const form=$('bpr-help-form');
+  if(form) form.addEventListener('input',()=>{bprPendingHelpKey=null;});
+  if(form) form.addEventListener('submit', async event=>{
+    event.preventDefault(); const submit=event.submitter;submit.disabled=true;
+    const data=new FormData(form);
+    if(!bprPendingHelpKey) bprPendingHelpKey=crypto.randomUUID();
+    try {await assertOk(db.rpc('bpr_help_submit',{p_category:String(data.get('category')),p_subject:String(data.get('subject')).trim(),p_message:String(data.get('details')).trim(),p_request_key:bprPendingHelpKey}));
+      bprPendingHelpKey=null;toast('Solicitação recebida. Acompanhe as respostas aqui.');await openBprHelp();
+    }catch(error){toast('Não foi possível registrar: '+friendlyError(error));submit.disabled=false;}
+  });
+  document.querySelectorAll('.bpr-help-reply').forEach(form=>{form.addEventListener('input',()=>bprReplyKeys.delete(form.dataset.ticket));form.addEventListener('submit',async event=>{
+    event.preventDefault();const submit=event.submitter;submit.disabled=true;const id=form.dataset.ticket;
+    if(!bprReplyKeys.has(id))bprReplyKeys.set(id,crypto.randomUUID());
+    try {await assertOk(db.rpc('bpr_help_user_reply',{p_ticket:id,p_message:form.elements.message.value.trim(),p_request_key:bprReplyKeys.get(id)}));
+      bprReplyKeys.delete(id);toast('Sua mensagem foi enviada.');await openBprHelp();
+    }catch(error){toast('Não foi possível enviar: '+friendlyError(error));submit.disabled=false;}
+  });});
+}
+
 async function openPrivacyRequests() {
   try {
     const rows = await assertOk(db.from('privacy_requests')
@@ -1991,6 +2105,7 @@ async function handleAction(action, element) {
         await assertOk(db.rpc('set_audience_preferences',{_gender:null,_lgbtq:null,_consent:false}));
         closeModal();return toast('Identificações privadas apagadas.');
       }
+      case 'bpr-help': return await openBprHelp();
       case 'privacy-requests': return await openPrivacyRequests();
       case 'moderation': return await openModeration();
       case 'mod-event': case 'mod-report': case 'mod-remove': case 'mod-suspend': case 'mod-privacy': case 'mod-cancel':
@@ -2148,7 +2263,10 @@ else {
   } else {
     syncSession().catch((err) => { showGate('blocked'); feedback(err.message); });
   }
+  // Mantém a manutenção e os avisos sincronizados sem reload (até ~45 segundos).
+  setInterval(() => refreshBprPublicSettings(true).catch(() => {}), 45000);
   document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) refreshBprPublicSettings(true).catch(() => {});
     if (!document.hidden && Date.now() - state.lastSessionCheck > 180000) {
       syncSession().catch(() => toast('Não foi possível atualizar sua sessão. Confira a conexão.'));
     }
@@ -2162,7 +2280,7 @@ else {
 
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   // Atualização explícita do worker: evita manter uma instalação antiga do PWA.
-  navigator.serviceWorker.register('./service-worker.js?v=20261111-album-drive4', {updateViaCache:'none'}).catch(() => {});
+  navigator.serviceWorker.register('./service-worker.js?v=20261117-central-1', {updateViaCache:'none'}).catch(() => {});
 }
 
 async function inviteNickname(event, squadId) {
