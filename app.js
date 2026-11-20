@@ -622,6 +622,7 @@ function showModal(title, body) {
 }
 
 function closeModal(fromHistory = false) {
+  releaseAvatarCrop();
   const wasOpen = !$('modal').classList.contains('hidden');
   if (state.pickerMap) { state.pickerMap.remove(); state.pickerMap = null; }
   $('modal').classList.add('hidden');
@@ -1266,7 +1267,7 @@ function hydrateProfile() {
   avatar.textContent = profile.display_name.slice(0,1).toUpperCase();
   if (profile.avatar_path) {
     db.storage.from('avatars').createSignedUrl(profile.avatar_path, 90).then(({data}) => {
-      if (state.profile?.id !== profile.id || !data?.signedUrl) return;
+      if (state.profile?.id !== profile.id || state.profile?.avatar_path !== profile.avatar_path || !data?.signedUrl) return;
       const url=safeHttps(data.signedUrl);
       if (!url) return;
       if (avatar) avatar.innerHTML = `<img src="${html(url)}" alt="Minha foto de perfil">`;
@@ -1277,18 +1278,7 @@ function hydrateProfile() {
       }
     });
   }
-  if (!$('avatar-form')) {
-    const photo = document.createElement('div');
-    photo.className = 'profile-photo-edit';
-    photo.innerHTML = `<h3>🖼️ Minha foto</h3>
-      <form id="avatar-form" class="friend-finder"><label class="file-picker" for="avatar-upload"><input type="file" id="avatar-upload" accept="image/*"><span class="file-picker-button">📷 Escolher foto</span><span class="file-picker-name" id="avatar-filename" aria-live="polite">Nenhuma imagem selecionada</span></label><button class="btn btn-ghost btn-small" type="submit">Atualizar foto</button></form>
-      <p class="small-muted">Foto WebP de até 300 KiB. A visibilidade segue suas escolhas de privacidade.</p>`;
-    document.querySelector('.profile-bio').after(photo);
-    $('avatar-upload').addEventListener('change', (event) => {
-      $('avatar-filename').textContent = event.target.files?.[0]?.name || 'Nenhuma imagem selecionada';
-    });
-    $('avatar-form').addEventListener('submit', saveAvatar);
-  }
+  // V5.4: edição da foto só aparece quando o usuário toca no avatar.
   const editPanel = document.querySelector('#screen-perfil .profile-panel .two-col > .panel:first-child');
   if (editPanel && !editPanel.id) editPanel.id = 'bpr-edit-profile-panel';
   if (editPanel && !editPanel.classList.contains('bpr-edit-profile-panel')) {
@@ -1438,19 +1428,164 @@ async function saveProfile() {
   } catch (err) { toast(friendlyError(err)); }
 }
 
-async function saveAvatar(event) {
-  event.preventDefault();
-  const file = $('avatar-upload').files?.[0];
-  if (!file) return toast('Escolha uma imagem para seu perfil.');
+// V5.4: recorte quadrado feito pelo usuário; visualização sempre circular no perfil.
+let bprAvatarCrop = null;
+function releaseAvatarCrop() {
+  bprAvatarCrop?.bitmap?.close?.();
+  bprAvatarCrop = null;
+}
+async function getMyAvatarUrl() {
+  const path=state.profile?.avatar_path;
+  if(!path)return '';
+  const {data,error}=await db.storage.from('avatars').createSignedUrl(path,90);
+  if(error)throw error;
+  return safeHttps(data?.signedUrl);
+}
+async function openAvatarOptions() {
+  if(!state.user)return;
+  releaseAvatarCrop();
+  const hasPhoto=Boolean(state.profile?.avatar_path);
+  showModal('Minha foto de perfil', `<div class="bpr-avatar-options">
+    <p class="small-muted">Escolha como sua foto aparece. O corte final será redondo e não esticará a imagem.</p>
+    <div class="bpr-avatar-choice-preview" id="bpr-avatar-choice-preview" aria-label="Prévia da foto atual">${html(state.profile?.display_name?.slice(0,1)?.toUpperCase()||'👤')}</div>
+    <input type="file" id="bpr-avatar-file" accept="image/*" class="bpr-visually-hidden" aria-label="Escolher imagem para recortar">
+    <button class="btn btn-pink" type="button" data-action="avatar-upload-start">📷 Escolher nova foto</button>
+    <button class="btn btn-ghost" type="button" data-action="avatar-full" ${hasPhoto?'':'disabled'}>🔍 Ver foto ampliada</button>
+    <button class="btn btn-ghost bpr-remove-avatar" type="button" data-action="avatar-remove" ${hasPhoto?'':'disabled'}>Remover foto</button>
+  </div>`);
+  const input=$('bpr-avatar-file');
+  input.addEventListener('change', async ()=>{
+    const file=input.files?.[0];if(!file)return;
+    try{await openAvatarCrop(file);}catch(err){toast(friendlyError(err));}
+  },{once:true});
+  if(hasPhoto){
+    try{
+      const url=await getMyAvatarUrl();
+      const target=$('bpr-avatar-choice-preview');
+      if(url&&target)target.innerHTML=`<img src="${html(url)}" alt="Sua foto atual">`;
+    }catch{ /* Mantém o fallback visível. */ }
+  }
+}
+async function openAvatarCrop(file) {
+  if(!file.type.startsWith('image/')||file.size>15*1024*1024)
+    throw Error('Escolha uma imagem de até 15 MB em formato compatível.');
+  const bitmap=await createImageBitmap(file);
+  releaseAvatarCrop();
+  const value={bitmap,zoom:1,offsetX:0,offsetY:0,pointerId:null,lastX:0,lastY:0};
+  bprAvatarCrop=value;
+  showModal('Ajustar minha foto',`<div class="bpr-crop-form">
+    <p class="small-muted">Arraste para escolher o enquadramento dentro do círculo. Use o zoom para aproximar.</p>
+    <div class="bpr-crop-stage" id="bpr-crop-stage" aria-label="Arraste a imagem para enquadrar">
+      <canvas id="bpr-crop-canvas" width="360" height="360" aria-label="Prévia do corte"></canvas>
+      <span class="bpr-crop-guide" aria-hidden="true"></span>
+    </div>
+    <label for="bpr-crop-zoom">Aproximar foto</label>
+    <input type="range" id="bpr-crop-zoom" min="1" max="3" step="0.05" value="1" aria-label="Zoom da fotografia">
+    <button class="btn btn-pink" type="button" data-action="avatar-crop-save">Salvar foto recortada</button>
+    <button class="btn btn-ghost" type="button" data-action="avatar-crop-cancel">Cancelar</button>
+  </div>`);
+  const canvas=$('bpr-crop-canvas');const stage=$('bpr-crop-stage');
+  function render(){
+    if(bprAvatarCrop!==value)return;
+    const ctx=canvas.getContext('2d');const size=360;
+    const scale=Math.max(size/bitmap.width,size/bitmap.height)*value.zoom;
+    const w=bitmap.width*scale,h=bitmap.height*scale;
+    const maxX=Math.max(0,(w-size)/2), maxY=Math.max(0,(h-size)/2);
+    value.offsetX=Math.max(-maxX,Math.min(maxX,value.offsetX));
+    value.offsetY=Math.max(-maxY,Math.min(maxY,value.offsetY));
+    ctx.clearRect(0,0,size,size);
+    ctx.drawImage(bitmap,(size-w)/2+value.offsetX,(size-h)/2+value.offsetY,w,h);
+  }
+  stage.addEventListener('pointerdown',(e)=>{
+    value.pointerId=e.pointerId;value.lastX=e.clientX;value.lastY=e.clientY;
+    stage.setPointerCapture?.(e.pointerId);
+  });
+  stage.addEventListener('pointermove',(e)=>{
+    if(value.pointerId!==e.pointerId)return;
+    const k=360/Math.max(stage.getBoundingClientRect().width,1);
+    value.offsetX+=(e.clientX-value.lastX)*k;
+    value.offsetY+=(e.clientY-value.lastY)*k;
+    value.lastX=e.clientX;value.lastY=e.clientY;render();
+  });
+  const stop=(e)=>{if(value.pointerId===e.pointerId)value.pointerId=null;};
+  stage.addEventListener('pointerup',stop);stage.addEventListener('pointercancel',stop);
+  $('bpr-crop-zoom').addEventListener('input',(e)=>{value.zoom=Number(e.target.value);render();});
+  render();
+}
+async function saveAvatarCrop(button) {
+  if(!bprAvatarCrop||!state.user)return;
+  button.disabled=true;
   try {
-    const blob = await compressWebp(file, 314572);
-    const path = `${state.user.id}/avatar.webp`;
-    await assertOk(db.storage.from('avatars').upload(path, blob, {upsert: true,contentType: 'image/webp'}));
-    const profile = await assertOk(db.from('profiles').update({avatar_path: path}).eq('id', state.user.id).select('*').single());
-    state.profile = profile;
-    hydrateProfile();
-    toast('Foto de perfil atualizada.');
-  } catch (err) { toast(`Falha ao salvar foto: ${err.message}`); }
+    const canvas=$('bpr-crop-canvas');
+    if(!canvas)throw Error('A prévia não está disponível. Escolha novamente sua foto.');
+    let output=null;
+    for(const size of [360,300,256]) {
+      const dest=document.createElement('canvas');dest.width=dest.height=size;
+      dest.getContext('2d').drawImage(canvas,0,0,size,size);
+      for(const quality of [0.88,0.75,0.6]) {
+        const blob=await new Promise(resolve=>dest.toBlob(resolve,'image/webp',quality));
+        if(blob?.type==='image/webp'&&blob.size<=314572){output=blob;break;}
+      }
+      if(output)break;
+    }
+    if(!output)throw Error('Não foi possível preparar a imagem. Tente outra fotografia.');
+    const path=`${state.user.id}/avatar.webp`;
+    await assertOk(db.storage.from('avatars').upload(path,output,{upsert:true,contentType:'image/webp',cacheControl:'60'}));
+    state.profile=await assertOk(db.from('profiles').update({avatar_path:path}).eq('id',state.user.id).select('*').single());
+    releaseAvatarCrop();closeModal();hydrateProfile();toast('Foto atualizada com o enquadramento escolhido.');
+  } catch(err) {toast(`Foto não salva: ${friendlyError(err)}`);}
+  finally {button.disabled=false;}
+}
+async function viewMyAvatar() {
+  if(!state.profile?.avatar_path)return toast('Você ainda não adicionou uma foto.');
+  try {
+    const url=await getMyAvatarUrl();
+    if(!url)return toast('Não foi possível carregar a foto.');
+    showModal('Minha foto',`<div class="bpr-avatar-full"><img src="${html(url)}" alt="Minha foto ampliada"></div>`);
+  } catch(err){toast(friendlyError(err));}
+}
+async function removeMyAvatar() {
+  if(!state.user||!state.profile?.avatar_path)return;
+  if(!await appConfirm('Remover sua foto do perfil? O restante do seu perfil será mantido.',{title:'Remover foto',confirmLabel:'Remover foto',danger:true}))return;
+  const oldPath=state.profile.avatar_path;
+  try{
+    state.profile=await assertOk(db.from('profiles').update({avatar_path:null}).eq('id',state.user.id).select('*').single());
+    let cleanupFailed=false;
+    const {error}=await db.storage.from('avatars').remove([oldPath]);
+    if(error)cleanupFailed=true;
+    releaseAvatarCrop();closeModal();hydrateProfile();
+    toast(cleanupFailed?'Foto retirada do perfil. A remoção do arquivo no armazenamento precisa ser conferida.':'Foto removida do perfil.');
+  }catch(err){toast(`Não foi possível remover a foto: ${friendlyError(err)}`);}
+}
+
+// Perfil de outras pessoas: informações retornam apenas por RPCs já existentes,
+// com regras de privacidade, bloqueios e visibilidade validadas no backend.
+async function viewUserProfile(userId,fromSquad='') {
+  if(!userId||!state.user)return;
+  if(userId===state.user.id){closeModal();return navigate('perfil');}
+  try{
+    const result=await assertOk(db.rpc('get_profile_card',{_target:userId}));
+    const profile=Array.isArray(result)?result[0]:result;
+    if(!profile?.username)return showModal('Perfil', '<p class="small-muted">Este perfil não está disponível para visualização com suas permissões atuais.</p>');
+    const [image,style]=await Promise.all([
+      profile.avatar_path?db.storage.from('avatars').createSignedUrl(profile.avatar_path,90):Promise.resolve({data:null}),
+      db.rpc('bpr_profile_personalization_public',{p_user_id:userId})
+    ]);
+    const src=safeHttps(image?.data?.signedUrl);
+    const theme=['aurora','sunset','night','ocean','urban'].includes(style?.data?.cover_theme)?style.data.cover_theme:'aurora';
+    const rel=style?.data?.relationship_status;
+    const relationship=rel&&bprRelationshipLabels[rel]?`<span class="bpr-relationship-chip">💛 ${html(bprRelationshipLabels[rel])}</span>`:'';
+    showModal('Perfil de @'+profile.username,`<article class="bpr-guest-profile">
+      <div class="bpr-guest-cover" data-vibe="${theme}"></div>
+      <div class="bpr-guest-body">
+        <div class="bpr-guest-avatar">${src?`<img src="${html(src)}" alt="Foto de @${html(profile.username)}">`:html((profile.display_name||profile.username).slice(0,1).toUpperCase())}</div>
+        <h3>${html(profile.display_name||profile.username)}</h3><p class="small-muted">@${html(profile.username)}</p>
+        ${profile.bio?`<p class="bpr-guest-bio">${html(profile.bio)}</p>`:'<p class="small-muted">Este perfil não compartilhou uma bio.</p>'}
+        ${profile.city?`<p class="small-muted">📍 ${html(profile.city)}</p>`:''}
+        ${relationship}<p class="small-muted">As informações exibidas respeitam a privacidade escolhida pela pessoa.</p>
+        ${fromSquad?`<button class="btn btn-ghost" type="button" data-action="squad-roster" data-id="${html(fromSquad)}">Voltar aos integrantes</button>`:''}
+      </div></article>`);
+  }catch(err){toast('Não foi possível abrir este perfil. '+friendlyError(err));}
 }
 
 async function followNickname(event) {
@@ -1476,7 +1611,7 @@ async function followNickname(event) {
     const personCard = person ? `<article class="discovery-card person-result"><div class="discovery-avatar">${avatarUrl?`<img src="${html(avatarUrl)}" alt="Foto de @${html(person.username)}">`:'👤'}</div>
       <div class="grow"><strong>${html(person.display_name)}</strong><p>@${html(person.username)} ${person.is_friend?'· 🤝 Amizade recíproca':''}</p>
       ${person.bio?`<p>${html(person.bio)}</p>`:''}${person.city?`<p>📍 ${html(person.city)}</p>`:''}${person.instagram?`<p>Instagram: ${html(person.instagram)}</p>`:''}<div class="bpr-person-style-view" aria-live="polite"></div></div>
-      <div class="discovery-actions"><button class="btn btn-pink btn-small" data-action="follow-found-user" data-id="${html(person.user_id)}" data-nick="${html(person.username)}">Seguir</button>
+      <div class="discovery-actions"><button class="btn btn-ghost btn-small" data-action="view-user-profile" data-id="${html(person.user_id)}">Ver perfil</button><button class="btn btn-pink btn-small" data-action="follow-found-user" data-id="${html(person.user_id)}" data-nick="${html(person.username)}">Seguir</button>
       <button class="btn btn-ghost btn-small" data-action="block-found-user" data-nick="${html(person.username)}">Bloquear</button></div></article>`:
       '<p class="small-muted">Nenhuma pessoa encontrada com esse @user ou ela não permite buscas.</p>';
     const squadCards = groups?.length ? groups.map(squad=>`<article class="discovery-card squad-result"><div class="discovery-avatar">🫶</div>
@@ -1915,16 +2050,39 @@ async function showSquadRoster(squadId) {
     const owner=state.squadRoles.get(squadId)==='owner';
     const manager=['owner','moderator'].includes(state.squadRoles.get(squadId));
     const admins=(roster||[]).filter(item=>['owner','moderator'].includes(item.role)).length;
-    showModal('Integrantes e administradores 🛡️',`<p class="small-muted">O SQUAD pode ter 2 ou 3 administradores. ${admins<2?'⚠️ Promova pelo menos um integrante a admin antes de propor remoções.':'Para remover um integrante, 2 administradores devem aprovar.'}</p>
-      ${(roster||[]).map(profile=>`<div class="list-row"><div class="icon-disc">${profile.role==='owner'?'⭐':profile.role==='moderator'?'🛡️':'👤'}</div>
-        <div class="grow"><strong>${html(profile.display_name)} · @${html(profile.username)}</strong><p>${html(profile.role==='owner'?'Criador':profile.role==='moderator'?'Administrador':'Integrante')}</p></div>
-        <div class="squad-actions">${owner&&profile.role!=='owner'?`<button class="btn btn-ghost btn-small" data-action="set-squad-admin" data-id="${html(profile.user_id)}" data-squad="${html(squadId)}" data-promote="${profile.role==='moderator'?'false':'true'}">${profile.role==='moderator'?'Retirar cargo':'Promover admin'}</button>`:''}
-        ${manager&&profile.role==='member'?`<button class="btn btn-ghost btn-small" data-action="vote-squad-removal" data-id="${html(profile.user_id)}" data-squad="${html(squadId)}">Propor remoção</button>`:''}
-        ${profile.user_id!==state.user.id?`<button class="btn btn-ghost btn-small" data-action="block-found-user" data-nick="${html(profile.username)}">Bloquear</button>`:''}</div>
-      </div>`).join('')||'<p class="small-muted">Nenhum integrante encontrado.</p>'}
+    // Cada integrante tem uma linha de dados e outra de ações: sem nomes em coluna vertical.
+    const cards=(roster||[]).map(profile=>{
+      const role=profile.role==='owner'?'Criador':profile.role==='moderator'?'Administrador':'Integrante';
+      const actions=[];
+      actions.push(`<button class="btn btn-ghost btn-small" data-action="view-user-profile" data-id="${html(profile.user_id)}" data-squad="${html(squadId)}">Ver perfil</button>`);
+      if(owner&&profile.role!=='owner')actions.push(`<button class="btn btn-ghost btn-small" data-action="set-squad-admin" data-id="${html(profile.user_id)}" data-squad="${html(squadId)}" data-promote="${profile.role==='moderator'?'false':'true'}">${profile.role==='moderator'?'Retirar cargo':'Promover admin'}</button>`);
+      if(manager&&profile.role==='member')actions.push(`<button class="btn btn-ghost btn-small" data-action="vote-squad-removal" data-id="${html(profile.user_id)}" data-squad="${html(squadId)}">Propor remoção</button>`);
+      if(profile.user_id!==state.user.id)actions.push(`<button class="btn btn-ghost btn-small" data-action="block-found-user" data-nick="${html(profile.username)}">Bloquear</button>`);
+      return `<article class="bpr-roster-card">
+        <div class="bpr-roster-person"><span class="bpr-roster-icon" aria-hidden="true" data-member-avatar-id="${html(profile.user_id)}">${profile.role==='owner'?'⭐':profile.role==='moderator'?'🛡️':'👤'}</span>
+          <div class="bpr-roster-identity"><strong>${html(profile.display_name||profile.username)}</strong><span>@${html(profile.username)}</span><small>${role}</small></div></div>
+        <div class="bpr-roster-actions">${actions.join('')}</div></article>`;
+    });
+    showModal('Integrantes e administradores 🛡️',`<div class="bpr-roster-list"><p class="small-muted">O SQUAD pode ter 2 ou 3 administradores. ${admins<2?'⚠️ Promova pelo menos um integrante a admin antes de propor remoções.':'Para remover alguém, dois administradores devem aprovar.'}</p>
+      ${cards.join('')||'<p class="small-muted">Nenhum integrante encontrado.</p>'}
       ${manager?`<button class="btn btn-pink btn-small" data-action="squad-removals" data-id="${html(squadId)}">Ver votos pendentes</button>`:''}
-      <button class="btn btn-ghost" data-action="close-modal">Fechar</button>`);
+      <button class="btn btn-ghost" data-action="close-modal">Fechar</button></div>`);
     leaveRoom();
+    // Fotografias somente pela RPC de visibilidade; não consulta profiles abertamente.
+    for(const member of (roster||[])) {
+      (async()=>{
+        const result=await assertOk(db.rpc('get_profile_card',{_target:member.user_id}));
+        const card=Array.isArray(result)?result[0]:result;
+        if(!card?.avatar_path)return;
+        const {data,error}=await db.storage.from('avatars').createSignedUrl(card.avatar_path,90);
+        if(error)return;
+        const src=safeHttps(data?.signedUrl);
+        const target=document.querySelector(`.bpr-roster-icon[data-member-avatar-id="${member.user_id}"]`);
+        if(!src||!target)return;
+        const img=document.createElement('img');img.src=src;img.alt='';
+        target.replaceChildren(img);
+      })().catch(()=>{});
+    }
   }catch(err){toast(friendlyError(err));}
 }
 
@@ -2578,6 +2736,13 @@ async function handleAction(action, element) {
         return;
       }
       case 'save-profile': return await saveProfile();
+      case 'avatar-options': return await openAvatarOptions();
+      case 'avatar-upload-start': return $('bpr-avatar-file')?.click();
+      case 'avatar-full': return await viewMyAvatar();
+      case 'avatar-remove': return await removeMyAvatar();
+      case 'avatar-crop-save': return await saveAvatarCrop(element);
+      case 'avatar-crop-cancel': releaseAvatarCrop();return openAvatarOptions();
+      case 'view-user-profile': return await viewUserProfile(id,element.dataset.squad||'');
       case 'follow-found-user': return await followFoundUser(id,element.dataset.nick);
       case 'block-found-user': return await blockFoundNickname(element.dataset.nick);
       case 'manage-blocks': return await manageBlockedNicknames();
