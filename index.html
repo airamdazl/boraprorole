@@ -18,7 +18,7 @@
   <script defer src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   
-  <link rel="stylesheet" href="./style.css?v=20261120-integrada-v60">
+  <link rel="stylesheet" href="./style.css?v=20261120-jogos-v61">
 </head>
 <body>
   <div class="auth-gate" id="auth-gate" role="region" aria-label="Acesso ao Bora Pro Rolê">
@@ -112,6 +112,12 @@
             <h1>Partiu jogar?</h1>
             <p>Sozinho, com amigos ou por chamada: escolha um jogo e passe o celular. Não precisa participar de nenhum Squad.</p>
           </div>
+          <div class="bpr-v61-library-filters" role="group" aria-label="Filtrar jogos">
+            <button type="button" class="bpr-v61-chip is-selected" data-games-filter="todos" aria-pressed="true">✨ Todos</button>
+            <button type="button" class="bpr-v61-chip" data-games-filter="grupo" aria-pressed="false">👥 Em grupo</button>
+            <button type="button" class="bpr-v61-chip" data-games-filter="rapidos" aria-pressed="false">⚡ Rápidos</button>
+            <button type="button" class="bpr-v61-chip" data-games-filter="adulto" aria-pressed="false">🔞 18+</button>
+          </div>
           <div id="bpr-global-games" class="bpr-games-grid bpr-games-library" aria-label="Escolha um jogo"></div>
           <div class="bpr-game-page-note"><strong>🎯 Como funciona</strong><p>As cartas são geradas no seu aparelho. O Bora Pro Rolê não grava respostas, rodadas, pontuações ou quem participou. A disponibilidade dos jogos é controlada apenas pela administração da plataforma.</p></div>
         </section>
@@ -188,32 +194,25 @@
       </form>
     </div>
   </div>
-  <div id="bpr-game-overlay" class="bpr-game-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="bpr-game-title" aria-describedby="bpr-game-desc" aria-hidden="true">
-    <div class="bpr-game-shell">
-      <header class="bpr-game-top">
-        <div><span class="bpr-game-kicker">CENTRAL DE JOGOS</span><h2 id="bpr-game-title">Jogo</h2></div>
-        <button type="button" class="bpr-game-icon-button" data-game-control="close" aria-label="Fechar jogo">✕</button>
-      </header>
-      <div id="bpr-game-setup" class="bpr-game-setup">
+  <div id="bpr-game-overlay" class="bpr-game-overlay bpr-v61-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="bpr-game-title" aria-describedby="bpr-game-desc" aria-hidden="true">
+    <div class="bpr-game-shell bpr-v61-shell">
+      <header class="bpr-game-top"><div><span class="bpr-game-kicker">🎮 CENTRAL DE JOGOS · V6.1</span><h2 id="bpr-game-title">Jogo</h2></div><button type="button" class="bpr-game-icon-button" data-game-control="close" aria-label="Fechar jogo">✕</button></header>
+      <div id="bpr-game-setup" class="bpr-game-setup bpr-v61-setup">
         <p id="bpr-game-desc"></p>
-        <label class="bpr-game-field" for="bpr-game-category">Escolha uma categoria
-          <select id="bpr-game-category"></select>
-        </label>
+        <label class="bpr-game-field" for="bpr-game-category">Escolha sua categoria<select id="bpr-game-category"></select></label>
+        <div id="bpr-game-category-chips" class="bpr-v61-category-chips" role="group" aria-label="Categorias disponíveis"></div>
         <p id="bpr-game-instructions" class="bpr-game-instructions"></p>
-        <button type="button" class="bpr-game-primary" data-game-control="start">Começar a jogar</button>
-        <p class="bpr-game-note">Todas as cartas ficam neste aparelho. Não há mensagens nem respostas registradas pelo jogo.</p>
+        <button type="button" class="bpr-game-primary" data-game-control="start">🎲 Sortear primeira carta</button>
+        <p class="bpr-game-note">Os jogos não salvam suas respostas, partidas ou pontuações. Pular é sempre permitido.</p>
       </div>
       <div id="bpr-game-play" class="bpr-game-play hidden">
         <div class="bpr-game-play-meta"><span id="bpr-game-progress" aria-live="polite">Carta 1</span><span id="bpr-game-clock" aria-live="polite" class="hidden">60 s</span></div>
-        <div id="bpr-forehead-card" class="bpr-forehead-card" role="status" aria-live="polite" aria-atomic="true"><strong id="bpr-game-word">Preparar carta</strong></div>
+        <div id="bpr-game-mode" class="bpr-v61-mode hidden" role="group" aria-label="Modo da rodada"><button type="button" data-game-mode="truth" aria-pressed="true" class="is-selected">✓ Verdade</button><button type="button" data-game-mode="challenge" aria-pressed="false">⚡ Desafio</button><span id="bpr-game-mode-hint" class="bpr-v61-mode-hint"></span></div>
+        <div id="bpr-forehead-card" class="bpr-forehead-card bpr-v61-stage" role="status" aria-live="polite" aria-atomic="true"><strong id="bpr-game-word">Sua próxima carta aparece aqui</strong></div>
+        <div id="bpr-game-vote" class="bpr-v61-vote hidden" role="group" aria-label="Sua resposta nesta rodada"><button type="button" data-game-vote="fiz" aria-pressed="false">✓ Já fiz</button><button type="button" data-game-vote="nunca" aria-pressed="false">✕ Nunca fiz</button></div>
         <p id="bpr-game-play-hint" class="bpr-game-play-hint"></p>
-        <div class="bpr-game-buttons">
-          <button type="button" class="bpr-game-primary" id="bpr-game-next" data-game-control="next">Mostrar carta</button>
-          <button type="button" class="bpr-game-secondary" id="bpr-game-flip" data-game-control="flip" aria-pressed="true">↻ Girar palavra 180°</button>
-          <button type="button" class="bpr-game-secondary" id="bpr-game-timer" data-game-control="timer">⏱ Iniciar 60 s</button>
-          <button type="button" class="bpr-game-secondary" id="bpr-game-fullscreen" data-game-control="fullscreen">⛶ Tela cheia</button>
-          <button type="button" class="bpr-game-secondary" data-game-control="categories">Trocar categoria</button>
-        </div>
+        <div class="bpr-v61-primary-action"><button type="button" class="bpr-game-primary" id="bpr-game-next" data-game-control="next">🎲 Sortear carta</button></div>
+        <div class="bpr-v61-utility-actions"><button type="button" class="bpr-game-secondary hidden" id="bpr-game-forehead" data-game-control="forehead" aria-pressed="false">📱 Modo testa horizontal</button><button type="button" class="bpr-game-secondary" id="bpr-game-timer" data-game-control="timer">▶ Iniciar 60s</button><label class="bpr-v61-duration">Tempo <select id="bpr-game-duration" aria-label="Duração do cronômetro"><option value="30">30 s</option><option value="45">45 s</option><option value="60" selected>60 s</option><option value="90">90 s</option></select></label><button type="button" class="bpr-game-secondary" id="bpr-game-fullscreen" data-game-control="fullscreen">⛶ Tela cheia</button><button type="button" class="bpr-game-secondary" data-game-control="categories">↔ Trocar categoria</button></div>
       </div>
     </div>
   </div>
@@ -221,7 +220,7 @@
   
 
 
-  <script defer src="./app.js?v=20261120-integrada-v60"></script>
-  <script defer src="./games.js?v=20261120-integrada-v60"></script>
+  <script defer src="./app.js?v=20261120-jogos-v61"></script>
+  <script defer src="./games.js?v=20261120-jogos-v61"></script>
 </body>
 </html>

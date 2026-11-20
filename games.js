@@ -1,195 +1,845 @@
-/* Bora Pro Rolê V5.1 — jogos locais, sem dados de participantes ou partidas no Supabase.
- * Visibilidade controlada por uma única flag pública administrada com MFA via XAMPP.
- * Não possui botões de configuração de jogos nos Squads.
+/* Bora Pro Rolê V6.1 — Central de Jogos: cartas locais, sem salvar respostas/participantes.
+ * Um único controle global (BPRGamesAllowed) definido pela Central XAMPP.
+ * A disponibilidade também se aplica à Central de Jogos e aos Squads.
  */
 (() => {
   'use strict';
   const $ = id => document.getElementById(id);
   const decks = {
-    quem: {
-      title: 'Quem Sou Eu?', icon:'🕵️', description:'Modo testa: vire a palavra para os outros adivinharem suas pistas.',
-      help:'Escolha a categoria, coloque o celular na testa com a tela voltada para a galera e faça perguntas de sim ou não. A palavra gira 180° por padrão; ajuste no botão se precisar.',
-      categories: {
-        'Famosos brasileiros': ['Anitta','Ivete Sangalo','Fernanda Montenegro','Xuxa','Neymar','Marta','Gilberto Gil','Ludmilla','Sandy','Taís Araújo','Lázaro Ramos','Paulo Gustavo','Marília Mendonça','Ayrton Senna','Pelé','Pabllo Vittar','Carlinhos Brown','Selton Mello','Daniela Mercury','Adriana Esteves'],
-        'Famosos internacionais': ['Beyoncé','Taylor Swift','Rihanna','Lady Gaga','Shakira','Adele','Michael Jackson','Madonna','Cristiano Ronaldo','Lionel Messi','Zendaya','Dwayne Johnson','Bruno Mars','Billie Eilish','Selena Gomez','Ed Sheeran','Jennifer Lopez','Tom Holland','Ariana Grande','Will Smith'],
-        'Profissões': ['Bombeiro','Médico','Motorista de ônibus','Piloto de avião','Chef de cozinha','Professor','Veterinário','Astronauta','Jornalista','Fotógrafo','Dentista','Mecânico','Bibliotecário','Cientista','Arquiteto','Carteiro','DJ','Salva-vidas','Cabeleireiro','Ator'],
-        'Personagens e cultura pop': ['Homem-Aranha','Mulher-Maravilha','Barbie','Shrek','Batman','Harry Potter','Homer Simpson','Wandinha','Mario','Sonic','Mônica','Cebolinha','Darth Vader','Elsa','Peter Pan','Scooby-Doo','Goku','Bob Esponja','Mickey Mouse','Pikachu'],
-        'Animais': ['Capivara','Tucano','Golfinho','Leão','Pinguim','Girafa','Elefante','Canguru','Onça-pintada','Coala','Coruja','Polvo','Suricato','Panda','Tartaruga','Camaleão','Lobo-guará','Flamingo','Bicho-preguiça','Arara'],
-        'Lugares e objetos': ['Praia','Estádio de futebol','Elevador','Guarda-chuva','Cinema','Aeroporto','Microfone','Geladeira','Roda-gigante','Biblioteca','Bicicleta','Semáforo','Sorveteria','Mochila','Montanha-russa','Chuveiro','Escova de dentes','Museu','Pipoca','Farol']
-      }
-    },
-    nunca: {
-      title:'Eu Nunca',icon:'🙈',description:'Perguntas divertidas, incluindo uma categoria apimentada para maiores de 18 anos.',
-      help:'Leia a frase e escolha o tema. A categoria apimentada é para maiores de 18 anos. Participar é sempre opcional: sem pressão, exposição ou contato sem consentimento.',
-      categories:{
-        'Rolês e amizades':['Eu nunca perdi a hora de encontrar a galera.','Eu nunca cheguei no rolê vestido para outra ocasião.','Eu nunca fiz amizade esperando na fila.','Eu nunca peguei o ônibus errado para um encontro.','Eu nunca fui a uma festa só pela comida.','Eu nunca cantei karaokê desafinado.','Eu nunca fui ao cinema pela pipoca.','Eu nunca mudei de plano de última hora.','Eu nunca organizei um rolê que virou tradição.','Eu nunca fiz amizade com alguém de outra cidade.','Eu nunca esqueci o nome de alguém recém-apresentado.','Eu nunca terminei uma caminhada em uma cafeteria.'],
-        'Cotidiano engraçado':['Eu nunca mandei mensagem no grupo errado.','Eu nunca procurei os óculos enquanto os usava.','Eu nunca falei sozinho durante um filme.','Eu nunca deixei o celular na geladeira.','Eu nunca tropecei na calçada e fingi que era dança.','Eu nunca dormi em uma chamada de vídeo.','Eu nunca ri na hora errada.','Eu nunca dei tchau para alguém que não falava comigo.','Eu nunca saí de casa com meias diferentes.','Eu nunca esqueci por que entrei em um cômodo.'],
-        'Apimentado 🔥 (18+)':['Eu nunca tive um crush secreto em alguém do grupo.','Eu nunca fui a um encontro às cegas.','Eu nunca mandei uma mensagem de flerte e apaguei logo depois.','Eu nunca dei um beijo inesperado num rolê.','Eu nunca paquerei alguém numa festa e esqueci o nome.','Eu nunca fiquei com alguém depois de dizer que éramos só amigos.','Eu nunca fui a um encontro só pelo frio na barriga.','Eu nunca mandei uma indireta romântica numa rede social.','Eu nunca tive um romance de viagem.','Eu nunca precisei disfarçar uma paixão.','Eu nunca fui surpreendido por alguém de quem gostava.','Eu nunca me declarei por mensagem.','Eu nunca fiquei nervoso antes do primeiro beijo.','Eu nunca tive um encontro que virou história engraçada.','Eu nunca dancei juntinho com um crush no rolê.','Eu nunca mandei um emoji sugestivo para a pessoa errada.','Eu nunca flertei sem perceber.','Eu nunca me apaixonei por alguém que conheci num show.','Eu nunca inventei uma desculpa para encontrar um crush.','Eu nunca fiquei acordado até tarde conversando com alguém especial.'],
-        'Música e cultura':['Eu nunca fui a um show sem conhecer as músicas.','Eu nunca decorei uma coreografia de internet.','Eu nunca cantei a letra de uma música errado.','Eu nunca repeti uma série inteira.','Eu nunca chorei assistindo a um filme.','Eu nunca fui a um museu por acaso.','Eu nunca aprendi uma música para impressionar alguém.','Eu nunca fiquei preso em uma música por dias.','Eu nunca participei de uma apresentação improvisada.','Eu nunca comprei ingresso na última hora.']
-      }
-    },
-    escolha:{
-      title:'Isso ou Aquilo?',icon:'⚡',description:'Decisões rápidas para descobrir a vibe de cada pessoa.',
-      help:'Leia as duas opções e escolha uma. Vale explicar o motivo ou só responder. Não há respostas certas.',
-      categories:{
-        'Rolês':['Show ou cinema?','Praia ou montanha?','Karaokê ou dança?','Festival ou barzinho?','Passeio de manhã ou à noite?','Viagem planejada ou surpresa?','Cidade grande ou interior?','Pizza em casa ou restaurante?','Parque ou museu?','Rolê pequeno ou festão?'],
-        'Comida e rotina':['Doce ou salgado?','Café ou chá?','Pizza ou hambúrguer?','Sorvete ou açaí?','Café da manhã ou jantar?','Cozinhar ou pedir comida?','Chuva ou sol?','Livro ou podcast?','Acordar cedo ou dormir tarde?','Calor ou frio?'],
-        'Cultura pop':['Filme ou série?','Comédia ou suspense?','Música ao vivo ou playlist?','Dançar ou cantar?','Cinema ou teatro?','Super-herói ou detetive?','Documentário ou ficção?','Fone de ouvido ou caixa de som?','Clássicos ou lançamentos?','Fotografia ou vídeo?']
-      }
-    },
-    mimica:{
-      title:'Mímica',icon:'🎭',description:'Desafios para representar sem falar nem fazer sons.',
-      help:'A pessoa que tira a carta representa a ação em silêncio. A galera tenta adivinhar. Use o cronômetro opcional de 60 segundos.',
-      categories:{
-        'Ações engraçadas':['Perder o ônibus','Tentar abrir um guarda-chuva no vento','Cozinhar macarrão','Dançar com chuva','Perseguir uma borboleta','Montar uma barraca','Procurar sinal no celular','Pegar uma mala muito pesada','Tomar sorvete derretendo','Pular corda'],
-        'Profissões':['Barbeiro','Motorista de táxi','Padeiro','Mágico','Pintor','Fotógrafo','Bombeiro','DJ','Dentista','Professor'],
-        'Animais':['Pinguim','Canguru','Gato','Caranguejo','Macaco','Elefante','Galinha','Polvo','Gorila','Borboleta'],
-        'Filmes 🎬':['Titanic','Jurassic Park','Barbie','Avatar','Homem-Aranha','O Rei Leão','De Volta para o Futuro','Harry Potter','Shrek','Divertida Mente','Procurando Nemo','Star Wars','Velozes e Furiosos','Esqueceram de Mim','Toy Story','Os Incríveis','Frozen','Matrix','Pantera Negra','Indiana Jones'],
-        'Memes da internet 😂':['Nazaré fazendo contas','Cachorro caramelo fugindo','Gato digitando no computador','Pessoa tentando não rir','Gatinho assustado','Dancinha viral','Cachorro dando entrevista','Pessoa fazendo drama na janela','Alguém fingindo surpresa','Criança sorrindo para a câmera','Alguém procurando Wi-Fi','Pessoa escorregando devagar','Gato derrubando um copo','Narrador esportivo empolgado','Pessoa fazendo pose para foto','Alguém fugindo da câmera','Dramática reação ao boleto','Pessoa se escondendo atrás da porta','Gato julgando a galera','Pessoa tentando explicar um meme']
-      }
-    },
-    stop:{
-      title:'Stop!',icon:'📝',description:'Temas e letras para um Stop rápido com a galera.',
-      help:'Uma pessoa sorteia a letra e todo mundo anota respostas para nome, lugar, comida e objeto. Quem terminar grita STOP! Combine as regras antes. Não salvamos as rodadas.',
-      categories:{
-        'Letras da rodada':['Letra A · nome, cidade, comida e objeto','Letra B · nome, cidade, comida e objeto','Letra C · nome, cidade, comida e objeto','Letra D · nome, cidade, comida e objeto','Letra E · nome, cidade, comida e objeto','Letra F · nome, cidade, comida e objeto','Letra G · nome, cidade, comida e objeto','Letra H · nome, cidade, comida e objeto','Letra J · nome, cidade, comida e objeto','Letra L · nome, cidade, comida e objeto','Letra M · nome, cidade, comida e objeto','Letra N · nome, cidade, comida e objeto','Letra P · nome, cidade, comida e objeto','Letra R · nome, cidade, comida e objeto','Letra S · nome, cidade, comida e objeto','Letra T · nome, cidade, comida e objeto','Letra V · nome, cidade, comida e objeto'],
-        'Stop dos rolês':['Letra A · música, filme, artista e lugar para sair','Letra B · música, filme, artista e lugar para sair','Letra C · música, filme, artista e lugar para sair','Letra F · música, filme, artista e lugar para sair','Letra M · música, filme, artista e lugar para sair','Letra P · música, filme, artista e lugar para sair','Letra R · música, filme, artista e lugar para sair','Letra S · música, filme, artista e lugar para sair','Letra T · música, filme, artista e lugar para sair']
-      }
-    },
-    verdade:{
-      title:'Verdade ou Desafio',icon:'💬',description:'Perguntas e tarefas leves, sem constranger ninguém.',
-      help:'Escolha uma categoria, revele uma carta e faça somente se estiver confortável. Todo mundo pode passar sem justificar. Nunca peça fotos, senhas ou exposição de terceiros.',
-      categories:{
-        'Verdade':['Qual foi seu rolê mais memorável?','Qual música descreve seu humor hoje?','Qual passeio você ainda quer fazer?','Já riu em um momento totalmente errado?','Que talento escondido você tem?','Que filme faz você chorar?','Qual foi sua melhor viagem?','Qual foi o último desafio que você superou?','Que comida você sempre recomenda?','Que lugar você gostaria de conhecer?','Qual amizade começou por acaso?','Qual mico hoje te faz rir?'],
-        'Desafio leve':['Faça uma imitação de um personagem por 10 segundos.','Invente o nome de um festival.','Crie um comercial para um objeto da sala.','Faça três poses de foto diferentes.','Diga um elogio gentil para alguém que aceitar.','Conte uma história em dez palavras.','Invente um passo de dança.','Desenhe um gato sem levantar o lápis.','Imite um narrador de futebol.','Cante uma frase cotidiana como ópera.','Dê nome a um drink imaginário.','Faça a melhor risada de vilão.'],
-        'Paquera respeitosa 🔥':['Qual qualidade faz alguém chamar sua atenção?','Qual seria um encontro perfeito pra você?','Qual música escolheria para um date?','Você prefere iniciativa ou surpresa combinada?','Conte um elogio criativo sem mencionar aparência.','Qual foi a cantada mais engraçada que já ouviu?','Seu melhor conselho para um primeiro encontro?','Qual foi o encontro mais inesperado que já teve?']
-      }
-    },
-    desafio:{
-      title:'Desafio Relâmpago',icon:'🚀',description:'Missões rápidas e leves, sem humilhar ninguém.',
-      help:'Escolha uma missão e faça se estiver confortável. É sempre permitido pular; não registre nem exponha outras pessoas sem autorização.',
-      categories:{
-        'Criatividade':['Invente o nome de uma banda em 10 segundos.','Crie um slogan divertido para o grupo.','Conte uma história com exatamente cinco palavras.','Fale três usos inusitados para uma colher.','Invente um superpoder totalmente inútil.','Crie um título engraçado para o seu dia.','Dê um nome de filme ao seu último rolê.','Crie uma saudação nova para a galera.','Descreva seu humor usando o nome de uma comida.','Invente uma dança com três movimentos.'],
-        'Rir junto':['Imite um apresentador anunciando uma pizza.','Fale como um narrador esportivo por 15 segundos.','Faça uma pose para uma capa de álbum imaginário.','Venda um objeto imaginário em 20 segundos.','Finja que é guia turístico da própria sala.','Explique o Wi-Fi como se fosse uma receita.','Cante uma frase banal como ópera.','Apresente sua melhor risada de vilão.','Faça uma previsão totalmente absurda do tempo.','Conte uma piada que só faça sentido para o grupo.']
+  "quem": {
+    "title": "Quem Sou Eu?",
+    "icon": "🕵️",
+    "tag": "ADIVINHAÇÃO",
+    "description": "A galera dá pistas enquanto você tenta descobrir a carta.",
+    "help": "Escolha uma categoria, sorteie uma carta e gire o aparelho para a posição horizontal. Sem texto invertido: a galera lê a carta, você faz perguntas e tenta acertar. Passe a vez quando quiser.",
+    "people": "2+",
+    "time": "60 s",
+    "group": true,
+    "categories": {
+      "Famosos BR": [
+        "Anitta",
+        "Ivete Sangalo",
+        "Ludmilla",
+        "Taís Araújo",
+        "Neymar",
+        "Marta",
+        "Pabllo Vittar",
+        "Gilberto Gil",
+        "Xuxa",
+        "Lázaro Ramos",
+        "Paulo Gustavo",
+        "Fernanda Montenegro",
+        "Glória Pires",
+        "Marília Mendonça",
+        "Wagner Moura",
+        "Sandy",
+        "Ayrton Senna",
+        "Carlinhos Brown",
+        "Fátima Bernardes",
+        "Sabrina Sato"
+      ],
+      "Internacionais": [
+        "Beyoncé",
+        "Rihanna",
+        "Lady Gaga",
+        "Taylor Swift",
+        "Shakira",
+        "Zendaya",
+        "Bruno Mars",
+        "Billie Eilish",
+        "Michael Jackson",
+        "Madonna",
+        "Adele",
+        "Will Smith",
+        "Cristiano Ronaldo",
+        "Lionel Messi",
+        "Ariana Grande",
+        "Jennifer Lopez",
+        "Dua Lipa",
+        "Snoop Dogg",
+        "Selena Gomez",
+        "The Weeknd"
+      ],
+      "Filmes e séries": [
+        "Titanic",
+        "The Last of Us",
+        "Round 6",
+        "Stranger Things",
+        "Vingadores",
+        "Barbie",
+        "Jurassic Park",
+        "Breaking Bad",
+        "Harry Potter",
+        "La Casa de Papel",
+        "Divertida Mente",
+        "O Diabo Veste Prada",
+        "Avatar",
+        "Friends",
+        "Shrek",
+        "Wandinha"
+      ],
+      "Personagens": [
+        "Mulher-Maravilha",
+        "Batman",
+        "Homem-Aranha",
+        "Goku",
+        "Mario",
+        "Sonic",
+        "Barbie",
+        "Shrek",
+        "Darth Vader",
+        "Wandinha",
+        "Homer Simpson",
+        "Bob Esponja",
+        "Princesa Leia",
+        "Mônica",
+        "Cebolinha",
+        "Wolverine"
+      ],
+      "Profissões": [
+        "DJ",
+        "Chef de cozinha",
+        "Dentista",
+        "Comissário de bordo",
+        "Bombeiro",
+        "Piloto de avião",
+        "Motorista de aplicativo",
+        "Arquiteto",
+        "Salva-vidas",
+        "Jornalista",
+        "Fotógrafo",
+        "Astronauta",
+        "Professor",
+        "Tatuador",
+        "Barista",
+        "Cabeleireiro"
+      ],
+      "Memes": [
+        "Nazaré fazendo contas",
+        "Gretchen",
+        "Caneta azul",
+        "Calabreso",
+        "É verdade esse bilete",
+        "Luva de Pedreiro",
+        "Bora Bill",
+        "Carreta Furacão",
+        "Gato digitando",
+        "Cachorro caramelo",
+        "Reação da Nazaré",
+        "Meme da Julia Roberts",
+        "Tá tranquilo, tá favorável",
+        "Que show da Xuxa é esse?"
+      ],
+      "Objetos e lugares": [
+        "Roda-gigante",
+        "Pista de dança",
+        "Microfone",
+        "Torre Eiffel",
+        "Praia de Copacabana",
+        "Parque Ibirapuera",
+        "Cinema",
+        "Metrô",
+        "Air fryer",
+        "Bicicleta",
+        "Museu",
+        "Fone de ouvido",
+        "Sofá",
+        "Guarda-chuva"
+      ]
+    }
+  },
+  "verdade": {
+    "title": "Verdade ou Desafio",
+    "icon": "🔥",
+    "tag": "SEM ROTEIRO",
+    "description": "Perguntas sinceras e desafios para movimentar o grupo.",
+    "help": "Escolha um clima e depois Verdade ou Desafio. Qualquer pessoa pode passar sem explicação. Nunca peça senhas, imagens privadas nem coloque alguém em risco.",
+    "people": "2+",
+    "time": "livre",
+    "group": true,
+    "categories": {
+      "Leve": {
+        "truth": [
+          "Qual foi o maior mico que você pagou sem querer?",
+          "Que desculpa você usa para escapar de um rolê?",
+          "Qual foi sua pior compra por impulso?",
+          "Quando foi a última vez que você riu na hora errada?",
+          "Qual música você canta com uma confiança injustificável?",
+          "Qual hábito seu seria motivo de meme?",
+          "Que rolê você toparia repetir cem vezes?",
+          "Qual foi o encontro mais aleatório que você já teve?"
+        ],
+        "challenge": [
+          "Faça um comercial de 20 segundos para o objeto mais próximo.",
+          "Faça uma imitação de celebridade por 30 segundos.",
+          "Faça um brinde improvisado como se tivesse ganho um prêmio.",
+          "Conte uma história do grupo como narrador de futebol.",
+          "Fale com sotaque de personagem por uma rodada.",
+          "Invente um nome absurdo para o próximo rolê.",
+          "Faça três poses de capa de álbum.",
+          "Venda um objeto imaginário para a galera."
+        ]
+      },
+      "Amizade": {
+        "truth": [
+          "Qual amizade começou do jeito mais improvável?",
+          "Quem te conhece melhor e qual mania sua denuncia isso?",
+          "Qual foi sua maior vergonha na frente de amigos?",
+          "Qual opinião sua sobre a galera mudou com o tempo?",
+          "Qual foi a maior furada que virou história boa?",
+          "Você já ignorou o grupo e fingiu que não viu?",
+          "Qual amizade você gostaria de retomar?"
+        ],
+        "challenge": [
+          "Recrie uma história do grupo em forma de trailer.",
+          "Dê um prêmio inventado para cada pessoa que topar brincar.",
+          "Descreva o grupo como se fosse uma série.",
+          "Faça uma entrevista de 30 segundos com alguém que aceite.",
+          "Imite sua reação ao receber um convite de última hora.",
+          "Invente um nome para a banda que esse grupo formaria."
+        ]
+      },
+      "Rolê": {
+        "truth": [
+          "Qual foi o rolê que você quase não foi e amou?",
+          "Já fingiu estar chegando quando ainda estava em casa?",
+          "Qual foi o maior perrengue na volta para casa?",
+          "Você já se arrependeu de um story na manhã seguinte?",
+          "Qual lugar você jurou nunca mais voltar?",
+          "Qual foi a vez que você entrou no rolê errado?",
+          "Já foi a uma festa e ficou só pela comida?"
+        ],
+        "challenge": [
+          "Recrie sua entrada mais vergonhosa em uma festa.",
+          "Faça o anúncio de uma balada inventada por 20 segundos.",
+          "Imite um DJ com a mesa quebrada.",
+          "Descreva o pior rolê como se fosse o melhor do mundo.",
+          "Faça uma dança de 15 segundos sem música.",
+          "Invente o cardápio de drinks do próximo encontro."
+        ]
+      },
+      "Crush": {
+        "truth": [
+          "Qual foi a mensagem mais impulsiva que já enviou?",
+          "Já teve um crush que ninguém imaginava?",
+          "Qual foi o date mais inesperado da sua vida?",
+          "Você já fingiu indiferença e se entregou no olhar?",
+          "Qual flerte já fez você perder a linha de raciocínio?",
+          "Já teve ciúmes sem ter nada com a pessoa?",
+          "Qual foi sua maior chance perdida em um encontro?"
+        ],
+        "challenge": [
+          "Crie uma cantada tão ruim que fique boa.",
+          "Interprete uma declaração de amor de novela.",
+          "Faça uma propaganda de aplicativo de namoro fictício.",
+          "Recrie uma cena de flerte de comédia romântica.",
+          "Descreva seu date perfeito em dez segundos.",
+          "Improvise um pedido de casamento para um objeto."
+        ]
+      },
+      "Picante 18+": {
+        "truth": [
+          "Já beijou alguém e se arrependeu na mesma noite?",
+          "Qual foi a situação de maior tensão romântica que você viveu?",
+          "Você já ficou com alguém que conheceu numa festa?",
+          "Qual foi o flerte mais descarado que já recebeu?",
+          "Já teve vontade de beijar alguém aqui, mas não falou nada?",
+          "Você já mandou uma mensagem ousada e apagou?",
+          "Já se envolveu com alguém que jurou que era só amizade?",
+          "Qual date começou mal e acabou muito bem?"
+        ],
+        "challenge": [
+          "Faça uma cantada adulta sem usar clichês.",
+          "Interprete um flerte digno de reality show.",
+          "Descreva seu encontro dos sonhos sem citar nomes.",
+          "Improvise um convite para sair que seja impossível ignorar.",
+          "Recrie uma cena de beijo de novela sem encostar em ninguém.",
+          "Escolha uma música para a trilha sonora de um date imaginário."
+        ]
+      },
+      "Sem filtro": {
+        "truth": [
+          "Que opinião você finge concordar para evitar discussão?",
+          "Qual foi a sua pior decisão por impulso?",
+          "Qual verdade você demorou demais para admitir a si mesmo?",
+          "Já se decepcionou com alguém e nunca contou?",
+          "Qual julgamento errado fizeram sobre você?",
+          "Qual foi sua maior vergonha em público?",
+          "Qual mentira social você usa com frequência?"
+        ],
+        "challenge": [
+          "Conte uma história constrangedora sem citar terceiros.",
+          "Faça um monólogo dramático sobre um boleto.",
+          "Apresente uma teoria absurda por 30 segundos.",
+          "Imite seu próprio jeito de dar desculpas.",
+          "Defenda por 20 segundos uma opinião completamente inofensiva e absurda.",
+          "Conte uma história real em três atos, sem revelar nomes."
+        ]
       }
     }
-  };
-  const state = {kind:null,category:null,bag:[],last:null,count:0,flipped:false,remaining:60,timer:null,focus:null,gameHistory:false};
+  },
+  "nunca": {
+    "title": "Eu Nunca",
+    "icon": "🙈",
+    "tag": "CONFISSÕES",
+    "description": "Histórias, vergonhas e momentos que renderam assunto.",
+    "help": "Leia uma afirmação e responda apenas se quiser. Os botões Já fiz / Nunca fiz são locais e não registram respostas. A categoria 18+ é opcional.",
+    "people": "2+",
+    "time": "rápido",
+    "group": true,
+    "categories": {
+      "Clássico": [
+        "Eu nunca inventei uma desculpa para não sair.",
+        "Eu nunca cheguei num rolê e quis ir embora na mesma hora.",
+        "Eu nunca fui a uma festa só pela comida.",
+        "Eu nunca mandei mensagem e me arrependi na mesma hora.",
+        "Eu nunca fingi reconhecer alguém.",
+        "Eu nunca saí e deixei a chave dentro de casa.",
+        "Eu nunca cantei errado achando que sabia a letra.",
+        "Eu nunca mudei de opinião no meio da discussão.",
+        "Eu nunca fiquei com preguiça de cancelar um compromisso.",
+        "Eu nunca voltei atrás depois de dizer que ia embora."
+      ],
+      "Festas": [
+        "Eu nunca apareci numa festa sem conhecer quase ninguém.",
+        "Eu nunca perdi meus amigos no meio da balada.",
+        "Eu nunca fui ao rolê errado.",
+        "Eu nunca fingi estar chegando enquanto saía de casa.",
+        "Eu nunca fui o último a sair da festa.",
+        "Eu nunca dancei como se ninguém estivesse olhando.",
+        "Eu nunca conheci alguém incrível esperando na fila.",
+        "Eu nunca acordei sem lembrar o nome de quem conheci.",
+        "Eu nunca peguei o transporte errado depois do rolê.",
+        "Eu nunca dormi no caminho de volta."
+      ],
+      "Vergonhas": [
+        "Eu nunca dei tchau para alguém que nem estava falando comigo.",
+        "Eu nunca mandei áudio para a conversa errada.",
+        "Eu nunca stalkeei alguém e curti uma foto antiga.",
+        "Eu nunca postei algo e apaguei em segundos.",
+        "Eu nunca caí em público e fingi que não foi nada.",
+        "Eu nunca fiquei preso numa conversa sem saber como sair.",
+        "Eu nunca falei com alguém usando o nome errado.",
+        "Eu nunca fui pego cantando sozinho.",
+        "Eu nunca ensaiei uma conversa na cabeça.",
+        "Eu nunca esqueci o motivo de ter entrado num cômodo."
+      ],
+      "Relacionamentos": [
+        "Eu nunca tive ciúmes sem estar namorando.",
+        "Eu nunca inventei uma desculpa para ver um crush.",
+        "Eu nunca me apaixonei por uma amizade.",
+        "Eu nunca esperei uma pessoa mandar mensagem primeiro.",
+        "Eu nunca mandei indireta por story.",
+        "Eu nunca achei que era um date e não era.",
+        "Eu nunca passei horas escolhendo uma resposta.",
+        "Eu nunca tive um encontro tão ruim que virou piada.",
+        "Eu nunca silenciei alguém para não criar expectativas.",
+        "Eu nunca voltei a conversar com alguém depois de dizer que não voltaria."
+      ],
+      "Picante 18+": [
+        "Eu nunca beijei duas pessoas no mesmo rolê.",
+        "Eu nunca fiquei com alguém só depois de muitos olhares.",
+        "Eu nunca tive um crush secreto em alguém da galera.",
+        "Eu nunca mandei mensagem ousada para a pessoa errada.",
+        "Eu nunca fiquei com alguém que conheci na mesma noite.",
+        "Eu nunca tive um romance de viagem.",
+        "Eu nunca me envolvi com alguém que dizia ser só amigo.",
+        "Eu nunca me arrependi de não ter tomado iniciativa.",
+        "Eu nunca beijei alguém numa festa e fingi naturalidade.",
+        "Eu nunca fui surpreendido por uma química inesperada."
+      ],
+      "Trabalho e estudos": [
+        "Eu nunca fingi entender uma reunião.",
+        "Eu nunca perdi o prazo e culpei o Wi-Fi.",
+        "Eu nunca estudei tudo na véspera.",
+        "Eu nunca chamei o professor pelo nome errado.",
+        "Eu nunca mandei a mensagem no grupo errado do trabalho.",
+        "Eu nunca usei um feriado para terminar uma tarefa.",
+        "Eu nunca ri durante uma apresentação séria.",
+        "Eu nunca fiquei com sono na reunião online."
+      ],
+      "Caótico": [
+        "Eu nunca comprei passagem sem conferir a data.",
+        "Eu nunca fiz um rolê virar outro completamente diferente.",
+        "Eu nunca fugi de uma festa sem me despedir.",
+        "Eu nunca combinei dois compromissos no mesmo horário.",
+        "Eu nunca aceitei um convite sem saber onde era.",
+        "Eu nunca virei meme no grupo.",
+        "Eu nunca fui responsável por perder o ônibus da galera.",
+        "Eu nunca transformei um passeio simples numa aventura."
+      ]
+    }
+  },
+  "escolha": {
+    "title": "Isso ou Aquilo?",
+    "icon": "⚡",
+    "tag": "DUELO DE VIBES",
+    "description": "Dois caminhos, uma escolha. Defenda sua vibe.",
+    "help": "Toque em uma das opções e conte o motivo, se quiser. O destaque da escolha fica só nesta tela; nada é salvo.",
+    "people": "2+",
+    "time": "rápido",
+    "group": true,
+    "categories": {
+      "Rolê": [
+        "Barzinho com conversa | Balada até amanhecer",
+        "Churrasco com a galera | Show lotado",
+        "Festa na piscina | Festa na cobertura",
+        "Rolê marcado com antecedência | Convite de última hora",
+        "Cinema com pipoca | Karaokê com vergonha zero",
+        "Pub de rock | Bar de samba",
+        "Madrugar na cidade | Nascer do sol na praia",
+        "Festival ao ar livre | Show intimista"
+      ],
+      "Lifestyle": [
+        "Viajar com roteiro | Improvisar tudo",
+        "Café da manhã demorado | Brunch de domingo",
+        "Casa cheia | Poucos amigos",
+        "Áudio de três minutos | Mensagem objetiva",
+        "Fotos espontâneas | Fotos produzidas",
+        "Chuva na janela | Sol na rua",
+        "Maratona de série | Noite de jogos",
+        "Pedir delivery | Cozinhar junto"
+      ],
+      "Relacionamento": [
+        "Chamar primeiro | Esperar a mensagem",
+        "Primeiro date em bar | Primeiro date no parque",
+        "Amor à primeira vista | Conexão que cresce",
+        "Flerte direto | Troca de olhares",
+        "Relacionamento discreto | Fotos juntos no feed",
+        "Beijo no primeiro encontro | Deixar acontecer",
+        "Surpresa planejada | Viagem a dois improvisada"
+      ],
+      "Polêmicas leves": [
+        "Áudio acelerado | Áudio no normal",
+        "Pizza com abacaxi | Pizza sem abacaxi",
+        "Sair de fininho | Despedir de todo mundo",
+        "Chegar antes | Chegar na hora exata",
+        "Ficar sem internet | Ficar sem música",
+        "Stories em tempo real | Postar só no dia seguinte",
+        "Filme dublado | Filme legendado"
+      ],
+      "Sem filtro": [
+        "Falar o que pensa | Evitar conflito",
+        "Sair sem plano | Ficar e descansar",
+        "Date excelente sem química | Date caótico com química",
+        "Voltar com ex | Nunca mais olhar pra trás",
+        "Responder na hora | Demorar de propósito",
+        "Ser a alma da festa | Ser quem observa tudo"
+      ]
+    }
+  },
+  "mimica": {
+    "title": "Mímica",
+    "icon": "🎭",
+    "tag": "SEM FALAR",
+    "description": "Ação, cinema, memes e caos — tudo na base da atuação.",
+    "help": "Sorteie uma carta, mostre-a apenas a quem vai atuar e comece o cronômetro. A pessoa representa sem falar. Vale pular sem penalidade.",
+    "people": "2+",
+    "time": "60 s",
+    "group": true,
+    "categories": {
+      "Filmes": [
+        "Titanic",
+        "Barbie",
+        "Jurassic Park",
+        "O Rei Leão",
+        "Velozes e Furiosos",
+        "Matrix",
+        "Harry Potter",
+        "Star Wars",
+        "Divertida Mente",
+        "Esqueceram de Mim",
+        "Frozen",
+        "Shrek",
+        "O Diabo Veste Prada",
+        "Homem-Aranha",
+        "Avatar"
+      ],
+      "Séries": [
+        "Round 6",
+        "Friends",
+        "Stranger Things",
+        "La Casa de Papel",
+        "The Last of Us",
+        "Wandinha",
+        "Breaking Bad",
+        "The Office",
+        "Grey’s Anatomy",
+        "Game of Thrones",
+        "Brooklyn Nine-Nine",
+        "The Boys"
+      ],
+      "Memes": [
+        "Nazaré fazendo contas",
+        "Cachorro caramelo fugindo",
+        "Gato julgando a galera",
+        "Carreta Furacão dançando",
+        "Luva de Pedreiro",
+        "Alguém abrindo o boleto",
+        "Pessoa tentando segurar o riso",
+        "Alguém caindo na trend errado",
+        "Gato derrubando um copo",
+        "Pessoa respondendo “eu avisei”",
+        "Amigo fingindo não ouvir o chamado",
+        "Apresentador de reality anunciando eliminação"
+      ],
+      "Celebridades": [
+        "Anitta",
+        "Beyoncé",
+        "Xuxa",
+        "Lady Gaga",
+        "Neymar",
+        "Rihanna",
+        "Ivete Sangalo",
+        "Cristiano Ronaldo",
+        "Taylor Swift",
+        "Madonna",
+        "Paulo Gustavo",
+        "Shakira"
+      ],
+      "Profissões": [
+        "DJ",
+        "Dentista",
+        "Professor",
+        "Fotógrafo",
+        "Chef de cozinha",
+        "Bombeiro",
+        "Piloto de avião",
+        "Tatuador",
+        "Motorista de ônibus",
+        "Salva-vidas",
+        "Garçom",
+        "Jornalista"
+      ],
+      "Objetos": [
+        "Air fryer",
+        "Guarda-chuva quebrado",
+        "Secador de cabelo",
+        "Controle remoto sem pilha",
+        "Cadeira de praia",
+        "Fone com fio embolado",
+        "Mala pesada",
+        "Ventilador",
+        "Câmera fotográfica",
+        "Bicicleta ergométrica",
+        "Máquina de lavar",
+        "Selfie stick"
+      ],
+      "Bagunça total": [
+        "Cair na pista de dança e disfarçar",
+        "Tentar abrir um guarda-chuva no vento",
+        "Correr atrás do ônibus",
+        "Ser famoso e evitar paparazzi",
+        "Dançar com sapato apertado",
+        "Perder a chave de casa",
+        "Ser atacado por mosquitos",
+        "Encarar uma barata voadora",
+        "Pegar o elevador errado",
+        "Tentar fazer uma live sem sinal"
+      ]
+    }
+  },
+  "stop": {
+    "title": "Stop!",
+    "icon": "⏱️",
+    "tag": "A VELOCIDADE CONTA",
+    "description": "Letra sorteada, categorias definidas e disputa de raciocínio.",
+    "help": "Uma pessoa sorteia a letra. Todo mundo escreve suas respostas no papel ou fora do app. Quem terminar grita STOP! Este jogo não registra respostas nem pontuações.",
+    "people": "2+",
+    "time": "60 s",
+    "group": true,
+    "categories": {
+      "Clássico": [
+        "Letra A · nome, cidade, comida e objeto",
+        "Letra B · nome, cidade, comida e objeto",
+        "Letra C · nome, cidade, comida e objeto",
+        "Letra D · nome, cidade, comida e objeto",
+        "Letra E · nome, cidade, comida e objeto",
+        "Letra F · nome, cidade, comida e objeto",
+        "Letra G · nome, cidade, comida e objeto",
+        "Letra H · nome, cidade, comida e objeto",
+        "Letra J · nome, cidade, comida e objeto",
+        "Letra L · nome, cidade, comida e objeto",
+        "Letra M · nome, cidade, comida e objeto",
+        "Letra N · nome, cidade, comida e objeto",
+        "Letra P · nome, cidade, comida e objeto",
+        "Letra R · nome, cidade, comida e objeto",
+        "Letra S · nome, cidade, comida e objeto",
+        "Letra T · nome, cidade, comida e objeto",
+        "Letra V · nome, cidade, comida e objeto"
+      ],
+      "Do rolê": [
+        "Letra A · música, artista, filme e lugar para sair",
+        "Letra B · música, artista, filme e lugar para sair",
+        "Letra C · música, artista, filme e lugar para sair",
+        "Letra F · música, artista, filme e lugar para sair",
+        "Letra L · música, artista, filme e lugar para sair",
+        "Letra M · música, artista, filme e lugar para sair",
+        "Letra P · música, artista, filme e lugar para sair",
+        "Letra R · música, artista, filme e lugar para sair",
+        "Letra S · música, artista, filme e lugar para sair",
+        "Letra T · música, artista, filme e lugar para sair"
+      ],
+      "Sem filtro": [
+        "Letra A · meme, desculpa, gíria e celebridade",
+        "Letra B · meme, desculpa, gíria e celebridade",
+        "Letra C · meme, desculpa, gíria e celebridade",
+        "Letra F · meme, desculpa, gíria e celebridade",
+        "Letra M · meme, desculpa, gíria e celebridade",
+        "Letra P · meme, desculpa, gíria e celebridade",
+        "Letra S · meme, desculpa, gíria e celebridade"
+      ]
+    }
+  },
+  "desafio": {
+    "title": "Desafio Relâmpago",
+    "icon": "🚀",
+    "tag": "A VEZ É SUA",
+    "description": "Missões criativas para animar o grupo em segundos.",
+    "help": "Uma missão por vez. Ninguém precisa participar nem publicar nada na internet. Evite envolver pessoas que não aceitaram brincar.",
+    "people": "2+",
+    "time": "30 s",
+    "group": true,
+    "categories": {
+      "Improviso": [
+        "Venda um objeto imaginário por 20 segundos.",
+        "Imite um locutor de rádio anunciando o próximo rolê.",
+        "Faça uma declaração dramática de amor a uma pizza.",
+        "Dê um nome absurdo para a banda do grupo.",
+        "Apresente um reality show sobre sua última semana.",
+        "Crie uma previsão do tempo para o humor da galera.",
+        "Interprete um apresentador de programa de auditório.",
+        "Faça um pitch de 30 segundos para uma invenção inútil."
+      ],
+      "Rolê": [
+        "Crie uma coreografia de 15 segundos.",
+        "Invente um lema para a próxima festa.",
+        "Apresente uma atração surpresa totalmente fictícia.",
+        "Faça uma imitação de DJ sem música.",
+        "Descreva um ônibus lotado como um passeio de luxo.",
+        "Dê um prêmio fictício para o melhor anfitrião.",
+        "Recrie o final de um rolê que saiu do controle.",
+        "Transforme uma história da galera em manchete."
+      ],
+      "Caos criativo": [
+        "Interprete um vilão tentando pagar o aluguel.",
+        "Faça um discurso de vitória por ter achado a chave.",
+        "Defenda um objeto comum como se fosse revolucionário.",
+        "Invente uma novela em três frases.",
+        "Faça sua melhor risada de antagonista.",
+        "Explique uma rede social como se fosse receita culinária.",
+        "Imite um elevador quebrado.",
+        "Narre uma dança como se fosse final de campeonato."
+      ]
+    }
+  },
+  "provavel": {
+    "title": "Quem é mais provável?",
+    "icon": "👀",
+    "tag": "A GALERA DECIDE",
+    "description": "Perguntas rápidas para descobrir quem combina com cada situação.",
+    "help": "Leia a situação e aponte para alguém que esteja participando e aceite a brincadeira. Nada é registrado. Evite expor ou pressionar qualquer pessoa.",
+    "people": "3+",
+    "time": "rápido",
+    "group": true,
+    "categories": {
+      "Rolês": [
+        "Quem é mais provável de marcar o rolê e chegar atrasado?",
+        "Quem é mais provável de fazer amizade com a mesa ao lado?",
+        "Quem é mais provável de virar DJ da festa sem ser convidado?",
+        "Quem é mais provável de desaparecer na pista e voltar com uma história?",
+        "Quem é mais provável de achar o melhor bar barato da cidade?",
+        "Quem é mais provável de querer estender a noite?",
+        "Quem é mais provável de organizar tudo numa planilha?",
+        "Quem é mais provável de cantar karaokê sem saber a letra?"
+      ],
+      "Vida real": [
+        "Quem é mais provável de mandar áudio de cinco minutos?",
+        "Quem é mais provável de esquecer onde deixou o celular?",
+        "Quem é mais provável de conseguir um emprego por acaso?",
+        "Quem é mais provável de viralizar sem querer?",
+        "Quem é mais provável de ter 37 abas abertas no navegador?",
+        "Quem é mais provável de se atrasar para a própria festa?",
+        "Quem é mais provável de começar um hobby inusitado?",
+        "Quem é mais provável de fazer amizade numa viagem?"
+      ],
+      "Amizades": [
+        "Quem é mais provável de ouvir todos os desabafos?",
+        "Quem é mais provável de puxar um reencontro?",
+        "Quem é mais provável de ter a melhor playlist?",
+        "Quem é mais provável de lembrar o aniversário de todo mundo?",
+        "Quem é mais provável de fazer uma surpresa?",
+        "Quem é mais provável de contar a história mais engraçada?",
+        "Quem é mais provável de encontrar solução para um perrengue?",
+        "Quem é mais provável de transformar um grupo em família?"
+      ]
+    }
+  }
+};
   const overlay = $('bpr-game-overlay');
   if (!overlay) return;
-  const safeHTML = s => String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  function tiles() {
-    return Object.entries(decks).map(([key,g]) =>
-      `<button type="button" class="bpr-game-tile" data-bpr-game="${key}"><span aria-hidden="true">${g.icon}</span><strong>${safeHTML(g.title)}</strong><small>${safeHTML(g.description)}</small></button>`
-    ).join('');
+  const safeHTML = s => String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const permitted = () => window.BPRGamesAllowed?.() === true;
+  const state = {kind:null,category:null,mode:'truth',filter:'todos',bag:[],last:null,count:0,remaining:60,duration:60,timer:null,focus:null,gameHistory:false,forehead:false,responded:false};
+  const categories = kind => decks[kind]?.categories || {};
+  const hasAdult = game => Object.keys(game.categories).some(k => k.includes('18+'));
+  const gameKeys = Object.keys(decks);
+  function tiles(filter='todos') {
+    return gameKeys.filter(key=>{
+      const g=decks[key];
+      return filter==='todos' || (filter==='grupo'&&g.group) || (filter==='rapidos'&&(g.time==='rápido'||g.time==='30 s')) || (filter==='adulto'&&hasAdult(g));
+    }).map(key=>{
+      const g=decks[key];
+      return `<button type="button" class="bpr-game-tile bpr-v61-tile" data-bpr-game="${key}" aria-label="Abrir ${safeHTML(g.title)}">
+       <span class="bpr-v61-tile-icon" aria-hidden="true">${g.icon}</span>
+       <span class="bpr-v61-tile-tag">${safeHTML(g.tag)}</span>
+       <strong>${safeHTML(g.title)}</strong><small>${safeHTML(g.description)}</small>
+       <span class="bpr-v61-tile-footer"><span>👥 ${safeHTML(g.people)}</span><span>⏱ ${safeHTML(g.time)}</span><b>Jogar →</b></span></button>`;
+    }).join('');
   }
-  const library=$('bpr-global-games');
-  if(library) library.innerHTML=tiles();
-  function permitted(){return window.BPRGamesAllowed?.() === true;}
+  function updateLibrary(){const lib=$('bpr-global-games');if(lib)lib.innerHTML=tiles(state.filter);}
+  updateLibrary();
   function stopTimer(){if(state.timer){clearInterval(state.timer);state.timer=null;}}
-  function updateClock(){const el=$('bpr-game-clock');el.textContent=`${state.remaining} s`;el.classList.remove('hidden');$('bpr-game-timer').textContent=state.timer?'⏸ Pausar tempo':'⏱ '+(state.remaining===60?'Iniciar 60 s':'Continuar tempo');}
-  function onClock(){
-    if(!permitted()){close();return;}
-    state.remaining=Math.max(0,state.remaining-1);updateClock();
-    if(!state.remaining){stopTimer();$('bpr-game-play-hint').textContent='⏰ Tempo encerrado! Você pode tirar outra carta ou começar um novo cronômetro.';$('bpr-game-timer').textContent='⏱ Reiniciar 60 s';}
+  function clockUpdate(){
+    const clock=$('bpr-game-clock');
+    if(!clock)return;
+    clock.classList.remove('hidden');clock.textContent=String(state.remaining).padStart(2,'0')+' s';
+    clock.classList.toggle('is-ending',state.remaining<=10);
+    $('bpr-game-timer').textContent=state.timer?'⏸ Pausar':'▶ '+(state.remaining?`Iniciar ${state.remaining}s`:`Reiniciar ${state.duration}s`);
+  }
+  function tick(){
+    if(!permitted()){void close();return;}
+    state.remaining=Math.max(0,state.remaining-1);clockUpdate();
+    if(!state.remaining){stopTimer();clockUpdate();$('bpr-game-play-hint').textContent='⏰ Tempo! Escolha outra carta ou recomece a rodada.';}
+  }
+  function resetTimer(){stopTimer();state.remaining=state.duration;$('bpr-game-clock').classList.add('hidden');$('bpr-game-clock').classList.remove('is-ending');$('bpr-game-timer').textContent=`▶ Iniciar ${state.duration}s`;}
+  function setCategory(category){
+    if(!categories(state.kind)[category]) return;
+    stopTimer();state.category=category;state.mode='truth';state.bag=[];state.last=null;state.count=0;
+    $('bpr-game-category').value=category;
+    renderChips();
+  }
+  function renderChips(){
+    const target=$('bpr-game-category-chips');if(!target)return;
+    target.innerHTML=Object.keys(categories(state.kind)).map(name=>`<button type="button" data-game-category="${safeHTML(name)}" class="bpr-v61-chip${name===state.category?' is-selected':''}" aria-pressed="${name===state.category}">${safeHTML(name)}</button>`).join('');
   }
   function chooseCategory(){
     const category=$('bpr-game-category').value;
-    if(!decks[state.kind]?.categories[category])return;
-    state.category=category;state.bag=[];state.count=0;state.last=null;state.flipped=state.kind==='quem';state.remaining=60;
+    if(!categories(state.kind)[category])return;
+    setCategory(category); resetTimer(); state.forehead=false;state.responded=false;
     $('bpr-game-setup').classList.add('hidden');$('bpr-game-play').classList.remove('hidden');
-    $('bpr-game-word').textContent='Pronto pra jogar?';
-    $('bpr-game-progress').textContent=category;
-    $('bpr-game-next').textContent=state.kind==='quem'?'Revelar palavra':'Revelar carta';
-    $('bpr-forehead-card').classList.toggle('is-flipped',state.flipped);
-    $('bpr-game-flip').classList.toggle('hidden',state.kind!=='quem');
-    $('bpr-game-flip').setAttribute('aria-pressed',String(state.flipped));
-    $('bpr-game-clock').classList.add('hidden');$('bpr-game-timer').textContent='⏱ Iniciar 60 s';
-    $('bpr-game-play-hint').textContent=state.kind==='quem'?'Vire a tela para os outros antes de revelar. Não olhe a palavra!':'Revele uma carta quando a galera estiver pronta.';
-    $('bpr-game-next').focus();
+    $('bpr-game-progress').textContent=`${category} · pronta para a rodada`;
+    $('bpr-game-word').textContent='Sua próxima carta aparece aqui';
+    $('bpr-game-next').textContent=state.kind==='quem'?'🎲 Sortear carta':'🎲 Revelar carta';
+    $('bpr-game-play-hint').textContent=state.kind==='quem'?'Gire o celular na horizontal. Passe a tela para a galera antes de sortear.':'Jogue no seu ritmo. Qualquer pessoa pode passar.';
+    overlay.classList.toggle('bpr-v61-who',state.kind==='quem');
+    overlay.classList.remove('bpr-v61-forehead');
+    $('bpr-game-forehead').classList.toggle('hidden',state.kind!=='quem');
+    $('bpr-game-fullscreen').classList.toggle('hidden',state.kind!=='quem'&&state.kind!=='mimica');
+    $('bpr-game-vote').classList.add('hidden');$('bpr-game-mode').classList.toggle('hidden',state.kind!=='verdade');
+    renderMode(); $('bpr-game-next').focus();
+  }
+  function renderMode(){
+    $('bpr-game-mode').querySelectorAll('[data-game-mode]').forEach(b=>{
+      const on=b.dataset.gameMode===state.mode;
+      b.classList.toggle('is-selected',on);b.setAttribute('aria-pressed',String(on));
+    });
+    if(state.kind==='verdade')$('bpr-game-mode-hint').textContent=state.mode==='truth'?'Uma pergunta para responder, se quiser.':'Um desafio que qualquer pessoa pode pular.';
+  }
+  function shuffled(items){
+    const arr=[...items];for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];}
+    if(arr.length>1&&arr[arr.length-1]===state.last){[arr[0],arr[arr.length-1]]=[arr[arr.length-1],arr[0]];}
+    return arr;
   }
   function next(){
-    if(!permitted()){close();return;}
-    const items=decks[state.kind]?.categories[state.category];
-    if(!items?.length) return;
-    if(!state.bag.length){
-      const nextBag=[...items];
-      for(let i=nextBag.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[nextBag[i],nextBag[j]]=[nextBag[j],nextBag[i]];}
-      if(nextBag.length>1&&nextBag[nextBag.length-1]===state.last){[nextBag[0],nextBag[nextBag.length-1]]=[nextBag[nextBag.length-1],nextBag[0]];}
-      state.bag=nextBag;
-    }
-    const word=state.bag.pop();state.last=word;state.count++;
-    $('bpr-game-word').textContent=word;
+    if(!permitted()){void close();return;}
+    const collection=categories(state.kind)[state.category];
+    const items=state.kind==='verdade'?collection?.[state.mode]:collection;
+    if(!items?.length)return;
+    if(!state.bag.length)state.bag=shuffled(items);
+    const word=state.bag.pop();state.last=word;state.count++;state.responded=false;
+    const card=$('bpr-forehead-card');card.classList.toggle('bpr-v61-versus',state.kind==='escolha');
+    const wordNode=$('bpr-game-word');
+    if(state.kind==='escolha'){
+      const parts=word.split(' | ');
+      wordNode.textContent='';
+      const first=document.createElement('span');first.className='bpr-v61-option';first.textContent=parts[0];
+      const vs=document.createElement('span');vs.className='bpr-v61-vs';vs.textContent='VS';
+      const second=document.createElement('span');second.className='bpr-v61-option';second.textContent=parts[1]||'Outra opção';
+      wordNode.append(first,vs,second);
+    } else wordNode.textContent=word;
     $('bpr-game-progress').textContent=`${state.category} · carta ${state.count}`;
-    $('bpr-game-next').textContent='Outra carta →';
-    $('bpr-game-play-hint').textContent=state.kind==='quem'?'A galera lê a palavra e dá pistas sem falar o nome.':'Pode pular qualquer carta sem explicar o motivo.';
+    $('bpr-game-next').textContent='↻ Nova carta';
+    $('bpr-game-play-hint').textContent=state.kind==='quem'?'Mostre esta carta para a galera e tente adivinhar com perguntas de sim ou não.':
+      state.kind==='mimica'?'Quem vai atuar lê esta carta; depois a galera tenta adivinhar.':
+      state.kind==='escolha'?'Qual lado você escolheria? Vale defender sua escolha.':
+      'Não precisa responder nem completar desafios que causem desconforto.';
+    const vote=$('bpr-game-vote'); vote.classList.toggle('hidden',state.kind!=='nunca');
+    vote.querySelectorAll('button').forEach(b=>{b.classList.remove('is-selected');b.setAttribute('aria-pressed','false');});
+    card.classList.add('is-revealed');
   }
   function open(kind,origin){
-    if(!permitted() || !decks[kind])return;
-    stopTimer();state.kind=kind;state.focus=origin||document.activeElement;
-    const g=decks[kind];$('bpr-game-title').textContent=`${g.icon} ${g.title}`;
-    $('bpr-game-desc').textContent=g.description;
+    if(!permitted()||!decks[kind])return;
+    stopTimer();state.kind=kind;state.focus=origin||document.activeElement;state.forehead=false;state.count=0;
+    const g=decks[kind];$('bpr-game-title').textContent=`${g.icon} ${g.title}`;$('bpr-game-desc').textContent=g.description;
     $('bpr-game-instructions').textContent=g.help;
-    $('bpr-game-category').replaceChildren(...Object.keys(g.categories).map(name=>new Option(`${name} · ${g.categories[name].length} cartas`,name)));
+    const names=Object.keys(g.categories);
+    $('bpr-game-category').replaceChildren(...names.map(name=>new Option(`${name} · ${g.categories[name]?.truth ? g.categories[name].truth.length + g.categories[name].challenge.length : g.categories[name].length} cartas`,name)));
+    setCategory(names[0]); resetTimer();
     $('bpr-game-setup').classList.remove('hidden');$('bpr-game-play').classList.add('hidden');
+    $('bpr-game-setup').classList.toggle('bpr-v61-has-modes',kind==='verdade');
+    overlay.classList.remove('bpr-v61-forehead','bpr-v61-who');
     overlay.classList.remove('hidden');overlay.setAttribute('aria-hidden','false');document.body.classList.add('bpr-game-active');
-    if(!state.gameHistory){
-      history.pushState({...history.state, __bprGame:true}, '', location.href);
-      state.gameHistory=true;
-    }
+    if(!state.gameHistory){history.pushState({...history.state,__bprGame:true},'',location.href);state.gameHistory=true;}
     $('bpr-game-category').focus();
   }
   async function close(fromHistory=false){
-    if(!fromHistory && state.gameHistory && history.state?.__bprGame){history.back();return;}
-    state.gameHistory=false;
-    stopTimer();
-    if(document.fullscreenElement===overlay){try{await document.exitFullscreen();}catch{}}
-    overlay.classList.add('hidden');overlay.setAttribute('aria-hidden','true');document.body.classList.remove('bpr-game-active');
+    if(!fromHistory&&state.gameHistory&&history.state?.__bprGame){history.back();return;}
+    state.gameHistory=false;stopTimer();
+    try{if(document.fullscreenElement===overlay)await document.exitFullscreen();}catch{}
+    try{screen.orientation?.unlock?.();}catch{}
+    overlay.classList.add('hidden');overlay.setAttribute('aria-hidden','true');overlay.classList.remove('bpr-v61-forehead','bpr-v61-who');document.body.classList.remove('bpr-game-active');
     state.focus?.focus?.();state.kind=null;state.category=null;
   }
-  async function fullscreen(){
+  async function fullscreen(landscape=false){
     try {
-      if(document.fullscreenElement===overlay)await document.exitFullscreen();
-      else if(overlay.requestFullscreen)await overlay.requestFullscreen();
-    } catch { $('bpr-game-play-hint').textContent='O navegador não permitiu tela cheia. O modo ampliado do jogo continua disponível.'; }
+      if(document.fullscreenElement===overlay){await document.exitFullscreen();try{screen.orientation?.unlock?.();}catch{};return;}
+      if(overlay.requestFullscreen) await overlay.requestFullscreen();
+      if(landscape){try{await screen.orientation?.lock?.('landscape');}catch{$('bpr-game-play-hint').textContent='Gire o celular na horizontal. Seu navegador pode não permitir a rotação automática.';}}
+    } catch {$('bpr-game-play-hint').textContent='Tela cheia indisponível neste navegador. Gire o celular na horizontal para usar a carta.';}
   }
-  // O botão Voltar do Android fecha somente o jogo; a conversa do Squad permanece aberta.
-  window.addEventListener('popstate',event=>{
-    if(state.gameHistory && !overlay.classList.contains('hidden') && !event.state?.__bprGame){
-      event.stopImmediatePropagation();
-      void close(true);
-    }
-  }, true);
+  window.addEventListener('popstate',e=>{if(state.gameHistory&&!overlay.classList.contains('hidden')&&!e.state?.__bprGame){e.stopImmediatePropagation();void close(true);}},true);
   document.addEventListener('click',event=>{
-    const game=event.target.closest('[data-bpr-game]');
-    if(game){event.preventDefault();open(game.dataset.bprGame,game);return;}
+    const filter=event.target.closest('[data-games-filter]');if(filter){state.filter=filter.dataset.gamesFilter;document.querySelectorAll('[data-games-filter]').forEach(b=>{const active=b===filter;b.classList.toggle('is-selected',active);b.setAttribute('aria-pressed',String(active));});updateLibrary();return;}
+    const game=event.target.closest('[data-bpr-game]');if(game){event.preventDefault();open(game.dataset.bprGame,game);return;}
+    if(overlay.classList.contains('hidden'))return;
+    const cat=event.target.closest('[data-game-category]');if(cat){event.preventDefault();setCategory(cat.dataset.gameCategory);return;}
+    const mode=event.target.closest('[data-game-mode]');if(mode){event.preventDefault();state.mode=mode.dataset.gameMode;state.bag=[];state.count=0;state.last=null;renderMode();$('bpr-game-word').textContent='Pronto para sortear';$('bpr-game-next').textContent='🎲 Sortear carta';$('bpr-game-progress').textContent=`${state.category} · ${state.mode==='truth'?'Verdade':'Desafio'}`;return;}
+    const vote=event.target.closest('[data-game-vote]');if(vote){event.preventDefault();$('bpr-game-vote').querySelectorAll('[data-game-vote]').forEach(b=>{const selected=b===vote;b.classList.toggle('is-selected',selected);b.setAttribute('aria-pressed',String(selected));});return;}
     const btn=event.target.closest('#bpr-game-overlay [data-game-control]');if(!btn)return;
-    event.preventDefault();
-    switch(btn.dataset.gameControl){
-      case 'close':close();break;
+    event.preventDefault();switch(btn.dataset.gameControl){
+      case 'close':void close();break;
       case 'start':chooseCategory();break;
       case 'next':next();break;
-      case 'categories':stopTimer();$('bpr-game-setup').classList.remove('hidden');$('bpr-game-play').classList.add('hidden');$('bpr-game-category').focus();break;
-      case 'flip':state.flipped=!state.flipped;$('bpr-forehead-card').classList.toggle('is-flipped',state.flipped);btn.setAttribute('aria-pressed',String(state.flipped));break;
-      case 'timer':
-        if(state.timer){stopTimer();updateClock();}
-        else {if(!state.remaining)state.remaining=60;state.timer=setInterval(onClock,1000);updateClock();}
-        break;
-      case 'fullscreen':fullscreen();break;
+      case 'categories':stopTimer();overlay.classList.remove('bpr-v61-forehead');$('bpr-game-setup').classList.remove('hidden');$('bpr-game-play').classList.add('hidden');$('bpr-game-category').focus();break;
+      case 'forehead':state.forehead=!state.forehead;overlay.classList.toggle('bpr-v61-forehead',state.forehead);btn.setAttribute('aria-pressed',String(state.forehead));btn.textContent=state.forehead?'↩ Sair do modo testa':'📱 Modo testa horizontal';$('bpr-game-play-hint').textContent=state.forehead?'Gire o celular para o modo paisagem e mostre a carta para a galera. A palavra nunca fica invertida.':'Modo normal: compartilhe a tela para quem vai dar as pistas.';if(state.forehead)void fullscreen(true);break;
+      case 'timer':if(state.timer){stopTimer();clockUpdate();}else{if(!state.remaining)state.remaining=state.duration;state.timer=setInterval(tick,1000);clockUpdate();}break;
+      case 'fullscreen':void fullscreen(state.kind==='quem');break;
     }
   });
+  $('bpr-game-category').addEventListener('change',e=>setCategory(e.target.value));
+  $('bpr-game-duration').addEventListener('change',e=>{state.duration=Number(e.target.value)||60;resetTimer();});
   document.addEventListener('keydown',event=>{
     if(overlay.classList.contains('hidden'))return;
-    if(event.key==='Escape'){event.preventDefault();close();return;}
-    if(event.key==='ArrowRight'&&!$('bpr-game-play').classList.contains('hidden')){event.preventDefault();next();return;}
+    if(event.key==='Escape'){event.preventDefault();void close();return;}
+    if(event.key==='ArrowRight'&&!$('bpr-game-play').classList.contains('hidden')&&!['SELECT','BUTTON'].includes(document.activeElement?.tagName)){event.preventDefault();next();return;}
     if(event.key==='Tab'){
       const focusable=[...overlay.querySelectorAll('button:not([disabled]),select')].filter(el=>el.getClientRects().length&&el.closest('.hidden')===null);
-      if(!focusable.length)return;
-      const i=focusable.indexOf(document.activeElement);
+      if(!focusable.length)return;const i=focusable.indexOf(document.activeElement);
       if(event.shiftKey&&i<=0){event.preventDefault();focusable[focusable.length-1].focus();}
       else if(!event.shiftKey&&i===focusable.length-1){event.preventDefault();focusable[0].focus();}
     }
   },true);
-  document.addEventListener('visibilitychange',()=>{if(document.hidden&&state.timer){stopTimer();updateClock();}});
-  window.BPRGames={tiles,open,close,listGames:()=>Object.keys(decks)};
+  document.addEventListener('visibilitychange',()=>{if(document.hidden&&state.timer){stopTimer();clockUpdate();}});
+  window.BPRGames={tiles:()=>tiles('todos'),open,close,listGames:()=>gameKeys.slice()};
 })();

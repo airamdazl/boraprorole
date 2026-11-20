@@ -1,4 +1,4 @@
-const CACHE = 'bora-pro-role-comunidade-v30-v60';
+const CACHE = 'bora-pro-role-comunidade-v30-v61';
 const APP_SHELL = ['./', './index.html', './app.js', './style.css', './manifest.webmanifest',
   './banner-tem-gogo.webp', './games.js', './icon-192.png', './icon-512.png', './icon.svg',
   './termos.html', './privacidade.html', './comunidade.html'];
