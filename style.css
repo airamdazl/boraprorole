@@ -974,3 +974,20 @@ body.bpr-game-active{overflow:hidden!important}
  .bpr-v61-vote button{min-height:39px}
 }
 @media(prefers-reduced-motion:reduce){.bpr-v61-tile{transition:none!important}.bpr-v61-tile:hover{transform:none!important}}
+
+/* V6.2: segurança com denúncia em destaque e atendimento recolhível */
+.bpr-report-hub{display:grid;gap:12px;padding:clamp(17px,4vw,26px);margin:22px 0;border:1px solid color-mix(in srgb,#35dac1 48%,transparent);background:linear-gradient(130deg,#123d48,#1c2c44);border-radius:20px;color:#f5fbff}
+.bpr-report-hub h2{font-size:clamp(21px,5vw,28px);line-height:1.22;margin:0;color:inherit}
+.bpr-report-hub p,.bpr-report-hub small{color:#d4e6ea;line-height:1.55;margin:0}
+.bpr-report-primary{width:100%;max-width:420px;min-height:50px;justify-content:center}
+.bpr-safety-help-drawer{border:1px solid var(--line,#385366);border-radius:17px;background:var(--panel,#152c3e);margin:15px 0 24px;overflow:hidden}
+.bpr-safety-help-drawer>summary{min-height:70px;display:flex;align-items:center;justify-content:space-between;gap:14px;cursor:pointer;list-style:none;padding:16px 18px}
+.bpr-safety-help-drawer>summary::-webkit-details-marker{display:none}
+.bpr-safety-help-drawer>summary span{display:grid;gap:4px;min-width:0}
+.bpr-safety-help-drawer>summary small{font-size:12px;color:var(--muted,#a9bec6);line-height:1.45}
+.bpr-safety-help-drawer[open]>summary{border-bottom:1px solid var(--line,#385366)}
+.bpr-safety-help-body{padding:16px 18px 20px}
+.bpr-safety-help-body p{margin-top:0}
+#bpr-safety-report-picker label[hidden]{display:none!important}
+@media(max-width:380px){.bpr-report-hub{padding:16px}.bpr-safety-help-drawer>summary{padding:14px}}
+@media(prefers-reduced-motion:reduce){.bpr-safety-help-drawer *{scroll-behavior:auto!important}}

@@ -18,7 +18,7 @@
   <script defer src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   
-  <link rel="stylesheet" href="./style.css?v=20261120-jogos-v61">
+  <link rel="stylesheet" href="./style.css?v=20261120-seguranca-v62">
 </head>
 <body>
   <div class="auth-gate" id="auth-gate" role="region" aria-label="Acesso ao Bora Pro Rolê">
@@ -173,8 +173,17 @@
           </div>
           <div class="safety-checklist panel"><h3>Antes de marcar um encontro, lembre-se:</h3><ul><li>Prefira espaços públicos e com circulação de pessoas.</li><li>Não informe endereço residencial, rotina ou documentos pessoais no chat.</li><li>Confirme horário, endereço, classificação indicativa e regras do estabelecimento.</li><li>Não aceite pressão para consumir bebidas, substâncias ou compartilhar fotos.</li><li>Se alguém desrespeitar seus limites, afaste-se e busque apoio.</li><li>Denuncie condutas perigosas na plataforma; em emergência, ligue 190.</li></ul></div>
           <p class="small-muted" style="margin-top:20px">Os canais acima pertencem aos órgãos públicos. As denúncias do Bora Pro Rolê são registradas e precisam de acompanhamento humano; não constituem serviço de emergência nem garantia de atendimento imediato. Para situações urgentes, use os canais oficiais.</p>
-          <p><button class="btn btn-ghost" data-action="bpr-help">💬 Atendimento e perguntas frequentes</button></p>
-          <p class="safety-contact">🛡️ Para denúncias à equipe, recursos e solicitações de privacidade: <a href="mailto:moderacao.boraprorole@gmail.com">moderacao.boraprorole@gmail.com</a>. O contato por e-mail não substitui o botão de denúncia dentro do aplicativo nem serviços de emergência.</p>
+          <section class="bpr-report-hub" aria-labelledby="bpr-report-hub-title">
+            <span class="eyebrow">PROTEÇÃO DA COMUNIDADE</span>
+            <h2 id="bpr-report-hub-title">Aconteceu algo errado no rolê?</h2>
+            <p>Denuncie um evento, usuário ou Squad. Para uma mensagem de chat, use o botão <strong>Denunciar</strong> na própria mensagem, para identificar o conteúdo correto.</p>
+            <button type="button" class="btn btn-pink bpr-report-primary" data-action="report-center"><i data-lucide="flag" aria-hidden="true"></i> Registrar denúncia</button>
+            <small>Enviada para análise da equipe. Não substitui serviços públicos de emergência.</small>
+          </section>
+          <details class="bpr-safety-help-drawer">
+            <summary><span><strong>💬 Ajuda, atendimento e dúvidas</strong><small>Tour, perguntas frequentes e acompanhamento de solicitações</small></span><i data-lucide="chevron-down" aria-hidden="true"></i></summary>
+            <div class="bpr-safety-help-body"><p>O atendimento não é o mesmo canal de denúncia. Utilize-o para dúvidas, dificuldades técnicas e sugestões.</p><button type="button" class="btn btn-ghost" data-action="bpr-help">Abrir atendimento</button></div>
+          </details>
           <p class="safety-legal-links"><a href="./termos.html" target="_blank" rel="noopener noreferrer">Termos de Uso</a> · <a href="./privacidade.html" target="_blank" rel="noopener noreferrer">Política de Privacidade</a> · <a href="./comunidade.html" target="_blank" rel="noopener noreferrer">Regras da Comunidade</a></p>
           <button class="btn btn-ghost" data-nav="explorar"><i data-lucide="arrow-left"></i> Voltar a explorar</button>
         </section>
@@ -220,7 +229,7 @@
   
 
 
-  <script defer src="./app.js?v=20261120-jogos-v61"></script>
+  <script defer src="./app.js?v=20261120-seguranca-v62"></script>
   <script defer src="./games.js?v=20261120-jogos-v61"></script>
 </body>
 </html>
