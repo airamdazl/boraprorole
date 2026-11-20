@@ -18,7 +18,7 @@
   <script defer src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   
-  <link rel="stylesheet" href="./style.css?v=20261120-v67-mural">
+  <link rel="stylesheet" href="./style.css?v=20261120-v69-fechamento">
 </head>
 <body>
   <div class="auth-gate" id="auth-gate" role="region" aria-label="Acesso ao Bora Pro Rolê">
@@ -51,16 +51,7 @@
       <div class="side-foot">🔒 Uma comunidade para maiores de 18 anos.<br><a href="#seguranca" data-action="safety">Segurança e comunidade</a><br><a href="https://www.instagram.com/boraprorole.app/" target="_blank" rel="noopener noreferrer">📸 @boraprorole.app ↗</a></div>
     </aside>
     <div class="main-wrap">
-      <header class="topbar"><span class="top-title"><img src="./icon-192.png" class="top-title-icon" alt=""> Bora Pro Rolê</span><div class="topbar-right"><span class="location-tag" id="user-city-label"><i data-lucide="map-pin"></i> Brasil</span><button class="icon-btn" id="theme-toggle" title="Alternar modo claro e escuro" aria-label="Alternar tema"><i data-lucide="moon"></i></button><button class="icon-btn bpr-notifications-bell" data-action="notifications" title="Notificações" aria-label="Notificações"><i data-lucide="bell"></i><span id="bpr-notif-count" class="bpr-notif-count hidden" aria-hidden="true">0</span></button><details class="bpr-account-menu" id="bpr-account-menu">
-        <summary class="avatar-btn" aria-label="Abrir menu da conta" title="Minha conta e sair"><span class="bpr-avatar-fallback">A</span></summary>
-        <div class="bpr-account-popup" role="group" aria-label="Opções da conta">
-          <strong class="bpr-account-popup-title">Minha conta</strong>
-          <button type="button" data-nav="perfil"><i data-lucide="user-round" aria-hidden="true"></i> Meu perfil</button>
-          <button type="button" data-action="bpr-help"><i data-lucide="life-buoy" aria-hidden="true"></i> Ajuda e suporte</button>
-          <button type="button" data-action="privacy-requests"><i data-lucide="shield" aria-hidden="true"></i> Privacidade e meus dados</button>
-          <button type="button" class="bpr-account-signout" data-action="logout"><i data-lucide="log-out" aria-hidden="true"></i> Sair da conta</button>
-        </div>
-      </details></div></header>
+      <header class="topbar"><span class="top-title"><img src="./icon-192.png" class="top-title-icon" alt=""> Bora Pro Rolê</span><div class="topbar-right"><span class="location-tag" id="user-city-label"><i data-lucide="map-pin"></i> Brasil</span><button class="icon-btn" id="theme-toggle" title="Alternar modo claro e escuro" aria-label="Alternar tema"><i data-lucide="moon"></i></button><button class="icon-btn bpr-notifications-bell" data-action="notifications" title="Notificações" aria-label="Notificações"><i data-lucide="bell"></i><span id="bpr-notif-count" class="bpr-notif-count hidden" aria-hidden="true">0</span></button></div></header>
       <div id="bpr-scheduled-strip" class="bpr-scheduled-strip hidden" role="status" aria-live="polite"><span class="bpr-scheduled-icon" aria-hidden="true">🔧</span><span id="bpr-scheduled-summary">Aviso de atualização</span><button type="button" data-action="scheduled-info" class="bpr-scheduled-read">Detalhes</button></div><main class="main">
         <section class="screen active" id="screen-explorar" aria-label="Descobrir rolês">
           <div class="welcome"><div><span class="eyebrow">O seu rolê começa aqui</span><h1>Pra onde a gente vai? <span aria-hidden="true">✌️</span></h1><p>Descubra planos incríveis e encontre companhia pra ir junto.</p></div><button class="btn btn-pink" data-action="create"><i data-lucide="plus"></i> Criar rolê</button></div>
@@ -124,11 +115,12 @@
         <section class="screen" id="screen-squad"><div class="page-heading"><span class="eyebrow">Amizades que continuam</span><h1>Sua galera, seus squads.</h1><p>O rolê termina, mas as conexões boas continuam. Participe apenas dos grupos que escolher.</p></div><div class="bpr-v6-squad-finder"><label for="friend-query-v6">Encontre sua galera</label><div class="bpr-v6-squad-search"><input id="friend-query-v6" type="search" maxlength="70" placeholder="Buscar @user ou nome do Squad" autocomplete="off" aria-label="Buscar pessoas ou Squads"><button type="button" data-action="squad-search-v6" aria-label="Buscar pessoas e Squads"><i data-lucide="search"></i><span>Buscar</span></button></div><div id="bpr-squad-search-results" role="status" aria-live="polite"></div></div><div class="squad-pending" id="squad-invite"><div><strong>💌 Você tem um convite de SQUAD</strong><p>Uma galera do último rolê quer continuar o papo.</p></div><div class="squad-actions"><button class="btn btn-lime btn-small" data-action="accept-squad">Aceitar convite</button><button class="btn btn-ghost btn-small" data-action="decline-squad">Recusar</button></div></div><div class="two-col" style="margin-top:20px"><article class="squad-card"><div class="squad-head" aria-hidden="true">🪩</div><div class="squad-body"><span class="badge green">COMUNIDADE</span><h3 style="margin-top:9px" id="squad-name">Carregando seus squads…</h3><p>Boa música, conversas sem pressa e novos rolês pela cidade.</p><div class="attendees"><span class="mini-avatar" style="background:#f8a0bd">B</span><span class="mini-avatar" style="background:#a8c7ff">L</span><span class="mini-avatar" style="background:#c8f977">M</span><small>Dados do seu grupo aparecerão aqui</small></div><div class="squad-actions" style="margin-top:21px"><button class="btn btn-pink" data-action="open-squad"><i data-lucide="messages-square"></i> Abrir chat</button><button class="btn btn-ghost" data-action="rename-squad"><i data-lucide="pencil"></i></button></div></div></article><div class="panel"><h3>💡 O que é um SQUAD?</h3><p class="small-muted">É um grupo permanente criado depois de um rolê. Todos recebem um convite e decidem se querem entrar. O grupo tem chat próprio, mural de informações e espaço para compartilhar o link de um álbum de fotos.</p><div class="list-row"><div class="icon-disc">🔐</div><div class="grow"><strong>Convites, nunca inclusão automática</strong><p>Você escolhe com quem quer continuar.</p></div></div><div class="list-row"><div class="icon-disc">📌</div><div class="grow"><strong>Mural fixo</strong><p>Links e combinados importantes ficam salvos.</p></div></div><div class="list-row"><div class="icon-disc">🛡️</div><div class="grow"><strong>Proteção e moderação</strong><p>É possível sair, bloquear e denunciar.</p></div></div></div></div></section>
         <section class="screen" id="screen-perfil">
   <div class="page-heading"><span class="eyebrow">Seu espaço</span><h1>Seu perfil, suas regras.</h1><p>Escolha como se apresentar. Você controla o que os outros conseguem ver.</p></div>
-  <div class="profile-cover"></div>
+  <div class="profile-cover bpr-v69-my-cover"><button class="bpr-v69-change-cover" type="button" data-action="profile-cover-options">📷 Trocar capa</button></div>
   <div class="profile-panel">
     <button aria-label="Opções da minha foto: visualizar, trocar ou remover" class="profile-avatar" data-action="avatar-options" title="Toque para gerenciar sua foto" type="button">A</button>
 <div class="profile-title"><div><h2 id="profile-display">Seu nome</h2><p id="profile-handle">@user</p></div><span class="badge green">🔒 Privacidade primeiro</span></div>
 <p class="profile-bio" id="profile-bio">Que tal se apresentar à galera?</p>
+<div class="bpr-v69-relations" id="bpr-v69-my-relations" aria-label="Pessoas e amizades"></div>
 <div aria-label="Estilo do seu perfil" class="bpr-public-personalization"><span class="bpr-relationship-chip hidden" id="bpr-relationship-chip"></span><p class="bpr-preferences-chips" id="bpr-preferences-chips"></p></div>
     <details class="bpr-profile-hub" id="bpr-profile-hub">
       <summary><span class="bpr-hub-heading">⚙️ Gerenciar meu perfil<small>Aparência, informações, privacidade e ajuda em um lugar só</small></span><span aria-hidden="true" class="bpr-hub-chevron"></span></summary>
@@ -191,6 +183,17 @@
       </main>
     </div>
   </div>
+  <!-- V6.9: menu da conta flutuante fora do cabeçalho sticky -->
+  <details class="bpr-account-menu" id="bpr-account-menu">
+        <summary class="avatar-btn" aria-label="Abrir menu da conta" title="Minha conta e sair"><span class="bpr-avatar-fallback">A</span></summary>
+        <div class="bpr-account-popup" role="group" aria-label="Opções da conta">
+          <strong class="bpr-account-popup-title">Minha conta</strong>
+          <button type="button" data-nav="perfil"><i data-lucide="user-round" aria-hidden="true"></i> Meu perfil</button>
+          <button type="button" data-action="bpr-help"><i data-lucide="life-buoy" aria-hidden="true"></i> Ajuda e suporte</button>
+          <button type="button" data-action="privacy-requests"><i data-lucide="shield" aria-hidden="true"></i> Privacidade e meus dados</button>
+          <button type="button" class="bpr-account-signout" data-action="logout"><i data-lucide="log-out" aria-hidden="true"></i> Sair da conta</button>
+        </div>
+      </details>
   <nav class="mobile-nav" aria-label="Navegação mobile"><button class="nav-link active" data-nav="explorar"><i data-lucide="compass"></i><span>Explorar</span></button><button class="nav-link" data-nav="meus"><i data-lucide="calendar-heart"></i><span>Meus rolês</span></button><button class="nav-link" data-nav="criar"><i data-lucide="circle-plus"></i><span>Criar</span></button><button class="nav-link bpr-games-entry hidden" data-nav="jogos" hidden><i data-lucide="gamepad-2"></i><span>Jogos</span></button><button class="nav-link" data-nav="squad"><i data-lucide="users-round"></i><span>Squads</span></button><button class="nav-link" data-nav="perfil"><i data-lucide="user-round"></i><span>Perfil</span></button></nav>
   <div class="overlay hidden" id="modal" role="presentation"><div class="dialog" role="dialog" aria-modal="true" aria-labelledby="dialog-title"><div class="dialog-top"><h2 id="dialog-title">Detalhes</h2><button class="icon-btn" id="modal-close" aria-label="Fechar"><i data-lucide="x"></i></button></div><div id="dialog-body" class="dialog-content"></div></div></div>
   <div class="overlay app-decision-overlay hidden" id="decision-overlay" role="presentation">
@@ -233,7 +236,7 @@
   
 
 
-  <script defer src="./app.js?v=20261120-v67-mural"></script>
-  <script defer src="./games.js?v=20261120-v67-mural"></script>
+  <script defer src="./app.js?v=20261120-v69-fechamento"></script>
+  <script defer src="./games.js?v=20261120-v68-central"></script>
 </body>
 </html>

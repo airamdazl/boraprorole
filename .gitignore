@@ -1,0 +1,16 @@
+# Repositório estático - excluir segredos, bancos e artefatos locais
+.env
+.env.*
+!.env.example
+*.sql
+*.dump
+*.backup
+*.pem
+*.key
+node_modules/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+XAMPP/
+bpr-central/

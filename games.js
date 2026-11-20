@@ -802,7 +802,7 @@
     overlay.classList.toggle('bpr-v61-who',state.kind==='quem');
     overlay.classList.remove('bpr-v61-forehead');
     $('bpr-game-forehead').classList.toggle('hidden',state.kind!=='quem');
-    $('bpr-game-fullscreen').classList.toggle('hidden',state.kind!=='quem'&&state.kind!=='mimica');
+    $('bpr-game-fullscreen').classList.toggle('hidden',state.kind!=='quem'&&state.kind!=='mimica');$('bpr-game-fullscreen').textContent='⛶ Ampliar jogo';$('bpr-game-fullscreen').setAttribute('aria-pressed','false');
     $('bpr-game-vote').classList.add('hidden');$('bpr-game-mode').classList.toggle('hidden',state.kind!=='verdade');
     renderMode(); $('bpr-game-next').focus();
   }
@@ -869,18 +869,13 @@
     state.focus?.focus?.();state.kind=null;state.category=null;
   }
   async function fullscreen(landscape=false){
-    try {
-      if(document.fullscreenElement===overlay){await document.exitFullscreen();try{screen.orientation?.unlock?.();}catch{};return;}
-      // Mostrar o relógio na tela especial, sem iniciar a contagem automaticamente.
-      if($('bpr-game-clock')?.classList.contains('hidden'))clockUpdate();
-      overlay.classList.add('bpr-v65-immersive');
-      if(overlay.requestFullscreen) await overlay.requestFullscreen();
-      if(landscape){try{await screen.orientation?.lock?.('landscape');}catch{$('bpr-game-play-hint').textContent='Gire o celular na horizontal. A carta e o cronômetro ficam juntos.';}}
-    } catch {
-      // O layout continua compacto mesmo quando o navegador bloqueia fullscreen.
-      overlay.classList.add('bpr-v65-immersive');
-      $('bpr-game-play-hint').textContent='Modo de jogo ampliado. Se possível, gire o celular na horizontal.';
-    }
+    // Modo imersivo interno. Evita o aviso nativo do navegador mostrando a origem GitHub.
+    // Não promete ocultar barras do sistema ou forçar orientação em navegadores móveis.
+    if($('bpr-game-clock')?.classList.contains('hidden'))clockUpdate();
+    const enabled=overlay.classList.toggle('bpr-v65-immersive');
+    $('bpr-game-fullscreen').textContent=enabled?'↩ Voltar ao layout':'⛶ Ampliar jogo';
+    $('bpr-game-fullscreen').setAttribute('aria-pressed',String(enabled));
+    if(enabled&&landscape)$('bpr-game-play-hint').textContent='Se possível, gire o celular. A carta e o cronômetro ficam juntos.';
   }
   document.addEventListener('fullscreenchange',()=>{
     if(document.fullscreenElement!==overlay && !state.forehead)overlay.classList.remove('bpr-v65-immersive');
@@ -899,7 +894,7 @@
       case 'start':chooseCategory();break;
       case 'next':next();break;
       case 'categories':stopTimer();overlay.classList.remove('bpr-v61-forehead');$('bpr-game-setup').classList.remove('hidden');$('bpr-game-play').classList.add('hidden');$('bpr-game-category').focus();break;
-      case 'forehead':state.forehead=!state.forehead;overlay.classList.toggle('bpr-v61-forehead',state.forehead);if(!state.forehead&&document.fullscreenElement!==overlay)overlay.classList.remove('bpr-v65-immersive');btn.setAttribute('aria-pressed',String(state.forehead));btn.textContent=state.forehead?'↩ Sair do modo testa':'📱 Modo testa horizontal';$('bpr-game-play-hint').textContent=state.forehead?'Gire o celular para o modo paisagem e mostre a carta para a galera. A palavra nunca fica invertida.':'Modo normal: compartilhe a tela para quem vai dar as pistas.';if(state.forehead)void fullscreen(true);break;
+      case 'forehead':state.forehead=!state.forehead;overlay.classList.toggle('bpr-v61-forehead',state.forehead);if(!state.forehead&&document.fullscreenElement!==overlay)overlay.classList.remove('bpr-v65-immersive');btn.setAttribute('aria-pressed',String(state.forehead));btn.textContent=state.forehead?'↩ Sair do modo testa':'📱 Modo testa horizontal';$('bpr-game-play-hint').textContent=state.forehead?'Gire o celular para o modo paisagem e mostre a carta para a galera. A palavra nunca fica invertida.':'Modo normal: compartilhe a tela para quem vai dar as pistas.';if(state.forehead && !overlay.classList.contains('bpr-v65-immersive'))void fullscreen(true);break;
       case 'timer':if(state.timer){const remain=Math.max(0,Math.ceil((state.deadline-Date.now())/1000));stopTimer();state.remaining=remain;clockUpdate();}else{if(!state.remaining)state.remaining=state.duration;state.deadline=Date.now()+state.remaining*1000;state.timer=setInterval(tick,120);gameSound('start');clockUpdate();}break;
       case 'sound':soundOn=!soundOn;try{localStorage.setItem('bpr-games-sound',soundOn?'on':'off');}catch{}soundButtons();if(soundOn)gameSound('card');break;
       case 'fullscreen':void fullscreen(state.kind==='quem');break;
