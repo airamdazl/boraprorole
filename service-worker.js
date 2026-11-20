@@ -1,4 +1,4 @@
-const CACHE = 'bora-pro-role-v611-rebrand-visual';
+const CACHE = 'bora-pro-role-v613-temas-carrossel';
 const APP_SHELL = ['./', './index.html', './app.js', './style.css', './manifest.webmanifest',
   './banner-tem-gogo.webp', './games.js', './icon-192.png', './icon-512.png', './icon.svg',
   './termos.html', './privacidade.html', './comunidade.html'];

@@ -629,7 +629,6 @@ function showModal(title, body) {
 
 function closeModal(fromHistory = false) {
   releaseAvatarCrop();
-  if(bprV69CoverCrop){bprV69CoverCrop.bitmap?.close?.();bprV69CoverCrop=null;}
   const wasOpen = !$('modal').classList.contains('hidden');
   if (state.pickerMap) { state.pickerMap.remove(); state.pickerMap = null; }
   $('modal').classList.add('hidden');
@@ -1440,65 +1439,7 @@ function bprV69InstallCropGestures(stage,value,render,canvasWidth,zoomSlider){
   stage.addEventListener('wheel',e=>{if(!e.ctrlKey)return;e.preventDefault();value.zoom=Math.max(1,Math.min(3,value.zoom*(e.deltaY<0?1.06:.94)));if(zoomSlider)zoomSlider.value=String(value.zoom);render();},{passive:false});
 }
 
-// Foto de capa reutiliza o armazenamento privado de avatares por usuário;
-// sem criar coluna, tabela ou segredo de banco. Se a política não permitir,
-// o tema visual já existente permanece, sem indicar salvamento falso.
-let bprV69CoverCrop=null;
-const bprV69CoverPath=uid=>`${uid}/cover.webp`;
-async function bprV69SignedCover(uid){
-  const {data,error}=await db.storage.from('avatars').createSignedUrl(bprV69CoverPath(uid),90);
-  return error?'':safeHttps(data?.signedUrl);
-}
-async function bprV69RefreshCover(){
-  const cover=document.querySelector('.bpr-v69-my-cover');if(!cover||!state.user)return;
-  const uid=state.user.id;
-  const src=await bprV69SignedCover(uid).catch(()=>null);
-  if(state.user.id!==uid||!cover.isConnected)return;
-  cover.querySelector('img.bpr-v69-cover-image')?.remove();
-  if(src){const img=document.createElement('img');img.className='bpr-v69-cover-image';img.alt='Minha foto de capa';img.onerror=()=>img.remove();img.src=src;cover.prepend(img);}
-}
-async function bprV69ProfileCoverOptions(){
-  if(!state.user)return;
-  bprV69CoverCrop?.bitmap?.close?.();bprV69CoverCrop=null;
-  showModal('Minha capa 📸',`<p class="small-muted">Escolha uma imagem horizontal. Você pode usar a pinça com dois dedos e arrastar o enquadramento. Os temas de capa permanecem disponíveis.</p><input type="file" id="bpr-v69-cover-file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" hidden><button type="button" class="btn btn-pink" data-action="profile-cover-choose">📷 Escolher foto da galeria</button><button type="button" class="btn btn-ghost" data-action="profile-cover-remove">Remover foto e usar tema</button><p class="small-muted">Imagens até 15 MB; o salvamento depende das permissões do armazenamento.</p>`);
-  $('bpr-v69-cover-file')?.addEventListener('change',async e=>{
-    const file=e.target.files?.[0];if(!file)return;
-    try{await bprV69OpenCoverCrop(file);}catch(err){toast('Não foi possível preparar esta capa: '+friendlyError(err));}
-  });
-}
-async function bprV69OpenCoverCrop(file){
-  if(!/^image\/(jpeg|png|webp|heic|heif)$/i.test(file.type)||file.size>15*1024*1024)throw Error('Selecione JPG, PNG, WebP ou HEIC de até 15 MB.');
-  const bmp=await createImageBitmap(file);
-  bprV69CoverCrop?.bitmap?.close?.();
-  const crop={bitmap:bmp,zoom:1,offsetX:0,offsetY:0};bprV69CoverCrop=crop;
-  showModal('Enquadrar minha capa',`<div class="bpr-crop-form"><p class="small-muted">Arraste a imagem e use dois dedos para ajustar antes de salvar.</p><div class="bpr-crop-stage bpr-v69-cover-stage" id="bpr-v69-cover-stage"><canvas id="bpr-v69-cover-canvas" width="960" height="360" aria-label="Prévia horizontal do recorte da capa"></canvas></div><button class="btn btn-pink" data-action="profile-cover-save">Salvar foto de capa</button><button class="btn btn-ghost" data-action="profile-cover-options">Cancelar</button></div>`);
-  const canvas=$('bpr-v69-cover-canvas'),stage=$('bpr-v69-cover-stage');
-  const render=()=>{
-    if(bprV69CoverCrop!==crop)return;
-    const w=960,h=360,scale=Math.max(w/bmp.width,h/bmp.height)*crop.zoom;
-    const bw=bmp.width*scale,bh=bmp.height*scale;
-    crop.offsetX=Math.max(-(bw-w)/2,Math.min((bw-w)/2,crop.offsetX));
-    crop.offsetY=Math.max(-(bh-h)/2,Math.min((bh-h)/2,crop.offsetY));
-    const ctx=canvas.getContext('2d');ctx.clearRect(0,0,w,h);ctx.drawImage(bmp,(w-bw)/2+crop.offsetX,(h-bh)/2+crop.offsetY,bw,bh);
-  };
-  bprV69InstallCropGestures(stage,crop,render,960,null);render();
-}
-async function bprV69SaveCoverCrop(btn){
-  if(!bprV69CoverCrop||!state.user)return;
-  btn.disabled=true;
-  try{
-    const canvas=$('bpr-v69-cover-canvas');if(!canvas)throw Error('Prévia indisponível.');
-    const blob=await new Promise(r=>canvas.toBlob(r,'image/webp',.8));if(!blob)throw Error('Falha ao processar a imagem.');
-    await assertOk(db.storage.from('avatars').upload(bprV69CoverPath(state.user.id),blob,{upsert:true,contentType:'image/webp',cacheControl:'60'}));
-    bprV69CoverCrop.bitmap.close?.();bprV69CoverCrop=null;closeModal();await bprV69RefreshCover();toast('Foto de capa salva.');
-  }catch(err){toast('Não foi possível salvar a capa: '+friendlyError(err));}
-  finally{btn.disabled=false;}
-}
-async function bprV69RemoveCover(){
-  if(!await appConfirm('Remover a foto da capa e voltar ao tema visual?',{title:'Remover foto de capa',danger:true,confirmLabel:'Remover'}))return;
-  try{await assertOk(db.storage.from('avatars').remove([bprV69CoverPath(state.user.id)]));closeModal();await bprV69RefreshCover();toast('A capa voltou ao tema escolhido.');}
-  catch(err){toast('Não foi possível remover a capa: '+friendlyError(err));}
-}
+// Capas de perfil: somente temas CSS, sem uploads de imagens nem chamadas ao Storage.
 
 function hydrateProfile() {
   const profile = state.profile;
@@ -1507,7 +1448,6 @@ function hydrateProfile() {
   $('profile-handle').textContent = `@${profile.username}`;
   $('profile-bio').textContent = profile.bio || 'Ainda não escreveu sua descrição.';
   void bprV69RenderRelations(profile.id,'bpr-v69-my-relations');
-  void bprV69RefreshCover();
   $('user-city-label').innerHTML = `<i data-lucide="map-pin"></i> ${html(profile.city || 'Brasil')}`;
   const miniAvatar=document.querySelector('.avatar-btn');
   if (miniAvatar) {
@@ -1652,12 +1592,14 @@ initBprProfileHub();
 // Personalização opcional, isolada das identificações sensíveis de acesso.
 const bprProfileCategories=['festa','bar','balada','cinema','show','festival','cultura','ar-livre','rave','outros'];
 const bprRelationshipLabels={single:'Solteiro(a)',dating:'Conhecendo alguém',relationship:'Em um relacionamento',complicated:'É complicado'};
-const bprProfileThemes=['aurora','sunset','night','ocean','urban','festival','nature'];
+const bprProfileThemes=['aurora','sunset','night','ocean','urban','festival','nature','balada','praia','amigos','boteco','rave','aventura','lounge','serra'];
+const bprProfileThemeLabels={aurora:'Aurora',sunset:'Pôr do sol',night:'Noite',ocean:'Oceano',urban:'Urbano',festival:'Festival',nature:'Natureza',balada:'Baladeira',praia:'Praieira',amigos:'Resenha',boteco:'Boteco',rave:'Eletrônica',aventura:'Aventura',lounge:'Lounge',serra:'Na serra'};
 let bprProfileStyle={cover_theme:'aurora',relationship_status:null,show_relationship:false,preferred_categories:[]};
 let bprStyleLoadedUser=null;
 function initBprStyleForm() {
   const form=$('bpr-style-form');if (!form || form.dataset.ready) return;
   form.dataset.ready='true';
+  initBdrV613Carousels(form);
   $('bpr-preferences-options').innerHTML=bprProfileCategories.map(slug => {
     return `<label class="bpr-preference-option"><input type="checkbox" name="preferred_categories" value="${html(slug)}"><span>${html(catLabel(slug))}</span></label>`;
   }).join('');
@@ -1674,8 +1616,61 @@ function initBprStyleForm() {
   form.addEventListener('submit',saveBprProfileStyle);
 }
 function applyBprCover(theme) {
+  const picked=bprProfileThemes.includes(theme)?theme:'aurora';
   const cover=document.querySelector('#screen-perfil .profile-cover');
-  if(cover) cover.dataset.vibe=bprProfileThemes.includes(theme)?theme:'aurora';
+  if(cover)cover.dataset.vibe=picked;
+  const label=$('bpr-v612-selected-theme');
+  if(label)label.textContent=bprProfileThemeLabels[picked] + (['aurora','sunset','night','ocean','urban','festival','nature'].includes(picked)?' · clássico':' · vibe de rolê');
+}
+// V6.13: apenas dois grupos; um tema por vez por arrasto ou botões.
+function initBdrV613Carousels(form){
+  if(form.dataset.bdrV613Ready==='true')return;
+  form.dataset.bdrV613Ready='true';
+  const groups=[...form.querySelectorAll('.bdr-v613-group')];
+  const update=(group)=>{
+    const track=group.querySelector('.bdr-v613-track');
+    if(!track)return;
+    const size=track.clientWidth||1;
+    const slides=[...track.querySelectorAll('.bdr-v613-slide')];
+    const index=Math.min(slides.length-1,Math.max(0,Math.round(track.scrollLeft/size)));
+    const count=group.querySelector('.bdr-v613-count');
+    if(count)count.textContent=`${index+1} de ${slides.length}`;
+    group.querySelectorAll('[data-theme-step]').forEach(btn=>btn.disabled=(index===0&&btn.dataset.themeStep==='-1')||(index===slides.length-1&&btn.dataset.themeStep==='1'));
+  };
+  const go=(group,index,animate=true)=>{
+    const track=group.querySelector('.bdr-v613-track');
+    if(!track)return;
+    const total=track.querySelectorAll('.bdr-v613-slide').length;
+    const target=Math.min(total-1,Math.max(0,index));
+    track.scrollTo({left:target*track.clientWidth,behavior:animate&&!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches?'smooth':'auto'});
+    if(!animate)update(group);
+  };
+  groups.forEach(group=>{
+    const track=group.querySelector('.bdr-v613-track');
+    track.addEventListener('scroll',()=>update(group),{passive:true});
+    group.querySelectorAll('[data-theme-step]').forEach(btn=>btn.addEventListener('click',()=>go(group,Math.round(track.scrollLeft/(track.clientWidth||1))+Number(btn.dataset.themeStep))));
+    group.addEventListener('toggle',()=>{
+      if(group.open){
+        groups.filter(other=>other!==group).forEach(other=>other.open=false);
+        const slides=[...track.querySelectorAll('.bdr-v613-slide')];
+        const selected=slides.findIndex(slide=>slide.querySelector('input:checked'));
+        go(group,Math.max(selected,0),false);
+      }
+    });
+    track.addEventListener('keydown',event=>{
+      if(event.target!==track||!['ArrowRight','ArrowLeft'].includes(event.key))return;
+      event.preventDefault();go(group,Math.round(track.scrollLeft/(track.clientWidth||1))+(event.key==='ArrowRight'?1:-1));
+    });
+    update(group);
+  });
+  form.addEventListener('change',event=>{
+    if(event.target.name!=='cover_theme')return;
+    const group=event.target.closest('.bdr-v613-group');
+    const slides=[...group?.querySelectorAll('.bdr-v613-slide')||[]];
+    const index=slides.findIndex(slide=>slide.contains(event.target));
+    if(index>=0)go(group,index,false);
+  });
+  // Os componentes da capa permanecem CSS-only, sem qualquer upload.
 }
 function renderBprProfileStyle(style=bprProfileStyle) {
   initBprStyleForm();
@@ -1727,7 +1722,7 @@ async function saveBprProfileStyle(event) {
     $('bpr-style-feedback').textContent='Sua vibe foi salva no perfil.';
     toast('Sua vibe foi salva!');
   }catch(err){
-    $('bpr-style-feedback').textContent='Não foi possível salvar. Confirme que a migração da personalização foi instalada.';
+    $('bpr-style-feedback').textContent='Não foi possível salvar este tema. Confira se a atualização dos temas está instalada no Supabase.';
     toast('Personalização não salva. O restante do perfil não foi alterado.');
   }finally{if(submit)submit.disabled=false;}
 }
@@ -1897,7 +1892,6 @@ async function viewUserProfile(userId,fromSquad='') {
       </div></article>`);
     void bprV6CheckFollowing(userId);
     void bprV69RenderRelations(userId,'bpr-v69-guest-relations');
-    if(profile.avatar_path)void bprV69SignedCover(userId).then(url=>{const cover=document.querySelector('.bpr-guest-profile .bpr-guest-cover');if(url&&cover?.isConnected){const img=document.createElement('img');img.className='bpr-v69-cover-image';img.alt='Foto de capa';img.onerror=()=>img.remove();img.src=url;cover.append(img);}}).catch(()=>{});
   }catch(err){toast('Não foi possível abrir este perfil. '+friendlyError(err));}
 }
 
@@ -3568,10 +3562,6 @@ async function handleAction(action, element) {
         toast('Permissão do integrante atualizada.');
         await loadSquads();return await showSquadRoster(element.dataset.squad);
       }
-      case 'profile-cover-options': return await bprV69ProfileCoverOptions();
-      case 'profile-cover-choose': return $('bpr-v69-cover-file')?.click();
-      case 'profile-cover-save': return await bprV69SaveCoverCrop(element);
-      case 'profile-cover-remove': return await bprV69RemoveCover();
       case 'view-relation-list': return await bprV69ViewRelationList(id,element.dataset.kind);
       case 'leave-squad': return await leaveSquad(id);
       case 'accept-invite': {if(await respondInvite(id,true))return await bprV68InviteInbox();return;}
