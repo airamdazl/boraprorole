@@ -991,3 +991,30 @@ body.bpr-game-active{overflow:hidden!important}
 #bpr-safety-report-picker label[hidden]{display:none!important}
 @media(max-width:380px){.bpr-report-hub{padding:16px}.bpr-safety-help-drawer>summary{padding:14px}}
 @media(prefers-reduced-motion:reduce){.bpr-safety-help-drawer *{scroll-behavior:auto!important}}
+
+/* V6.2.1 — formulário de denúncia claro e sem duplicação de etapas */
+.bpr-report-form{display:grid;gap:16px;width:100%;min-width:0}
+.bpr-report-detail-fields{display:grid;gap:13px;min-width:0}
+.bpr-report-form .bpr-report-field{display:grid;gap:8px;font-size:14px;font-weight:750;min-width:0;color:var(--text)}
+.bpr-report-form .bpr-report-field[hidden]{display:none!important}
+.bpr-report-form select,.bpr-report-form input,.bpr-report-form textarea{display:block;box-sizing:border-box;width:100%;min-width:0;font:inherit;color:var(--text);background:var(--surface2);border:1px solid var(--line);border-radius:14px;padding:14px 15px;min-height:49px}
+.bpr-report-form textarea{min-height:140px;line-height:1.5;resize:vertical}
+.bpr-report-form :is(select,input,textarea):focus-visible{outline:3px solid #7dbeff;outline-offset:2px}
+.bpr-report-form .small-muted{margin:0;line-height:1.55}
+.bpr-report-privacy-note{border-radius:13px;padding:12px;background:color-mix(in srgb,var(--surface2) 80%,transparent)}
+.bpr-report-send{width:100%;min-height:50px}
+@media(max-width:370px){.bpr-report-form .bpr-report-field{font-size:13px}.bpr-report-form select,.bpr-report-form input,.bpr-report-form textarea{font-size:15px;padding:13px}}
+
+/* V6.2.2 — Acompanhamento privado de denúncias */
+.bpr-report-history-btn{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:10px;width:100%;min-height:48px}
+.bpr-report-tracking-list{display:grid;gap:13px;margin:14px 0 20px}
+.bpr-report-tracking-card{min-width:0;overflow-wrap:anywhere}
+.bpr-report-tracking-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.bpr-report-tracking-card details{margin-top:12px}
+.bpr-report-tracking-card summary{cursor:pointer;padding:10px 0;min-height:44px}
+.bpr-report-timeline{border-left:2px solid #3c7c80;padding-left:14px;display:grid;gap:14px;margin:12px 0}
+.bpr-report-timeline-item{display:grid;gap:5px;min-width:0;overflow-wrap:anywhere}
+.bpr-report-timeline-item small{opacity:.75}
+.bpr-report-timeline-item p{white-space:pre-wrap;margin:0}
+.bpr-report-history-actions{display:flex;gap:8px;flex-wrap:wrap}
+.bpr-report-history-actions .btn{min-height:44px;flex:1 1 150px}

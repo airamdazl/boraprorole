@@ -2619,24 +2619,110 @@ async function openRoomMembers() {
   } catch (err) { toast(err.message); }
 }
 
-// Acesso central às denúncias: escolhe um alvo real antes de chamar a RPC existente.
-// Mensagens de chats são denunciadas pelo botão na própria mensagem (ID inequívoco).
+// Denúncias: alvos e relato na mesma tela, usando os sete códigos já aceitos por reports.
+// A classificação específica é anexada ao campo details, sem modificar o contrato da RPC.
+const BPR_REPORT_INCIDENTS = Object.freeze([
+  { id:'importunacao', reason:'harassment', label:'Importunação, assédio ou constrangimento' },
+  { id:'ameaca', reason:'harassment', label:'Ameaça ou intimidação' },
+  { id:'agressao', reason:'harassment', label:'Agressão ou violência física' },
+  { id:'perseguicao', reason:'harassment', label:'Perseguição insistente' },
+  { id:'discriminacao', reason:'discrimination', label:'Discriminação, racismo ou LGBTfobia' },
+  { id:'fotos', reason:'privacy', label:'Uso indevido de fotos ou vídeos' },
+  { id:'intimidade', reason:'privacy', label:'Exposição de imagens íntimas sem autorização' },
+  { id:'dados', reason:'privacy', label:'Exposição de dados pessoais ou privacidade' },
+  { id:'golpe', reason:'fraud', label:'Golpe, fraude ou pedido suspeito de dinheiro' },
+  { id:'perfil-falso', reason:'fraud', label:'Perfil falso ou tentativa de se passar por alguém' },
+  { id:'menor', reason:'minor', label:'Suspeita de menor de idade' },
+  { id:'ilegal', reason:'illegal', label:'Conteúdo ou atividade ilegal' },
+  { id:'outro', reason:'other', label:'Outro problema' }
+]);
+
+function bprReportDetailsForm() {
+  return `<div class="bpr-report-detail-fields">
+    <label class="bpr-report-field">Classificação da ocorrência *
+      <select name="incident" required aria-describedby="bpr-report-classification-help">
+        <option value="" selected disabled>Escolha o que aconteceu</option>
+        ${BPR_REPORT_INCIDENTS.map(item=>`<option value="${html(item.id)}">${html(item.label)}</option>`).join('')}
+      </select>
+    </label>
+    <p id="bpr-report-classification-help" class="small-muted">Escolha o motivo principal. Você poderá explicar outros detalhes no relato.</p>
+    <label class="bpr-report-field">Conte o que aconteceu *
+      <textarea name="details" rows="5" minlength="12" maxlength="1850" required placeholder="Descreva o ocorrido, onde aconteceu e quando, se souber. Não inclua senhas ou documentos pessoais."></textarea>
+    </label>
+    <p class="small-muted bpr-report-privacy-note">🔒 Seu relato será enviado à equipe de moderação. Ao denunciar uma mensagem pelo chat, o registro será associado à mensagem específica. Em risco imediato, ligue 190.</p>
+  </div>`;
+}
+
+async function bprSendReport(kind, target, form) {
+  const data = new FormData(form);
+  const choice = BPR_REPORT_INCIDENTS.find(item=>item.id===data.get('incident'));
+  const detail = String(data.get('details')||'').trim();
+  if (!choice) throw Error('Selecione uma classificação para a denúncia.');
+  if (detail.length < 12) throw Error('Conte o que aconteceu com pelo menos 12 caracteres.');
+  // Sem anexos ou acesso amplo aos chats; os snapshots são responsabilidade da RPC.
+  const description = `Ocorrência informada: ${choice.label}\nRelato: ${detail}`;
+  if (description.length > 2000) throw Error('Relato muito longo. Resuma a descrição.');
+  await assertOk(db.rpc('submit_report', {
+    _target_kind:kind,
+    _target_id:String(target),
+    _reason:choice.reason,
+    _details:description
+  }));
+}
+
+// Denúncia geral: o usuário escolhe alvo, classificação e relato sem uma tela intermediária.
+// Denúncias de mensagens continuam na própria mensagem, por seu identificador único.
+// Histórico do próprio denunciante, fornecido exclusivamente por RPC autenticada.
+// Não consulta diretamente reports nem retorna evidências, detalhes internos ou dados de terceiros.
+const bprReportStatusLabels = {pending:'Recebida',reviewing:'Em análise',resolved:'Concluída',dismissed:'Encerrada sem confirmação'};
+const bprReportKindLabels = {user:'Pessoa',event:'Rolê',squad:'Squad',pin:'Mural',event_message:'Mensagem do rolê',squad_message:'Mensagem do Squad'};
+async function openMyReports() {
+  if (!state.user) return toast('Faça login para acompanhar suas denúncias.');
+  let reports;
+  try {
+    reports = await assertOk(db.rpc('bpr_report_my_list'));
+    if (!Array.isArray(reports)) throw Error('Resposta inesperada do servidor.');
+  } catch(error) {
+    showModal('Minhas denúncias 🛡️', `<p role="alert" class="small-muted">Não foi possível consultar o histórico agora. Confirme se a atualização do Supabase V6.2.2 foi instalada e tente novamente.</p><button type="button" class="btn btn-ghost" data-action="report-my">Tentar novamente</button>`);
+    return;
+  }
+  const cards = reports.map(r=>{
+    const items = Array.isArray(r.updates) ? r.updates : [];
+    const history = items.map(u=>`<div class="bpr-report-timeline-item"><strong>${html(u.kind==='reply'?'Resposta da equipe':'Situação atualizada')} · ${html(bprReportStatusLabels[u.status]||u.status)}</strong><small>${html(shortDate(u.created_at))}</small>${u.kind==='reply'&&u.message?`<p>${html(u.message)}</p>`:''}</div>`).join('');
+    return `<article class="mod-card bpr-report-tracking-card"><div class="bpr-report-tracking-head"><strong>Protocolo ${html(r.protocol||String(r.id||'').slice(0,8).toUpperCase())}</strong><span class="badge green">${html(bprReportStatusLabels[r.status]||r.status)}</span></div><p class="small-muted">${html(bprReportKindLabels[r.target_kind]||r.target_kind)} · ${html(shortDate(r.created_at))}</p><details><summary>Ver relato e acompanhamento</summary><div class="bpr-report-timeline"><div class="bpr-report-timeline-item"><strong>Denúncia recebida</strong><small>${html(shortDate(r.created_at))}</small><p>${html(r.details||'Relato enviado para análise.')}</p></div>${history}</div></details></article>`;
+  }).join('');
+  showModal('Minhas denúncias 🛡️', `<p class="small-muted">Acompanhe os protocolos e respostas da moderação. O andamento é consultado ao abrir esta tela; não há notificação push.</p><div class="bpr-report-history-actions"><button class="btn btn-ghost btn-small" type="button" data-action="report-my">Atualizar histórico</button><button class="btn btn-pink btn-small" type="button" data-action="report-center">Nova denúncia</button></div><div class="bpr-report-tracking-list">${cards||'<p class="small-muted">Você ainda não enviou denúncias.</p>'}</div><p class="small-muted">A equipe não divulga dados privados de outras pessoas nem detalhes de investigações internas.</p>`);
+}
+
 async function openSafetyReportCenter() {
   if (!state.user) return toast('Entre em sua conta para enviar uma denúncia.');
-  const published = state.events.filter(e => e.status === 'published').slice(0, 100);
-  const squads = state.squads.slice(0, 80);
-  showModal('Registrar denúncia 🛡️', `<p class="small-muted">Escolha o conteúdo que deseja denunciar. A equipe terá acesso apenas à denúncia e às evidências autorizadas pelo sistema.</p>
-    <form id="bpr-safety-report-picker" class="privacy-form">
-      <label>O que aconteceu?<select name="kind" id="bpr-safety-report-kind" required>
-        <option value="event">Problema em um rolê</option>
-        <option value="squad">Problema em um Squad</option>
-        <option value="user">Denunciar uma pessoa por @user</option>
-      </select></label>
-      <label id="bpr-safety-report-event-wrap">Escolha o rolê<select name="eventId" id="bpr-safety-report-event" aria-label="Rolê denunciado">${published.length ? published.map(e=>`<option value="${html(e.id)}">${html(e.title)} · ${html(e.city || '')}</option>`).join('') : '<option value="">Nenhum rolê disponível nesta sessão</option>'}</select></label>
-      <label id="bpr-safety-report-squad-wrap" hidden>Escolha seu Squad<select name="squadId" id="bpr-safety-report-squad" aria-label="Squad denunciado">${squads.length ? squads.map(s=>`<option value="${html(s.id)}">${html(s.name)}</option>`).join('') : '<option value="">Nenhum Squad disponível nesta sessão</option>'}</select></label>
-      <label id="bpr-safety-report-user-wrap" hidden>@user da pessoa<input type="text" name="nickname" id="bpr-safety-report-user" maxlength="24" placeholder="Ex.: seuuser" autocomplete="off"></label>
-      <p class="small-muted">Para denunciar uma mensagem de chat de Squad ou de rolê, abra a conversa e toque em <strong>Denunciar</strong> na mensagem específica. Assim o registro é associado ao conteúdo correto.</p>
-      <button type="submit" class="btn btn-pink">Continuar denúncia</button>
+  const published = state.events.filter(e=>e.status==='published').slice(0,100);
+  const squads = state.squads.slice(0,80);
+  showModal('Registrar denúncia 🛡️', `<p class="small-muted">Conte o que aconteceu. O relato será encaminhado à moderação sem tornar conversas privadas públicas.</p>
+    <form id="bpr-safety-report-picker" class="privacy-form bpr-report-form">
+      <label class="bpr-report-field">O que deseja denunciar? *
+        <select name="kind" id="bpr-safety-report-kind" required>
+          <option value="event">Um rolê</option>
+          <option value="squad">Um Squad</option>
+          <option value="user">Uma pessoa por @user</option>
+        </select>
+      </label>
+      <label class="bpr-report-field" id="bpr-safety-report-event-wrap">Escolha o rolê *
+        <select name="eventId" id="bpr-safety-report-event" aria-label="Rolê denunciado">
+          ${published.length ? published.map(e=>`<option value="${html(e.id)}">${html(e.title)} · ${html(e.city||'')}</option>`).join('') : '<option value="">Nenhum rolê disponível nesta sessão</option>'}
+        </select>
+      </label>
+      <label class="bpr-report-field" id="bpr-safety-report-squad-wrap" hidden>Escolha o Squad *
+        <select name="squadId" id="bpr-safety-report-squad" aria-label="Squad denunciado">
+          ${squads.length ? squads.map(s=>`<option value="${html(s.id)}">${html(s.name)}</option>`).join('') : '<option value="">Nenhum Squad disponível nesta sessão</option>'}
+        </select>
+      </label>
+      <label class="bpr-report-field" id="bpr-safety-report-user-wrap" hidden>@user da pessoa *
+        <input type="text" name="nickname" id="bpr-safety-report-user" maxlength="24" placeholder="Ex.: seuuser" autocomplete="off">
+      </label>
+      ${bprReportDetailsForm()}
+      <p class="small-muted">Para denunciar uma mensagem de um Squad ou rolê, abra o chat e use <strong>Denunciar</strong> na mensagem. Assim a denúncia identifica o conteúdo exato.</p>
+      <button type="submit" class="btn btn-pink bpr-report-send">Enviar denúncia</button>
     </form>`);
   const form = $('bpr-safety-report-picker');
   const kindField = $('bpr-safety-report-kind');
@@ -2650,7 +2736,7 @@ async function openSafetyReportCenter() {
   renderKind();
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
-    const submit = event.submitter;
+    const submit = event.submitter || form.querySelector('[type="submit"]');
     if (submit.disabled) return;
     submit.disabled = true;
     try {
@@ -2661,11 +2747,14 @@ async function openSafetyReportCenter() {
       else {
         const nickname = $('bpr-safety-report-user').value.trim().replace(/^@/,'').toLowerCase();
         if (!/^[a-z0-9_.]{3,24}$/.test(nickname)) throw Error('Informe um @user válido, com 3 a 24 caracteres.');
-        const people = await assertOk(db.rpc('bora_lookup_profile', {_nickname:nickname}));
+        const people = await assertOk(db.rpc('bora_lookup_profile',{_nickname:nickname}));
         target = people?.[0]?.user_id || '';
       }
-      if (!target) throw Error('Não encontramos esse conteúdo. Consulte o rolê, Squad ou @user antes de denunciar.');
-      openReport(kind, target);
+      if (!target) throw Error('Não encontramos esse conteúdo. Confirme o rolê, Squad ou @user antes de denunciar.');
+      await bprSendReport(kind,target,form);
+      closeModal();
+      toast('Denúncia enviada. Consulte o protocolo em Minhas denúncias.');
+      await openMyReports();
     } catch (err) {
       toast(friendlyError(err));
     } finally { submit.disabled = false; }
@@ -2674,23 +2763,24 @@ async function openSafetyReportCenter() {
 
 function openReport(kind, target) {
   leaveRoom();
-  showModal('Denunciar à moderação 🛡️', `<p class="legal-note">Denúncias ficam restritas à equipe de moderação. Em situação de risco imediato, ligue 190. Esta ação não substitui as autoridades.</p>
-    <form id="report-form"><div class="field"><label>Motivo<select name="reason" required>
-      <option value="harassment">Assédio, ameaça ou violência</option><option value="discrimination">Racismo, LGBTfobia ou discriminação</option>
-      <option value="fraud">Golpe ou fraude</option><option value="minor">Suspeita de menor de idade</option>
-      <option value="illegal">Conteúdo ilegal</option><option value="privacy">Violação de privacidade</option><option value="other">Outro</option></select></label></div>
-      <div class="field"><label>Explique o ocorrido<textarea name="details" maxlength="2000" required placeholder="O que aconteceu? Não publique dados sensíveis de terceiros."></textarea></label></div>
-      <button class="btn btn-pink" type="submit">Enviar denúncia</button></form>`);
-  $('report-form').addEventListener('submit', async (event) => {
+  showModal('Denunciar à moderação 🛡️', `<p class="small-muted">Descreva a ocorrência associada ao conteúdo selecionado. O registro ficará restrito à moderação.</p>
+    <form id="report-form" class="bpr-report-form">
+      ${bprReportDetailsForm()}
+      <button type="submit" class="btn btn-pink bpr-report-send">Enviar denúncia</button>
+    </form>`);
+  const form = $('report-form');
+  form.addEventListener('submit', async (event) => {
     event.preventDefault();
-    const data = Object.fromEntries(new FormData(event.target));
-    const button = event.submitter;
+    const button = event.submitter || form.querySelector('[type="submit"]');
     if (button.disabled) return;
     button.disabled = true;
     try {
-      await assertOk(db.rpc('submit_report',{_target_kind:kind,_target_id:String(target),_reason:data.reason,_details:data.details.trim()}));
-      closeModal(); toast('Denúncia registrada para análise.');
-    } catch (err) { toast(friendlyError(err)); button.disabled = false; }
+      await bprSendReport(kind,target,form);
+      closeModal();
+      toast('Denúncia enviada. Consulte o protocolo em Minhas denúncias.');
+      await openMyReports();
+    } catch (err) { toast(friendlyError(err)); }
+    finally { button.disabled = false; }
   });
 }
 
@@ -2860,6 +2950,7 @@ async function openBprHelp() {
     issue = 'O atendimento interno está indisponível neste momento. Tente novamente mais tarde. Para denunciar um conteúdo, use o botão Denunciar no aplicativo.';
   }
   showModal('Ajuda e atendimento 💬', `<p class="small-muted">Fale com a equipe e acompanhe as respostas aqui. Não inclua senhas, documentos ou informações íntimas.</p>
+    <button type="button" class="btn btn-ghost bpr-report-history-btn" data-action="report-my">🛡️ Minhas denúncias e respostas</button>
     <button type="button" id="bpr-tour-restart" class="btn btn-ghost">▶ Rever tour do aplicativo</button>
     <details class="bpr-faq"><summary>Como usar o Bora Pro Rolê? · Guia rápido</summary><ol>
       <li>Em <strong>Explorar</strong>, busque rolês e consulte os detalhes no mapa ou na lista.</li>
@@ -3022,6 +3113,7 @@ async function handleAction(action, element) {
       case 'cancel-event': return await cancelEvent(id);
       case 'safety': closeAndLeaveRoom(); return navigate('seguranca');
       case 'report-center': return await openSafetyReportCenter();
+      case 'report-my': return await openMyReports();
       case 'profile-toggle-edit': {
         const hub=$('bpr-profile-hub'), drawer=$('bpr-hub-edit');
         if(!hub||!drawer)return;
