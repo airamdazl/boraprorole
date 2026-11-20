@@ -1256,9 +1256,9 @@ function hydrateProfile() {
   if (profileBadge) profileBadge.textContent = 'Conectado';
   const profileSave = document.querySelector('[data-action="save-profile"]');
   if (profileSave) profileSave.textContent = 'Salvar meu perfil';
-  const privacyLabels = document.querySelectorAll('#screen-perfil .profile-panel .two-col .switch-line strong');
+  const privacyLabels = document.querySelectorAll('#bpr-account-panel .switch-line strong');
   if (privacyLabels[3]) privacyLabels[3].textContent = 'Permitir busca pelo meu @user';
-  const switches = document.querySelectorAll('#screen-perfil .profile-panel .two-col .switch-line input');
+  const switches = document.querySelectorAll('#bpr-account-panel .switch-line input');
   if (switches[0]) switches[0].checked = profile.avatar_visibility === 'friends';
   if (switches[1]) switches[1].checked = profile.details_visibility === 'friends';
   if (switches[2]) switches[2].checked = Boolean(profile.show_age);
@@ -1279,11 +1279,11 @@ function hydrateProfile() {
     });
   }
   // V5.4: edição da foto só aparece quando o usuário toca no avatar.
-  const editPanel = document.querySelector('#screen-perfil .profile-panel .two-col > .panel:first-child');
+  const editPanel = document.querySelector('#bpr-edit-profile-panel');
   if (editPanel && !editPanel.id) editPanel.id = 'bpr-edit-profile-panel';
   if (editPanel && !editPanel.classList.contains('bpr-edit-profile-panel')) {
     editPanel.classList.add('bpr-edit-profile-panel');
-    editPanel.classList.add('bpr-collapsed');
+    // O formulário permanece no DOM, recolhido pela gaveta nativa do painel.
   }
   if (!$('profile-account-options')) {
     const options = document.createElement('div');
@@ -1291,7 +1291,7 @@ function hydrateProfile() {
     options.innerHTML = `<div class="switch-line"><label for="birthday-consent"><strong>🎂 Avisar meu aniversário aos SQUADs</strong>
         <small>Somente dia e mês, se você autorizar.</small></label><input type="checkbox" id="birthday-consent"></div>
       <button class="btn btn-ghost hidden" id="moderation-entry" data-action="moderation">🛡️ Painel de moderação</button>`;
-    document.querySelector('#screen-perfil .profile-panel .two-col > .panel:last-child').append(options);
+    document.querySelector('#bpr-account-panel').append(options);
   }
   if (!$('friend-form')) {
     const finder = document.createElement('section');
@@ -1309,7 +1309,7 @@ function hydrateProfile() {
     blocks.innerHTML = `<h3>🔒 Controle de bloqueios</h3><p class="small-muted">Você pode bloquear qualquer @user, mesmo que o perfil não apareça nas pesquisas.</p>
       <form id="nickname-block-form" class="friend-finder"><input id="block-nick" placeholder="@user a bloquear" maxlength="24" aria-label="Bloquear pelo @user"><button class="btn btn-ghost" type="submit">Bloquear</button></form>
       <button class="inline-button" data-action="manage-blocks">Ver e gerenciar meus bloqueios</button>`;
-    document.querySelector('#screen-perfil .profile-panel').after(blocks);
+    document.querySelector('#bpr-hub-privacy .bpr-hub-drawer-body').append(blocks);
     $('friend-form').addEventListener('submit', followNickname);
     $('nickname-block-form').addEventListener('submit', blockNicknameFromForm);
   }
@@ -1330,10 +1330,27 @@ function hydrateProfile() {
   }).catch(() => { state.isModerator = false; });
 }
 
+
+// V5.5 - painel único: a gaveta fechada mantém os valores não salvos no DOM.
+// Somente uma subseção expandida, com teclado nativo e estado de foco preservado.
+function initBprProfileHub(){
+  const hub=document.getElementById('bpr-profile-hub');
+  if(!hub||hub.dataset.initialized)return;
+  hub.dataset.initialized='true';
+  const drawers=[...hub.querySelectorAll('.bpr-hub-drawer')];
+  drawers.forEach(drawer=>{
+    drawer.addEventListener('toggle',()=>{
+      if(!drawer.open)return;
+      drawers.forEach(other=>{if(other!==drawer)other.open=false;});
+    });
+  });
+}
+initBprProfileHub();
+
 // Personalização opcional, isolada das identificações sensíveis de acesso.
 const bprProfileCategories=['festa','bar','balada','cinema','show','festival','cultura','ar-livre','rave','outros'];
 const bprRelationshipLabels={single:'Solteiro(a)',dating:'Conhecendo alguém',relationship:'Em um relacionamento',complicated:'É complicado'};
-const bprProfileThemes=['aurora','sunset','night','ocean','urban'];
+const bprProfileThemes=['aurora','sunset','night','ocean','urban','festival','nature'];
 let bprProfileStyle={cover_theme:'aurora',relationship_status:null,show_relationship:false,preferred_categories:[]};
 let bprStyleLoadedUser=null;
 function initBprStyleForm() {
@@ -1417,7 +1434,7 @@ async function saveProfile() {
   const display = $('edit-name').value.trim();
   const username = $('edit-handle').value.trim().replace(/^@/, '').toLowerCase();
   if (!display || !/^[a-z0-9_.]{3,24}$/.test(username)) return toast('Confira seu nome e @user.');
-  const switches = document.querySelectorAll('#screen-perfil .profile-panel .two-col .switch-line input');
+  const switches = document.querySelectorAll('#bpr-account-panel .switch-line input');
   const payload = {display_name: display, username, city: $('edit-city').value.trim() || null,
     bio: $('edit-bio').value.trim(), instagram: $('edit-insta').value.trim() || null};
   try {
@@ -1572,7 +1589,7 @@ async function viewUserProfile(userId,fromSquad='') {
       db.rpc('bpr_profile_personalization_public',{p_user_id:userId})
     ]);
     const src=safeHttps(image?.data?.signedUrl);
-    const theme=['aurora','sunset','night','ocean','urban'].includes(style?.data?.cover_theme)?style.data.cover_theme:'aurora';
+    const theme=bprProfileThemes.includes(style?.data?.cover_theme)?style.data.cover_theme:'aurora';
     const rel=style?.data?.relationship_status;
     const relationship=rel&&bprRelationshipLabels[rel]?`<span class="bpr-relationship-chip">💛 ${html(bprRelationshipLabels[rel])}</span>`:'';
     showModal('Perfil de @'+profile.username,`<article class="bpr-guest-profile">
@@ -2726,13 +2743,11 @@ async function handleAction(action, element) {
       case 'cancel-event': return await cancelEvent(id);
       case 'safety': closeAndLeaveRoom(); return navigate('seguranca');
       case 'profile-toggle-edit': {
-        const panel = $('bpr-edit-profile-panel');
-        if (!panel) return;
-        panel.classList.toggle('bpr-collapsed');
-        if (!panel.classList.contains('bpr-collapsed')) {
-          panel.scrollIntoView({behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',block:'nearest'});
-          $('edit-name')?.focus({preventScroll:true});
-        }
+        const hub=$('bpr-profile-hub'), drawer=$('bpr-hub-edit');
+        if(!hub||!drawer)return;
+        hub.open=true;drawer.open=true;
+        drawer.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'nearest'});
+        $('edit-name')?.focus({preventScroll:true});
         return;
       }
       case 'save-profile': return await saveProfile();

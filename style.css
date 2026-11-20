@@ -691,3 +691,40 @@ body.bpr-game-active{overflow:hidden!important}
 }
 .bpr-roster-icon{overflow:hidden}
 .bpr-roster-icon img{display:block;width:100%;height:100%;aspect-ratio:1;object-fit:cover;border-radius:14px}
+
+
+/* V5.5 — painel único aprovado: alterações exclusivas ao perfil. */
+#screen-perfil .bpr-profile-hub{border:1px solid var(--line);background:var(--surface2);border-radius:19px;margin:20px 0 6px;min-width:0;max-width:100%;overflow:hidden}
+#screen-perfil .bpr-profile-hub>summary{min-height:72px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:15px 18px;list-style:none;font-size:17px;font-weight:850}
+#screen-perfil .bpr-profile-hub>summary::-webkit-details-marker,#screen-perfil .bpr-hub-drawer>summary::-webkit-details-marker{display:none}
+#screen-perfil .bpr-hub-heading{display:grid;gap:3px;min-width:0;overflow-wrap:normal}
+#screen-perfil .bpr-hub-heading small{font-size:12px;color:var(--muted);font-weight:550;line-height:1.35}
+#screen-perfil .bpr-hub-chevron::after{content:'+';font-size:26px;color:var(--lime)}
+#screen-perfil .bpr-profile-hub[open] .bpr-hub-chevron::after{content:'−'}
+#screen-perfil .bpr-hub-content{padding:0 12px 14px;display:grid;gap:9px}
+#screen-perfil .bpr-hub-drawer{min-width:0;border:1px solid var(--line);border-radius:14px;background:var(--surface);overflow:hidden}
+#screen-perfil .bpr-hub-drawer>summary{min-height:62px;cursor:pointer;list-style:none;display:flex;align-items:center;gap:12px;padding:11px 13px}
+#screen-perfil .bpr-hub-icon{font-size:23px;flex:0 0 30px;text-align:center}
+#screen-perfil .bpr-hub-copy{display:grid;flex:1 1 auto;min-width:0;gap:3px}
+#screen-perfil .bpr-hub-copy strong{font-size:14px;line-height:1.3}
+#screen-perfil .bpr-hub-copy small{font-size:12px;color:var(--muted);line-height:1.4}
+#screen-perfil .bpr-hub-arrow::after{content:'+';font-size:23px;color:var(--lime)}
+#screen-perfil .bpr-hub-drawer[open] .bpr-hub-arrow::after{content:'−'}
+#screen-perfil .bpr-hub-drawer-body{padding:5px 12px 14px;min-width:0;border-top:1px solid var(--line)}
+#screen-perfil .bpr-hub-drawer-body>.panel{border:0;box-shadow:none;background:transparent;padding:10px 0 2px;margin:0;min-width:0}
+#screen-perfil .bpr-hub-drawer-body>.panel h3{font-size:17px}
+#screen-perfil .bpr-personalizer{background:transparent;border:0;padding:10px 0 2px;margin:0;min-width:0}
+#screen-perfil .bpr-hub-help-actions{display:grid;gap:9px;padding-top:12px}
+#screen-perfil .bpr-hub-help-actions .btn{white-space:normal;min-height:48px;width:100%;text-align:center}
+#screen-perfil .bpr-hub-signout{margin:7px 0 0;display:flex;align-items:center;justify-content:center;gap:8px;min-height:48px;width:100%;border:1px solid var(--line);background:var(--surface);border-radius:12px;color:var(--pink);font-size:14px;font-weight:800;font-family:inherit;cursor:pointer}
+#screen-perfil .bpr-profile-hub summary:focus-visible,#screen-perfil .bpr-hub-signout:focus-visible{outline:3px solid var(--lime);outline-offset:2px}
+#screen-perfil .bpr-profile-hub summary:hover{background:color-mix(in srgb,var(--lime) 5%,transparent)}
+#screen-perfil .bpr-hub-drawer-body .blocked-profile-box{margin-top:15px}
+#screen-perfil .bpr-cover-options{grid-template-columns:repeat(auto-fit,minmax(86px,1fr))}
+#screen-perfil .bpr-cover-swatch{min-height:80px;word-break:normal}
+.profile-cover[data-vibe="festival"],.bpr-cover-swatch[data-cover="festival"],.bpr-guest-cover[data-vibe="festival"]{background:radial-gradient(circle at 28% 18%,#55dfda7d,transparent 38%),linear-gradient(125deg,#12293e,#126a79 28%,#ff587c 68%,#b52ccf)}
+.profile-cover[data-vibe="nature"],.bpr-cover-swatch[data-cover="nature"],.bpr-guest-cover[data-vibe="nature"]{background:radial-gradient(circle at 80% 12%,#d0eba5b3,transparent 30%),linear-gradient(130deg,#123d35,#237d60 40%,#7fb86d 73%,#dceca2)}
+.bpr-person-style-view[data-vibe="festival"]{border-top:2px solid #ff587c;padding-top:7px}
+.bpr-person-style-view[data-vibe="nature"]{border-top:2px solid #7fb86d;padding-top:7px}
+@media(max-width:460px){#screen-perfil .bpr-profile-hub>summary{padding:13px}#screen-perfil .bpr-hub-content{padding-inline:8px}#screen-perfil .bpr-hub-drawer-body{padding-inline:10px}#screen-perfil .bpr-cover-options{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(prefers-reduced-motion:reduce){#screen-perfil .bpr-profile-hub,#screen-perfil .bpr-hub-drawer{scroll-behavior:auto}}
