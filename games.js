@@ -680,7 +680,48 @@
   if (!overlay) return;
   const safeHTML = s => String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const permitted = () => window.BPRGamesAllowed?.() === true;
-  const state = {kind:null,category:null,mode:'truth',filter:'todos',bag:[],last:null,count:0,remaining:60,duration:60,timer:null,focus:null,gameHistory:false,forehead:false,responded:false};
+  const state = {kind:null,category:null,mode:'truth',filter:'todos',bag:[],last:null,count:0,remaining:60,duration:60,timer:null,deadline:0,lastTick:-1,audio:null,focus:null,gameHistory:false,forehead:false,responded:false};
+  // Efeitos originais sintetizados localmente (sem arquivos/licenças externas).
+  let soundOn=true;
+  try{soundOn=localStorage.getItem('bpr-games-sound')!=='off';}catch{}
+  function soundButtons(){document.querySelectorAll('[data-game-control="sound"]').forEach(btn=>{btn.textContent=soundOn?'🔊 Sons ligados':'🔇 Sons desligados';btn.setAttribute('aria-pressed',String(soundOn));});}
+  function audioReady(){
+    if(!soundOn)return null;
+    try {const C=window.AudioContext||window.webkitAudioContext;if(!C)return null;
+      state.audio ||= new C();if(state.audio.state==='suspended')void state.audio.resume().catch(()=>{});
+      return state.audio;
+    }catch{return null;}
+  }
+  function gameTone(frequency,seconds=0.1,delay=0,shape='sine',level=.035){
+    const a=audioReady();if(!a||a.state==='closed')return;
+    try {const osc=a.createOscillator(), gain=a.createGain(),at=a.currentTime+delay;
+      osc.type=shape;osc.frequency.setValueAtTime(frequency,at);gain.gain.setValueAtTime(.001,at);
+      gain.gain.exponentialRampToValueAtTime(Math.max(.002,level),at+.012);
+      gain.gain.exponentialRampToValueAtTime(.001,at+seconds);
+      osc.connect(gain);gain.connect(a.destination);osc.start(at);osc.stop(at+seconds+.025);
+    }catch{}
+  }
+  function gameSound(type){
+    if(!soundOn)return;
+    if(type==='card'){gameTone(580,.09);gameTone(780,.11,.085);}
+    if(type==='start'){gameTone(500,.11);gameTone(680,.11,.13);gameTone(880,.16,.27);}
+    if(type==='tick')gameTone(600,.075,0,'triangle',.018);
+    if(type==='end'){
+      // Explosão arcade curta: queda de frequência + ruído sintetizado em volume moderado.
+      const a=audioReady();if(!a)return;
+      try {const t=a.currentTime, duration=.65, o=a.createOscillator(),g=a.createGain();
+        o.type='sawtooth';o.frequency.setValueAtTime(230,t);o.frequency.exponentialRampToValueAtTime(42,t+duration);
+        g.gain.setValueAtTime(.001,t);g.gain.exponentialRampToValueAtTime(.09,t+.035);g.gain.exponentialRampToValueAtTime(.001,t+duration);
+        o.connect(g);g.connect(a.destination);o.start(t);o.stop(t+duration+.02);
+        const count=Math.floor(a.sampleRate*.42),buffer=a.createBuffer(1,count,a.sampleRate),arr=buffer.getChannelData(0);
+        for(let i=0;i<count;i++)arr[i]=(Math.random()*2-1)*(1-i/count);
+        const src=a.createBufferSource(),noiseGain=a.createGain();src.buffer=buffer;noiseGain.gain.setValueAtTime(.045,t);
+        noiseGain.gain.exponentialRampToValueAtTime(.001,t+.42);src.connect(noiseGain);noiseGain.connect(a.destination);src.start(t);src.stop(t+.43);
+      }catch{}
+    }
+  }
+  soundButtons();
+
   const categories = kind => decks[kind]?.categories || {};
   const hasAdult = game => Object.keys(game.categories).some(k => k.includes('18+'));
   const gameKeys = Object.keys(decks);
@@ -699,20 +740,25 @@
   }
   function updateLibrary(){const lib=$('bpr-global-games');if(lib)lib.innerHTML=tiles(state.filter);}
   updateLibrary();
-  function stopTimer(){if(state.timer){clearInterval(state.timer);state.timer=null;}}
+  function stopTimer(){if(state.timer){clearInterval(state.timer);state.timer=null;}state.deadline=0;}
   function clockUpdate(){
-    const clock=$('bpr-game-clock');
-    if(!clock)return;
-    clock.classList.remove('hidden');clock.textContent=String(state.remaining).padStart(2,'0')+' s';
+    const clock=$('bpr-game-clock');if(!clock)return;
+    const num=$('bpr-v63-clock-number'),label=$('bpr-v63-clock-label');
+    clock.classList.remove('hidden');num.textContent=String(state.remaining);
+    clock.style.setProperty('--clock-progress',`${Math.max(0,state.remaining/state.duration)*100}%`);
     clock.classList.toggle('is-ending',state.remaining<=10);
-    $('bpr-game-timer').textContent=state.timer?'⏸ Pausar':'▶ '+(state.remaining?`Iniciar ${state.remaining}s`:`Reiniciar ${state.duration}s`);
+    clock.classList.toggle('is-finished',state.remaining===0);
+    label.textContent=state.remaining===0?'💥 TEMPO ESGOTADO!':state.timer?'⏱ Rodada em andamento':'⏸ Cronômetro pausado';
+    $('bpr-game-timer').textContent=state.timer?'⏸ Pausar':state.remaining===0?`↻ Reiniciar ${state.duration}s`:`▶ ${state.remaining===state.duration?'Iniciar':'Continuar'} ${state.remaining}s`;
   }
   function tick(){
     if(!permitted()){void close();return;}
-    state.remaining=Math.max(0,state.remaining-1);clockUpdate();
-    if(!state.remaining){stopTimer();clockUpdate();$('bpr-game-play-hint').textContent='⏰ Tempo! Escolha outra carta ou recomece a rodada.';}
+    if(!state.deadline)return;
+    const next=Math.max(0,Math.ceil((state.deadline-Date.now())/1000));
+    if(next!==state.remaining){state.remaining=next;clockUpdate();if(next>0&&next<=5)gameSound('tick');}
+    if(!next){stopTimer();clockUpdate();gameSound('end');$('bpr-game-play-hint').textContent='💥 Tempo! Escolha outra carta ou recomece a rodada.';}
   }
-  function resetTimer(){stopTimer();state.remaining=state.duration;$('bpr-game-clock').classList.add('hidden');$('bpr-game-clock').classList.remove('is-ending');$('bpr-game-timer').textContent=`▶ Iniciar ${state.duration}s`;}
+  function resetTimer(){stopTimer();state.remaining=state.duration;state.lastTick=-1;$('bpr-game-clock').classList.add('hidden');$('bpr-game-clock').classList.remove('is-ending','is-finished');$('bpr-game-timer').textContent=`▶ Iniciar ${state.duration}s`;}
   function setCategory(category){
     if(!categories(state.kind)[category]) return;
     stopTimer();state.category=category;state.mode='truth';state.bag=[];state.last=null;state.count=0;
@@ -776,12 +822,12 @@
       'Não precisa responder nem completar desafios que causem desconforto.';
     const vote=$('bpr-game-vote'); vote.classList.toggle('hidden',state.kind!=='nunca');
     vote.querySelectorAll('button').forEach(b=>{b.classList.remove('is-selected');b.setAttribute('aria-pressed','false');});
-    card.classList.add('is-revealed');
+    card.classList.add('is-revealed');gameSound('card');
   }
   function open(kind,origin){
     if(!permitted()||!decks[kind])return;
     stopTimer();state.kind=kind;state.focus=origin||document.activeElement;state.forehead=false;state.count=0;
-    const g=decks[kind];$('bpr-game-title').textContent=`${g.icon} ${g.title}`;$('bpr-game-desc').textContent=g.description;
+    soundButtons();const g=decks[kind];$('bpr-game-title').textContent=`${g.icon} ${g.title}`;$('bpr-game-desc').textContent=g.description;
     $('bpr-game-instructions').textContent=g.help;
     const names=Object.keys(g.categories);
     $('bpr-game-category').replaceChildren(...names.map(name=>new Option(`${name} · ${g.categories[name]?.truth ? g.categories[name].truth.length + g.categories[name].challenge.length : g.categories[name].length} cartas`,name)));
@@ -823,7 +869,8 @@
       case 'next':next();break;
       case 'categories':stopTimer();overlay.classList.remove('bpr-v61-forehead');$('bpr-game-setup').classList.remove('hidden');$('bpr-game-play').classList.add('hidden');$('bpr-game-category').focus();break;
       case 'forehead':state.forehead=!state.forehead;overlay.classList.toggle('bpr-v61-forehead',state.forehead);btn.setAttribute('aria-pressed',String(state.forehead));btn.textContent=state.forehead?'↩ Sair do modo testa':'📱 Modo testa horizontal';$('bpr-game-play-hint').textContent=state.forehead?'Gire o celular para o modo paisagem e mostre a carta para a galera. A palavra nunca fica invertida.':'Modo normal: compartilhe a tela para quem vai dar as pistas.';if(state.forehead)void fullscreen(true);break;
-      case 'timer':if(state.timer){stopTimer();clockUpdate();}else{if(!state.remaining)state.remaining=state.duration;state.timer=setInterval(tick,1000);clockUpdate();}break;
+      case 'timer':if(state.timer){const remain=Math.max(0,Math.ceil((state.deadline-Date.now())/1000));stopTimer();state.remaining=remain;clockUpdate();}else{if(!state.remaining)state.remaining=state.duration;state.deadline=Date.now()+state.remaining*1000;state.timer=setInterval(tick,120);gameSound('start');clockUpdate();}break;
+      case 'sound':soundOn=!soundOn;try{localStorage.setItem('bpr-games-sound',soundOn?'on':'off');}catch{}soundButtons();if(soundOn)gameSound('card');break;
       case 'fullscreen':void fullscreen(state.kind==='quem');break;
     }
   });

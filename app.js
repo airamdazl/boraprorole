@@ -526,6 +526,7 @@ async function syncSession() {
   if (!session?.session?.user) {
     pendingBirthdate = null;
     state.user = null;
+    void refreshNotificationBadge();
     bprProfileStyle={cover_theme:'aurora',relationship_status:null,show_relationship:false,preferred_categories:[]};
     state.opened = false;
     state.isModerator = false;
@@ -577,6 +578,7 @@ async function syncSession() {
     $('auth-gate').classList.add('hidden');
     $('app-status').classList.add('hidden');
     hydrateProfile();
+    bprStartNotificationRefresh();void refreshNotificationBadge();
     if (!sameUser || Date.now() - state.lastAppRefresh > 180000) {
       await loadAppData();
       state.lastAppRefresh = Date.now();
@@ -2276,7 +2278,7 @@ async function showSquadRoster(squadId) {
     });
     showModal('Integrantes e administradores 🛡️',`<div class="bpr-roster-list"><p class="small-muted">O SQUAD pode ter 2 ou 3 administradores. ${admins<2?'⚠️ Promova pelo menos um integrante a admin antes de propor remoções.':'Para remover alguém, dois administradores devem aprovar.'}</p>
       ${cards.join('')||'<p class="small-muted">Nenhum integrante encontrado.</p>'}
-      ${manager?`<button class="btn btn-pink btn-small" data-action="squad-removals" data-id="${html(squadId)}">Ver votos pendentes</button>`:''}
+      ${manager?`<button class="btn btn-pink btn-small" data-action="squad-invite-member" data-id="${html(squadId)}">➕ Convidar integrante</button><button class="btn btn-ghost btn-small" data-action="squad-removals" data-id="${html(squadId)}">Ver votos pendentes</button>`:''}
       <button class="btn btn-ghost" data-action="close-modal">Fechar</button></div>`);
     leaveRoom();
     // Fotografias somente pela RPC de visibilidade; não consulta profiles abertamente.
@@ -2784,15 +2786,62 @@ function openReport(kind, target) {
   });
 }
 
-async function openNotifications() {
+// V6.3: notificações por usuário; nada é marcado automaticamente só por abrir o painel.
+let bprNotifPoll = null;
+async function refreshNotificationBadge() {
+  const badge=$('bpr-notif-count');
+  const bell=document.querySelector('[data-action="notifications"]');
+  if(!badge || !bell)return;
+  if(!state.user || !state.opened){badge.classList.add('hidden');bell.setAttribute('aria-label','Notificações');return;}
   try {
-    const rows = await assertOk(db.from('notifications').select('id,kind,message,created_at,read_at').eq('user_id',state.user.id)
-      .order('created_at',{ascending:false}).limit(30));
-    showModal('Suas notificações 🔔', rows.length ? rows.map((item) => `<div class="list-row"><div class="icon-disc">🔔</div>
-      <div class="grow"><strong>${html(item.message)}</strong><p>${html(displayDate(item.created_at))}</p></div></div>`).join('') :
-      '<p class="small-muted">Nenhuma notificação por enquanto.</p>');
-    await db.from('notifications').update({read_at:new Date().toISOString()}).eq('user_id',state.user.id).is('read_at',null);
-  } catch (err) { toast(err.message); }
+    const result=await db.from('notifications').select('id',{count:'exact',head:true}).eq('user_id',state.user.id).is('read_at',null);
+    if(result.error)throw result.error;
+    const amount=Number(result.count||0);
+    badge.textContent=amount>99?'99+':String(amount);
+    badge.classList.toggle('hidden',amount===0);
+    bell.setAttribute('aria-label',amount?`Notificações: ${amount} não lidas`:'Notificações: nenhuma não lida');
+  }catch(err){console.warn('Aviso de notificações indisponível:',err?.code||'');}
+}
+function bprStartNotificationRefresh(){
+  if(bprNotifPoll)return;
+  bprNotifPoll=setInterval(()=>{if(!document.hidden&&state.opened)void refreshNotificationBadge();},45000);
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden&&state.opened)void refreshNotificationBadge();});
+}
+function bprNotifKind(item){
+  const payload=item.payload&&typeof item.payload==='object'?item.payload:{};
+  const source=String(payload.source||'');
+  const msg=String(item.message||'').toLowerCase();
+  if(source==='follow'||msg.includes('seguir')||msg.includes('segu')||msg.includes('amigos'))return '💚';
+  if(source.includes('squad')||msg.includes('squad')||msg.includes('convite')||msg.includes('entrada'))return '👥';
+  return '🔔';
+}
+async function openNotifications(){
+  if(!state.user)return;
+  try {
+    const rows=await assertOk(db.from('notifications').select('id,kind,message,created_at,read_at,payload').eq('user_id',state.user.id)
+      .order('created_at',{ascending:false}).limit(60));
+    const controls=`<div class="bpr-notif-top"><p class="small-muted">Escolha quais notificações deseja ler ou apagar. Abrir esta tela não marca tudo como lido.</p><button type="button" class="btn btn-ghost btn-small" data-action="notif-read-all">✓ Marcar todas como lidas</button></div>`;
+    const content=(rows||[]).map(item=>`<article class="bpr-notif-item ${item.read_at?'is-read':'is-unread'}">
+      <span class="bpr-notif-icon" aria-hidden="true">${bprNotifKind(item)}</span><div class="bpr-notif-content"><strong>${html(item.message)}</strong><small>${html(displayDate(item.created_at))}</small><div class="bpr-notif-actions">
+      ${item.read_at?'':`<button type="button" class="btn btn-ghost btn-small" data-action="notif-read" data-id="${html(String(item.id))}">✓ Marcar lida</button>`}
+      <button type="button" class="btn btn-ghost btn-small" data-action="notif-delete" data-id="${html(String(item.id))}">🗑 Apagar</button></div></div></article>`).join('');
+    showModal('Suas notificações 🔔',controls+(content||'<p class="small-muted">Você está em dia! Nenhuma notificação por enquanto.</p>'));
+    void refreshNotificationBadge();
+  }catch(err){toast(friendlyError(err));}
+}
+async function bprNotificationAction(action,id){
+  if(!state.user)return;
+  try{
+    if(action==='notif-read-all'){
+      await assertOk(db.from('notifications').update({read_at:new Date().toISOString()}).eq('user_id',state.user.id).is('read_at',null));
+    }else if(action==='notif-read'){
+      await assertOk(db.from('notifications').update({read_at:new Date().toISOString()}).eq('user_id',state.user.id).eq('id',id).is('read_at',null));
+    }else if(action==='notif-delete'){
+      if(!await appConfirm('Apagar esta notificação?',{title:'Apagar notificação',confirmLabel:'Apagar',danger:true}))return;
+      await assertOk(db.from('notifications').delete().eq('user_id',state.user.id).eq('id',id));
+    }
+    await refreshNotificationBadge();await openNotifications();
+  }catch(err){toast(friendlyError(err));}
 }
 
 async function deletePin(id) {
@@ -3137,6 +3186,8 @@ async function handleAction(action, element) {
       case 'manage-blocks': return await manageBlockedNicknames();
       case 'unblock-found-user': return await unblockFoundNickname(element.dataset.nick);
       case 'notifications': return await openNotifications();
+      case 'squad-invite-member': return bprInviteMemberFromRoster(id);
+      case 'notif-read': case 'notif-delete': case 'notif-read-all': return await bprNotificationAction(action,id);
       case 'account': return await openAccount();
       case 'delete-account-start': return openDeleteAccount();
       case 'audience-preferences': return await openAudiencePreferences();
@@ -3379,7 +3430,13 @@ else {
 
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   // Atualização explícita do worker: evita manter uma instalação antiga do PWA.
-  navigator.serviceWorker.register('./service-worker.js?v=20261120-seguranca-v62', {updateViaCache:'none'}).catch(() => {});
+  navigator.serviceWorker.register('./service-worker.js?v=20261120-notificacoes-v63', {updateViaCache:'none'}).catch(() => {});
+}
+
+function bprInviteMemberFromRoster(squadId){
+  if(!['owner','moderator'].includes(state.squadRoles.get(squadId)))return toast('Somente responsáveis podem convidar integrantes.');
+  showModal('Convidar para o Squad 💌',`<p class="small-muted">Convide pelo @user. A pessoa receberá o convite e decidirá se quer participar. Ninguém é adicionado automaticamente.</p><form id="squad-invite-form"><label for="squad-nick">@user da pessoa</label><div class="friend-finder"><input id="squad-nick" placeholder="@user" maxlength="24" autocomplete="off" required><button type="submit" class="btn btn-pink">Enviar convite</button></div><p id="squad-invite-result" class="small-muted" role="status"></p></form>`);
+  $('squad-invite-form')?.addEventListener('submit',(ev)=>inviteNickname(ev,squadId));
 }
 
 async function inviteNickname(event, squadId) {

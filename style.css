@@ -1018,3 +1018,31 @@ body.bpr-game-active{overflow:hidden!important}
 .bpr-report-timeline-item p{white-space:pre-wrap;margin:0}
 .bpr-report-history-actions{display:flex;gap:8px;flex-wrap:wrap}
 .bpr-report-history-actions .btn{min-height:44px;flex:1 1 150px}
+
+/* V6.3 – Notificações e cronômetro dos jogos (escopo cirúrgico) */
+.bpr-notifications-bell{position:relative;overflow:visible!important}
+.bpr-notif-count{position:absolute;top:2px;right:1px;min-width:16px;height:16px;padding:0 3px;border:2px solid #122536;border-radius:12px;background:#ff736d;color:#101d2b;font-weight:900;font-size:10px;line-height:12px;text-align:center;pointer-events:none}
+.bpr-notif-count.hidden{display:none!important}
+.bpr-notif-top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.bpr-notif-top .small-muted{margin:0;flex:1 1 180px}
+.bpr-notif-item{display:flex;gap:12px;align-items:flex-start;padding:14px 10px;border:1px solid #365263;border-radius:15px;margin:8px 0;background:#192d3e;min-width:0}
+.bpr-notif-item.is-unread{border-color:#45dbc3;background:#193a42}
+.bpr-notif-item.is-read{opacity:.85}
+.bpr-notif-icon{flex:0 0 34px;font-size:23px}
+.bpr-notif-content{min-width:0;flex:1}
+.bpr-notif-content strong{display:block;overflow-wrap:anywhere;font-size:14px}
+.bpr-notif-content small{display:block;color:#b6cdd1;margin:7px 0}
+.bpr-notif-actions{display:flex;flex-wrap:wrap;gap:8px}
+.bpr-notif-actions .btn{min-height:40px;font-size:12px}
+.bpr-v61-shell #bpr-game-clock.bpr-v63-clock{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;margin:14px auto 18px;border:0;background:transparent!important;padding:0;white-space:normal;max-width:100%;color:inherit}
+.bpr-v61-shell #bpr-game-clock.bpr-v63-clock.hidden{display:none!important}
+.bpr-v63-clock-ring{width:clamp(140px,44vw,234px);aspect-ratio:1;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;background:radial-gradient(circle at center,#112538 60%,transparent 62%),conic-gradient(#40e6c5 var(--clock-progress,100%),#304b60 0);box-shadow:0 0 26px #2ce7c43d;border:2px solid #55e6d3}
+.bpr-v63-clock-ring strong{font-size:clamp(58px,18vw,95px);font-variant-numeric:tabular-nums;line-height:1;font-weight:900;color:#e9fffb}
+.bpr-v63-clock-ring small{font-size:11px;letter-spacing:.23em;color:#bafbee}
+.bpr-v63-clock>span{font-size:12px;color:#b9d8db;font-weight:800;letter-spacing:.04em}
+.bpr-v63-clock.is-ending .bpr-v63-clock-ring{background:radial-gradient(circle at center,#2f182c 60%,transparent 62%),conic-gradient(#ff6a65 var(--clock-progress,100%),#623946 0);border-color:#ff7f77;box-shadow:0 0 30px #ef625855}
+.bpr-v63-clock.is-ending .bpr-v63-clock-ring strong{color:#ffe8df}
+.bpr-v63-clock.is-finished .bpr-v63-clock-ring{background:#452b3f;border-color:#ff7f77}
+.bpr-v63-sound-btn[aria-pressed="false"]{opacity:.84}
+@media(max-width:360px){.bpr-notif-actions .btn{padding:9px 10px}}
+@media(prefers-reduced-motion:reduce){.bpr-v63-clock-ring{animation:none!important;transition:none!important}}
