@@ -1,4 +1,4 @@
-/* Bora Pro Rolê | PWA + Supabase | 10/11/2026
+/* Bora de Rolê | PWA + Supabase | 10/11/2026
  * Arquivo único de lógica. Nenhuma chave secreta deve ser colocada aqui.
  * O app só libera a área social depois do onboarding validado pelo banco.
  */
@@ -335,7 +335,7 @@ function showGate(stage, data = {}) {
       <button class="btn btn-pink" type="submit">Entrar</button></form>
       <p class="auth-switch"><button data-auth="forgot">Esqueci a senha</button> · <button data-auth="signup">Criar conta</button></p>
       <p class="auth-switch"><button data-auth="resend">Reenviar e-mail de confirmação</button></p>`,
-    signup: `<span class="eyebrow">Uma conta, vários encontros</span><h1>Vem pro Bora Pro Rolê 🪩</h1>
+    signup: `<span class="eyebrow">Uma conta, vários encontros</span><h1>Vem pro Bora de Rolê 🪩</h1>
       <form id="signup-form" class="auth-form">
       <label>Como podemos te chamar?<input name="display_name" minlength="2" maxlength="60" autocomplete="nickname" required placeholder="Seu nome de exibição"></label>
       <label>Seu @user<input name="username" minlength="3" maxlength="24" pattern="[a-z0-9_.]{3,24}" autocapitalize="none" required placeholder="seu.user"></label>
@@ -355,7 +355,7 @@ function showGate(stage, data = {}) {
       <button class="btn btn-pink" type="submit">Criar conta e receber confirmação ✉️</button></form>
       <p class="auth-switch"><button data-auth="login">Já tenho conta</button></p>`,
     'check-email': `<span class="eyebrow">Quase lá!</span><h1>Confirma seu e-mail pra começar 💌</h1>
-      <p class="confirmation-tip">📬 Verifique sua <strong>caixa de entrada e spam</strong>. Clique no link de confirmação e depois entre no Bora Pro Rolê pra conhecer seu próximo rolê!</p>
+      <p class="confirmation-tip">📬 Verifique sua <strong>caixa de entrada e spam</strong>. Clique no link de confirmação e depois entre no Bora de Rolê pra conhecer seu próximo rolê!</p>
       <button class="btn btn-pink" data-auth="login">Ir para o login</button>
       <p class="auth-switch"><button data-auth="resend">Não recebi o e-mail</button></p>`,
     forgot: `<h1>Recuperar senha 🔑</h1><p class="small-muted">Enviaremos um link para seu email.</p>
@@ -376,7 +376,7 @@ function showGate(stage, data = {}) {
       <p class="auth-switch"><button data-auth="logout">Sair da conta</button></p>`,
     'birth-confirm': `<span class="eyebrow">Confirmação de idade declarada</span><h1>Vamos confirmar sua informação 🔞</h1>
       <p>Você informou a data de nascimento <strong>${html(data.birthdate || '')}</strong>.</p>
-      <p class="legal-note">O Bora Pro Rolê é exclusivo para pessoas com 18 anos ou mais. Não verificamos sua identidade nesta etapa; futuramente poderemos solicitar uma comprovação confiável da data informada. Dados falsos podem resultar em suspensão da conta.</p>
+      <p class="legal-note">O Bora de Rolê é exclusivo para pessoas com 18 anos ou mais. Não verificamos sua identidade nesta etapa; futuramente poderemos solicitar uma comprovação confiável da data informada. Dados falsos podem resultar em suspensão da conta.</p>
       <form id="birth-confirm-form" class="auth-form"><label class="check-label"><input name="truth_acknowledged" type="checkbox" required>
         Confirmo que tenho pelo menos 18 anos e que a data de nascimento informada é verdadeira.</label>
         <button class="btn btn-pink" type="submit">Confirmar declaração e continuar</button></form>
@@ -394,7 +394,7 @@ function showGate(stage, data = {}) {
     waiting: `<span class="eyebrow">Estamos organizando a casa</span><h1>As políticas estão em revisão. 🛡️</h1>
       <p>Seu acesso foi criado, mas a navegação social só será liberada depois da publicação dos Termos, Política de Privacidade e Regras da Comunidade.</p>
       <p class="small-muted">Não precisamos de nenhuma outra informação sua agora. Volte mais tarde.</p><button class="btn btn-ghost" data-auth="logout">Sair</button>`,
-    blocked: `<h1>Acesso indisponível</h1><p>Não foi possível confirmar sua elegibilidade para entrar no Bora Pro Rolê. Contate o suporte responsável pelo aplicativo.</p><button class="btn btn-ghost" data-auth="logout">Sair</button>`,
+    blocked: `<h1>Acesso indisponível</h1><p>Não foi possível confirmar sua elegibilidade para entrar no Bora de Rolê. Contate o suporte responsável pelo aplicativo.</p><button class="btn btn-ghost" data-auth="logout">Sair</button>`,
     offline: `<h1>Conexão necessária</h1><p>Não foi possível inicializar o serviço de login. Confira a internet e recarregue a página.</p>
       <button class="btn btn-pink" onclick="location.reload()">Tentar novamente</button>`
   };
@@ -2291,7 +2291,7 @@ async function editAlbumLink(squadId) {
   if (!['owner','moderator'].includes(state.squadRoles.get(squadId))) return;
   const fromRoom=state.activeRoom?.type==='squad' && state.activeRoom.id===squadId;
   if(fromRoom)leaveRoom();
-  showModal('Álbum do SQUAD 📸',`<div class="album-setup-intro"><span aria-hidden="true">☁️</span><div><span class="eyebrow">Fotos fora do Supabase</span><h3>Uma pasta da galera, no Google Drive.</h3><p>O Bora Pro Rolê guarda somente o endereço da pasta. Todas as fotos são enviadas diretamente pelo Drive.</p></div></div>
+  showModal('Álbum do SQUAD 📸',`<div class="album-setup-intro"><span aria-hidden="true">☁️</span><div><span class="eyebrow">Fotos fora do Supabase</span><h3>Uma pasta da galera, no Google Drive.</h3><p>O Bora de Rolê guarda somente o endereço da pasta. Todas as fotos são enviadas diretamente pelo Drive.</p></div></div>
     <section class="album-guide" aria-label="Passo a passo para criar uma pasta compartilhada">
       <h3>Como preparar o álbum</h3>
       <ol><li><strong>Abra o Google Drive.</strong> Entre na sua conta e toque em <b>Novo → Pasta</b>. Dê um nome, por exemplo, “Fotos — ${html(squad.name)}”.</li>
@@ -2656,7 +2656,7 @@ async function changeRoomTab(tab) {
     </div>`;
   } else if (tab === 'music' && room.type === 'event') {
     const event = state.events.find((row) => row.id === room.id);
-    target.innerHTML = `<p class="small-muted">🎵 Cada participante pode indicar músicas do Spotify para animar o encontro. A lista de sugestões abaixo pertence ao Bora Pro Rolê. <strong>Ela não altera automaticamente a playlist no Spotify.</strong></p>
+    target.innerHTML = `<p class="small-muted">🎵 Cada participante pode indicar músicas do Spotify para animar o encontro. A lista de sugestões abaixo pertence ao Bora de Rolê. <strong>Ela não altera automaticamente a playlist no Spotify.</strong></p>
       ${event?.playlist ? `<div class="room-spotify">${spotifyEmbed(event.playlist)}<a href="${html(event.playlist)}" target="_blank" rel="noopener noreferrer">Abrir playlist no Spotify ↗</a></div>` : '<p class="legal-note">O organizador ainda não vinculou uma playlist oficial ao evento.</p>'}
       <form id="song-form" class="song-form"><label>Link da música no Spotify<input name="spotify_track_url" type="url" required placeholder="https://open.spotify.com/track/..."></label>
       <label>Nome da música / artista<input name="title" maxlength="120" minlength="2" required placeholder="Ex.: Nome da música — Artista"></label>
@@ -3274,7 +3274,7 @@ async function openAudiencePreferences() {
 
 // Tour opcional: é exibido uma única vez por conta e reaberto pelo FAQ.
 const bprTourSteps=[
-  {title:'Bem-vindo ao Bora Pro Rolê ✌️',body:'Encontre eventos, conheça pessoas e explore a cidade. Você pode pular o tour a qualquer momento.'},
+  {title:'Bem-vindo ao Bora de Rolê ✌️',body:'Encontre eventos, conheça pessoas e explore a cidade. Você pode pular o tour a qualquer momento.'},
   {title:'Explore eventos pelo mapa ou lista',body:'Use Explorar para filtrar rolês, verificar data e local, salvar e confirmar presença com segurança.'},
   {title:'Seus encontros em um lugar só',body:'Meus rolês reúne participação, salvos e eventos publicados. As preferências ficam no Perfil.'},
   {title:'Crie um rolê com endereço confirmado',body:'Informe o endereço ou link compatível do Google Maps e confira a prévia antes de publicar.'},
@@ -3289,7 +3289,7 @@ function finishBprTour(){
 }
 function bprTourRender(){
   const step=bprTourSteps[bprTourCurrent];
-  showModal('Conheça o Bora Pro Rolê', `<div class="bpr-tour-step"><span class="eyebrow">Passo ${bprTourCurrent+1} de ${bprTourSteps.length}</span><h3>${html(step.title)}</h3><p>${html(step.body)}</p><div class="bpr-tour-progress" aria-label="Progresso do tour">${bprTourSteps.map((_,i)=>`<span class="${i===bprTourCurrent?'active':''}"></span>`).join('')}</div><div class="bpr-tour-actions"><button type="button" class="btn btn-ghost" id="bpr-tour-skip">Pular tour</button>${bprTourCurrent>0?'<button type="button" class="btn btn-ghost" id="bpr-tour-back">Anterior</button>':''}<button type="button" class="btn btn-pink" id="bpr-tour-next">${bprTourCurrent===bprTourSteps.length-1?'Concluir':'Próximo'}</button></div></div>`);
+  showModal('Conheça o Bora de Rolê', `<div class="bpr-tour-step"><span class="eyebrow">Passo ${bprTourCurrent+1} de ${bprTourSteps.length}</span><h3>${html(step.title)}</h3><p>${html(step.body)}</p><div class="bpr-tour-progress" aria-label="Progresso do tour">${bprTourSteps.map((_,i)=>`<span class="${i===bprTourCurrent?'active':''}"></span>`).join('')}</div><div class="bpr-tour-actions"><button type="button" class="btn btn-ghost" id="bpr-tour-skip">Pular tour</button>${bprTourCurrent>0?'<button type="button" class="btn btn-ghost" id="bpr-tour-back">Anterior</button>':''}<button type="button" class="btn btn-pink" id="bpr-tour-next">${bprTourCurrent===bprTourSteps.length-1?'Concluir':'Próximo'}</button></div></div>`);
   $('bpr-tour-skip').onclick=finishBprTour;
   if($('bpr-tour-back'))$('bpr-tour-back').onclick=()=>{bprTourCurrent--;bprTourRender();};
   $('bpr-tour-next').onclick=()=>{if(bprTourCurrent===bprTourSteps.length-1)finishBprTour();else{bprTourCurrent++;bprTourRender();}};
@@ -3320,7 +3320,7 @@ async function openBprHelp() {
   showModal('Ajuda e atendimento 💬', `<p class="small-muted">Fale com a equipe e acompanhe as respostas aqui. Não inclua senhas, documentos ou informações íntimas.</p>
     <button type="button" class="btn btn-ghost bpr-report-history-btn" data-action="report-my">🛡️ Minhas denúncias e respostas</button>
     <button type="button" id="bpr-tour-restart" class="btn btn-ghost">▶ Rever tour do aplicativo</button>
-    <details class="bpr-faq"><summary>Como usar o Bora Pro Rolê? · Guia rápido</summary><ol>
+    <details class="bpr-faq"><summary>Como usar o Bora de Rolê? · Guia rápido</summary><ol>
       <li>Em <strong>Explorar</strong>, busque rolês e consulte os detalhes no mapa ou na lista.</li>
       <li>Em <strong>Meus rolês</strong>, acompanhe o que salvou ou confirmou.</li>
       <li>Em <strong>Criar</strong>, publique um evento e revise o endereço.</li>
@@ -3715,7 +3715,7 @@ function applyTheme(theme) {
 }
 $('bpr-scheduled-strip')?.querySelector('[data-action="scheduled-info"]')?.addEventListener('click', () => {
   const s=bprControl.settings;
-  showModal('Atualização do Bora Pro Rolê', `<p>${html(s?.announcement || s?.message || 'Estamos preparando novidades.')}</p><p class="small-muted">O aplicativo continua disponível normalmente neste aviso. Nenhuma manutenção bloqueante foi ativada.</p>`);
+  showModal('Atualização do Bora de Rolê', `<p>${html(s?.announcement || s?.message || 'Estamos preparando novidades.')}</p><p class="small-muted">O aplicativo continua disponível normalmente neste aviso. Nenhuma manutenção bloqueante foi ativada.</p>`);
 });
 $('theme-toggle').addEventListener('click', () => applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'));
 applyTheme(document.documentElement.dataset.theme || 'dark');
