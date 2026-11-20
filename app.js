@@ -1074,91 +1074,207 @@ function renderMine() {
     '<p class="small-muted">Você ainda não publicou um rolê.</p>';
 }
 
+// V5.6A: formulário progressivo, CEP consultado sob demanda e mapa somente após resolução.
 function openCreate() {
-  showModal('Criar um rolê ✨', `<p class="small-muted">Seu rolê será publicado após o envio. Os usuários poderão denunciar anúncios suspeitos e a equipe poderá agir depois da publicação.</p>
-    <form id="event-form" class="create-form"><div class="field"><label for="new-title">Nome do rolê *</label><input id="new-title" maxlength="100" minlength="5" required placeholder="Ex.: Cine + café no sábado"></div>
-    <div class="fields"><div class="field"><label for="new-category">Categoria *</label><select id="new-category">${categories.slice(1).map((c) => `<option value="${c[0]}">${c[1]} ${c[2]}</option>`).join('')}</select></div>
-    <div class="field"><label for="new-venue">Nome do local</label><input id="new-venue" maxlength="120" placeholder="Ex.: Cinemark Shopping"></div></div>
-    <div class="fields"><div class="field"><label for="new-start">Início *</label><input id="new-start" type="datetime-local" required></div><div class="field"><label for="new-end">Término previsto *</label><input id="new-end" type="datetime-local" required></div></div>
-    <div class="field"><label for="new-address">Endereço completo *</label><input id="new-address" maxlength="220" required placeholder="Rua, número, bairro"></div>
-    <div class="fields"><div class="field"><label for="new-city">Cidade *</label><input id="new-city" maxlength="90" value="São Paulo" required></div><div class="field"><label for="new-state">UF *</label><input id="new-state" maxlength="2" value="SP" required></div></div>
-    <div class="field"><label for="new-description">Descrição e combinados *</label><textarea id="new-description" minlength="10" maxlength="2000" required placeholder="Como será? Tem ingresso? Qual será o ponto de encontro?"></textarea></div>
-    <details class="bpr-create-extras"><summary>Mais opções do rolê <small>Instagram, ingressos, playlist, gastos e capa (opcional)</small></summary><div class="bpr-create-extras-body">
-    <div class="fields"><div class="field"><label for="new-insta">Instagram do local</label><input id="new-insta" placeholder="@local ou https://..."></div><div class="field"><label for="new-ticket">Link do ingresso</label><input id="new-ticket" type="url" placeholder="https://..."></div></div>
-    <div class="field"><label for="new-playlist">Playlist do rolê no Spotify (opcional)</label><input id="new-playlist" type="url" placeholder="https://open.spotify.com/playlist/..."></div>
-    <div class="field"><label for="new-spend">💸 Média de gasto por pessoa no local (R$)</label><input id="new-spend" type="number" min="0" max="100000" step="0.01" placeholder="Deixe vazio se não souber"><small class="small-muted">Estimativa opcional, além do ingresso. Vazio significa “Não sei informar”.</small></div>
-    <div class="field"><label for="new-spend-notes">O que está incluído? (opcional)</label><input id="new-spend-notes" maxlength="250" placeholder="Ex.: ingresso já inclui open bar; consumo à parte"></div>
-    <div class="field"><label for="new-cover">Foto de capa (WebP/JPG/PNG, opcional)</label><label class="file-picker" for="new-cover"><input id="new-cover" type="file" accept="image/*"><span class="file-picker-button">📷 Escolher capa</span><span class="file-picker-name" id="new-cover-name" aria-live="polite">Nenhuma imagem selecionada</span></label></div>
-    </div></details>
-    <div class="field"><label for="bpr-map-link">📍 Link do Google Maps (alternativa ao endereço)</label><input id="bpr-map-link" type="url" placeholder="https://maps.app.goo.gl/... ou https://www.google.com/maps/..."><small class="small-muted">Cole o link ou preencha o endereço acima. Links encurtados podem não informar as coordenadas; nesse caso use a busca por endereço.</small></div><button type="button" id="bpr-resolve-address" class="btn btn-ghost">Localizar endereço e conferir no mapa</button><p class="small-muted">O mapa é uma prévia, não aceita pinos por toque. Confirme se o endereço localizado corresponde ao local público escolhido.</p>
-    <div id="map-picker" class="map-picker"></div><div id="picker-location" class="small-muted">Nenhum local marcado.</div>
-    <div class="field"><label for="new-audience">Quem pode confirmar presença?</label><select id="new-audience"><option value="all">🌎 Todas as pessoas</option><option value="women">👩 Somente mulheres</option><option value="men">👨 Somente homens</option><option value="lgbtq">🏳️‍🌈 Somente pessoas LGBTQIA+</option></select><small class="small-muted">A participação em rolês direcionados usa a identificação autodeclarada e privada do perfil. A convivência deve respeitar as regras antidiscriminação.</small></div>
-    <label class="check-label"><input id="new-verified" type="checkbox"> O local exige documento para entrada e só aceita maiores de 18 anos.</label>
-    <p class="legal-note">Nunca publique endereços residenciais, dados de terceiros ou convites a práticas ilegais. O app pode recusar conteúdos e eventos inadequados.</p>
-    <button type="submit" class="btn btn-pink" style="width:100%">Publicar evento agora</button></form>`);
-  $('new-cover').addEventListener('change', (event) => {
-    $('new-cover-name').textContent = event.target.files?.[0]?.name || 'Nenhuma imagem selecionada';
-  });
-  const userCity = String(state.profile?.city || '').trim();
-  if (userCity) $('new-city').value = userCity;
-  if (cityCoordinates[cityKey(userCity)]) $('new-state').value = cityCoordinates[cityKey(userCity)][2];
-  const start = $('new-start');
-  start.min = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0,16);
+  state.eventDraftPendingId = null;
+  state.eventDraftCoverUploaded = false;
+  state.eventCoverBlob = null;
   state.pickedCoords = null;
-  if (window.L) {
-    const location = cityCoordinates[cityKey(userCity)] || [-14.235,-51.925];
-    state.pickerMap = L.map('map-picker', {scrollWheelZoom: false}).setView(location.slice(0,2), userCity && cityCoordinates[cityKey(userCity)] ? 11 : 4);
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom: 19,
-      attribution: '&copy; OpenStreetMap contributors'}).addTo(state.pickerMap);
-    state.pickerMarker = null;
-    state.pickerMap.getContainer().setAttribute('aria-label','Prévia da localização, sem edição por toque');
-    setTimeout(() => state.pickerMap?.invalidateSize(), 180);
-  }
-  $('new-address').addEventListener('input', () => {state.pickedCoords=null; $('picker-location').textContent='Endereço alterado. Localize novamente antes de publicar.';});
-  for (const id of ['new-city','new-state','bpr-map-link']) $(id).addEventListener('input', () => {state.pickedCoords=null; $('picker-location').textContent='Localize e confirme o endereço novamente.';});
-  $('bpr-resolve-address').addEventListener('click', resolveBprLocation);
-  $('event-form').addEventListener('submit', submitEvent);
+  state.pickerMap = null;
+  state.pickerMarker = null;
+  showModal('Criar um rolê ✨', `<form id="event-form" class="create-form bpr-create-wizard">
+    <div class="bpr-wizard-progress" aria-label="Etapas de criação"><span class="active">1</span><span>2</span><span>3</span><span>4</span></div>
+    <p class="small-muted bpr-wizard-hint">Preencha uma etapa por vez. Você poderá voltar para corrigir antes de publicar.</p>
+    <section class="bpr-create-step" data-step="0" aria-label="Etapa 1: O plano">
+      <h3>🎉 Qual é o plano?</h3>
+      <div class="field"><label for="new-title">Nome do rolê *</label><input id="new-title" maxlength="100" minlength="5" required placeholder="Ex.: Cine + café no sábado"></div>
+      <div class="field"><label for="new-category">Categoria *</label><select id="new-category">${categories.slice(1).map((c) => `<option value="${c[0]}">${c[1]} ${c[2]}</option>`).join('')}</select></div>
+      <div class="field"><label for="new-venue">Nome do local (opcional)</label><input id="new-venue" maxlength="120" placeholder="Ex.: Cinemark Shopping"></div>
+      <div class="field"><label for="new-description">Descrição e combinados *</label><textarea id="new-description" minlength="10" maxlength="2000" required placeholder="Como será o encontro? O que a galera precisa saber?"></textarea></div>
+    </section>
+    <section class="bpr-create-step" data-step="1" aria-label="Etapa 2: Data e participação" hidden>
+      <h3>📅 Quando e para quem?</h3>
+      <div class="fields"><div class="field"><label for="new-start">Início *</label><input id="new-start" type="datetime-local" required></div><div class="field"><label for="new-end">Término previsto *</label><input id="new-end" type="datetime-local" required></div></div>
+      <div class="field"><label for="new-audience">Quem pode confirmar presença?</label><select id="new-audience"><option value="all">🌎 Todas as pessoas</option><option value="women">👩 Somente mulheres</option><option value="men">👨 Somente homens</option><option value="lgbtq">🏳️‍🌈 Somente pessoas LGBTQIA+</option></select><small class="small-muted">Rolês direcionados usam apenas as identificações privadas e autorizadas, respeitando as regras antidiscriminação.</small></div>
+      <label class="check-label"><input id="new-verified" type="checkbox"> O local exige documento e aceita somente maiores de 18 anos.</label>
+    </section>
+    <section class="bpr-create-step" data-step="2" aria-label="Etapa 3: Localização" hidden>
+      <h3>📍 Onde vai ser?</h3>
+      <p class="small-muted">Digite o CEP para buscar rua, bairro, cidade e UF. Depois informe o número. O pino será posicionado automaticamente para sua conferência.</p>
+      <div class="fields"><div class="field"><label for="bpr-event-cep">CEP (8 dígitos)</label><input id="bpr-event-cep" inputmode="numeric" maxlength="9" autocomplete="postal-code" placeholder="00000-000"></div><div class="field"><label for="new-number">Número do local *</label><input id="new-number" maxlength="15" required placeholder="Ex.: 125"></div></div>
+      <p id="bpr-cep-feedback" class="small-muted" role="status" aria-live="polite">Após informar um CEP, buscaremos o endereço.</p>
+      <div class="field"><label for="new-address">Rua ou avenida *</label><input id="new-address" maxlength="170" required placeholder="Rua, avenida ou praça"></div>
+      <div class="fields"><div class="field"><label for="bpr-event-district">Bairro</label><input id="bpr-event-district" maxlength="80" placeholder="Bairro"></div><div class="field"><label for="bpr-event-complement">Complemento (opcional)</label><input id="bpr-event-complement" maxlength="70" placeholder="Shopping, piso..."></div></div>
+      <div class="fields"><div class="field"><label for="new-city">Cidade *</label><input id="new-city" maxlength="90" required placeholder="Cidade"></div><div class="field"><label for="new-state">UF *</label><input id="new-state" maxlength="2" required placeholder="SP"></div></div>
+      <button type="button" id="bpr-resolve-address" class="btn btn-ghost">Localizar endereço e conferir no mapa</button>
+      <div id="bpr-map-guide" class="bpr-map-fallback" hidden>
+        <h4>Não encontrou o endereço? Use o Google Maps</h4>
+        <ol><li>Abra o Google Maps e procure o local público.</li><li>Toque em <strong>Compartilhar</strong> e depois em <strong>Copiar link</strong>.</li><li>Volte aqui e cole o link. Links encurtados podem exigir que você preencha o endereço acima manualmente.</li></ol>
+        <div class="field"><label for="bpr-map-link">Link do Google Maps</label><input id="bpr-map-link" type="url" placeholder="https://www.google.com/maps/..."></div>
+        <button type="button" id="bpr-resolve-link" class="btn btn-ghost">Conferir link no mapa</button>
+      </div>
+      <button type="button" id="bpr-map-guide-toggle" class="bpr-map-help">Não encontrou? Veja como copiar o link no Google Maps</button>
+      <div id="bpr-map-preview" hidden><div id="map-picker" class="map-picker"></div><p id="picker-location" class="small-muted" role="status">Local ainda não confirmado.</p>
+        <label class="check-label"><input id="bpr-confirm-location" type="checkbox"> Conferi o mapa e este é o local público correto do rolê.</label></div>
+      <p class="small-muted">O mapa é somente uma prévia, sem marcação por toque. A precisão do serviço pode variar; confira o endereço antes de publicar.</p>
+    </section>
+    <section class="bpr-create-step" data-step="3" aria-label="Etapa 4: Imagem e revisão" hidden>
+      <h3>✨ Últimos detalhes</h3>
+      <div class="field"><label for="new-cover">Capa do rolê (opcional)</label>
+        <label class="file-picker" for="new-cover"><input id="new-cover" type="file" accept="image/jpeg,image/png,image/webp"><span class="file-picker-button">📸 Escolher capa</span><span class="file-picker-name" id="new-cover-name" aria-live="polite">Nenhuma imagem selecionada</span></label>
+      </div>
+      <div id="bpr-event-cover-editor" class="bpr-event-cover-editor" hidden><p class="small-muted">Arraste a imagem e ajuste o zoom para enquadrar o cartão do evento.</p><canvas id="bpr-event-cover-canvas" width="960" height="540" aria-label="Prévia do corte horizontal"></canvas><label for="bpr-event-cover-zoom">Zoom</label><input id="bpr-event-cover-zoom" type="range" min="1" max="3" step="0.05" value="1"></div>
+      <details class="bpr-create-extras"><summary>Mais opções <small>Instagram, ingresso, playlist e custos</small></summary><div class="bpr-create-extras-body">
+        <div class="field"><label for="new-insta">Instagram do local</label><input id="new-insta" placeholder="@local ou https://..."></div>
+        <div class="field"><label for="new-ticket">Link de ingresso</label><input id="new-ticket" type="url" placeholder="https://..."></div>
+        <div class="field"><label for="new-playlist">Playlist Spotify</label><input id="new-playlist" type="url" placeholder="https://open.spotify.com/playlist/..."></div>
+        <div class="field"><label for="new-spend">Gasto estimado por pessoa (R$)</label><input id="new-spend" type="number" min="0" max="100000" step="0.01" placeholder="Deixe vazio se não souber"></div>
+        <div class="field"><label for="new-spend-notes">Observações de custos</label><input id="new-spend-notes" maxlength="250" placeholder="Ingresso, consumo..."></div>
+      </div></details>
+      <p class="legal-note">Confira o endereço público e os combinados. Não publique residências, dados pessoais de terceiros nem convites a práticas ilegais.</p>
+      <div id="bpr-event-cover-error" class="bpr-cover-recovery" hidden role="alert"><p id="bpr-event-cover-error-text"></p><label class="check-label"><input type="checkbox" id="bpr-publish-no-cover"> Quero publicar sem a foto, caso o upload continue indisponível.</label><p class="small-muted">Se preferir a imagem, deixe desmarcado e toque em tentar novamente. Seus dados serão mantidos.</p></div>
+    </section>
+    <div class="bpr-wizard-actions"><button type="button" class="btn btn-ghost" id="bpr-step-back" hidden>← Voltar</button><button type="button" class="btn btn-pink" id="bpr-step-next">Continuar →</button><button type="submit" class="btn btn-pink" id="bpr-step-submit" hidden>Publicar rolê</button></div>
+    </form>`);
+  let currentStep = 0;
+  const steps = [...document.querySelectorAll('.bpr-create-step')];
+  const dots = [...document.querySelectorAll('.bpr-wizard-progress span')];
+  const setStep = (index) => {
+    currentStep = index;
+    steps.forEach((el,i) => {el.hidden = i !== index;});
+    dots.forEach((el,i) => el.classList.toggle('active',i <= index));
+    $('bpr-step-back').hidden = index === 0;
+    $('bpr-step-next').hidden = index === 3;
+    $('bpr-step-submit').hidden = index !== 3;
+    $('dialog-body')?.scrollTo({top:0,behavior:'instant'});
+    if (index===2 && state.pickerMap) setTimeout(()=>state.pickerMap.invalidateSize(),80);
+  };
+  const validateStep = (index) => {
+    for(const el of steps[index].querySelectorAll('input,textarea,select')) {
+      if(el.disabled || !el.required || el.checkValidity()) continue;
+      el.reportValidity(); return false;
+    }
+    if(index===1){const start=new Date($('new-start').value),end=new Date($('new-end').value);
+      if(!(start > new Date()) || !(end > start)){toast('Confira os horários. O término precisa ser posterior ao início.');return false;}}
+    if(index===2 && (!state.pickedCoords || !$('bpr-confirm-location').checked)) {toast('Localize e confirme o endereço no mapa.');return false;}
+    return true;
+  };
+  $('bpr-step-next').addEventListener('click',()=>{if(validateStep(currentStep))setStep(currentStep+1);});
+  $('bpr-step-back').addEventListener('click',()=>setStep(Math.max(0,currentStep-1)));
+  const userCity=String(state.profile?.city || '').trim();
+  if(userCity)$('new-city').value=userCity;
+  if(cityCoordinates[cityKey(userCity)])$('new-state').value=cityCoordinates[cityKey(userCity)][2];
+  $('new-start').min=new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,16);
+  const resetLocation=()=>{state.pickedCoords=null;$('bpr-map-preview').hidden=true;$('bpr-confirm-location').checked=false;};
+  ['new-address','new-number','new-city','new-state','bpr-event-district','bpr-event-complement','bpr-map-link'].forEach(id => $(id).addEventListener('input',resetLocation));
+  let cepRequest=0;
+  $('bpr-event-cep').addEventListener('input',async(e)=>{
+    const digits=e.target.value.replace(/\D/g,'').slice(0,8);e.target.value=digits.length>5?`${digits.slice(0,5)}-${digits.slice(5)}`:digits;
+    resetLocation();const request=++cepRequest;
+    if(digits.length!==8){$('bpr-cep-feedback').textContent='Informe 8 dígitos para buscar o endereço.';return;}
+    $('bpr-cep-feedback').textContent='Buscando endereço pelo CEP…';
+    try {
+      const response=await fetch(`https://viacep.com.br/ws/${digits}/json/`,{headers:{Accept:'application/json'}});
+      if(!response.ok)throw Error('Consulta de CEP indisponível.');
+      const data=await response.json();if(request!==cepRequest)return;
+      if(data.erro||!data.localidade||!data.uf)throw Error('CEP não localizado. Confira os números ou use o Google Maps.');
+      $('new-address').value=data.logradouro||'';
+      $('bpr-event-district').value=data.bairro||'';
+      $('new-city').value=data.localidade||'';
+      $('new-state').value=data.uf||'';
+      $('bpr-cep-feedback').textContent=data.logradouro?'Endereço preenchido. Informe o número e confira o mapa.':'CEP localizado, mas é necessário informar a rua e o número manualmente.';
+    } catch(err){if(request!==cepRequest)return;$('bpr-cep-feedback').textContent=err.message;$('bpr-map-guide').hidden=false;}
+  });
+  $('bpr-map-guide-toggle').addEventListener('click',()=>{$('bpr-map-guide').hidden=!$('bpr-map-guide').hidden;});
+  $('bpr-resolve-address').addEventListener('click',resolveBprLocation);
+  $('bpr-resolve-link').addEventListener('click',resolveBprLocation);
+  let crop=null;
+  const disposeCrop=()=>{crop?.bitmap?.close?.();crop=null;state.eventCoverBlob=null;};
+  $('new-cover').addEventListener('change',async(ev)=>{
+    const file=ev.target.files?.[0];disposeCrop();$('bpr-event-cover-editor').hidden=true;
+    $('new-cover-name').textContent=file?.name||'Nenhuma imagem selecionada';
+    if(!file)return;
+    if(!/^image\/(png|jpeg|webp)$/.test(file.type)||file.size>15*1024*1024){ev.target.value='';toast('Escolha JPG, PNG ou WebP de até 15 MB.');return;}
+    try{
+      crop={bitmap:await createImageBitmap(file),zoom:1,x:0,y:0,pointer:null,lastX:0,lastY:0};
+      $('bpr-event-cover-editor').hidden=false;
+      const canvas=$('bpr-event-cover-canvas');const ctx=canvas.getContext('2d');
+      const render=()=>{
+        if(!crop)return;
+        const bmp=crop.bitmap,scale=Math.max(960/bmp.width,540/bmp.height)*crop.zoom;
+        const w=bmp.width*scale,h=bmp.height*scale;
+        crop.x=Math.min((w-960)/2,Math.max(-(w-960)/2,crop.x));crop.y=Math.min((h-540)/2,Math.max(-(h-540)/2,crop.y));
+        ctx.clearRect(0,0,960,540);ctx.drawImage(bmp,(960-w)/2+crop.x,(540-h)/2+crop.y,w,h);
+      };
+      const stage=canvas;
+      stage.onpointerdown=(e)=>{crop.pointer=e.pointerId;crop.lastX=e.clientX;crop.lastY=e.clientY;stage.setPointerCapture?.(e.pointerId);};
+      stage.onpointermove=(e)=>{if(!crop||crop.pointer!==e.pointerId)return;const k=960/Math.max(1,stage.getBoundingClientRect().width);crop.x+=(e.clientX-crop.lastX)*k;crop.y+=(e.clientY-crop.lastY)*k;crop.lastX=e.clientX;crop.lastY=e.clientY;render();};
+      stage.onpointerup=stage.onpointercancel=(e)=>{if(crop&&crop.pointer===e.pointerId)crop.pointer=null;};
+      $('bpr-event-cover-zoom').oninput=(e)=>{if(crop){crop.zoom=Number(e.target.value);render();}};
+      render();
+      // O corte permanece no canvas até o envio; não é gravado em Storage ao selecionar.
+    }catch(err){disposeCrop();toast(`Não foi possível abrir esta imagem: ${friendlyError(err)}`);}
+  });
+  state.prepareEventCover=async()=>{
+    if(!crop)return null;
+    const canvas=$('bpr-event-cover-canvas');
+    const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/webp',0.78));
+    if(!blob||blob.type!=='image/webp')throw Error('Não foi possível converter a capa em WebP.');
+    return blob.size<=524288?blob:await compressWebp(new File([blob],'capa.webp',{type:'image/webp'}),524288);
+  };
+  $('event-form').addEventListener('submit',submitEvent);
+  setStep(0);
 }
 
+function bprNewEventAddress() {
+  const road=$('new-address').value.trim(),number=$('new-number').value.trim();
+  const neighborhood=$('bpr-event-district').value.trim(),extra=$('bpr-event-complement').value.trim();
+  return [road, number, neighborhood, extra].filter(Boolean).join(', ');
+}
 
 // Geocodificação iniciada pelo usuário: nunca inventar coordenadas de links sem posição.
 async function resolveBprLocation() {
-  const button=$('bpr-resolve-address');
-  const link=$('bpr-map-link').value.trim();
-  let coords=null;
-  if(link) {
-    try {
+  const button=$('bpr-resolve-address');const link=$('bpr-map-link').value.trim();
+  let coords=null;let label='';
+  if(link){
+    try{
       const url=new URL(link);
-      if(url.protocol!=='https:' || !/(^|\.)(google\.com|google\.com\.br|maps\.app\.goo\.gl|goo\.gl)$/.test(url.hostname)) throw Error('Use um link HTTPS do Google Maps.');
-      const str=decodeURIComponent(url.pathname+url.search);
-      const patterns=[/@(-?\d{1,2}\.\d+),(-?\d{1,3}\.\d+)/, /[?&](?:q|query|ll)=(-?\d{1,2}\.\d+),(-?\d{1,3}\.\d+)/, /!3d(-?\d{1,2}\.\d+)!4d(-?\d{1,3}\.\d+)/];
-      for(const pat of patterns){const m=str.match(pat);if(m){coords={lat:Number(m[1]),lng:Number(m[2])};break;}}
-      if(coords && (Math.abs(coords.lat)>90 || Math.abs(coords.lng)>180)) coords=null;
-    } catch(err){return toast(err.message||'Link inválido. Digite o endereço e tente novamente.');}
-  }
-  if(!coords){
-    const address=$('new-address').value.trim(), city=$('new-city').value.trim(), uf=$('new-state').value.trim();
-    if(address.length<7 || city.length<2 || uf.length!==2) return toast('Preencha endereço completo, cidade e UF antes de localizar.');
+      if(url.protocol!=='https:'||!/(^|\.)(google\.com|google\.com\.br|maps\.app\.goo\.gl|goo\.gl)$/.test(url.hostname))throw Error('Cole um link HTTPS do Google Maps.');
+      const raw=decodeURIComponent(url.pathname+url.search);
+      const patterns=[/@(-?\d{1,2}\.\d+),(-?\d{1,3}\.\d+)/,/[?&](?:q|query|ll)=(-?\d{1,2}\.\d+),(-?\d{1,3}\.\d+)/,/!3d(-?\d{1,2}\.\d+)!4d(-?\d{1,3}\.\d+)/];
+      for(const pattern of patterns){const m=raw.match(pattern);if(m){coords={lat:Number(m[1]),lng:Number(m[2])};break;}}
+      if(coords&&(!Number.isFinite(coords.lat)||!Number.isFinite(coords.lng)||Math.abs(coords.lat)>90||Math.abs(coords.lng)>180))coords=null;
+      if(!coords){$('bpr-map-guide').hidden=false;toast('Este link não contém coordenadas verificáveis. Use o endereço e número ou copie o endereço completo no Maps.');return;}
+      label='Coordenadas obtidas do link do Maps. Confirme que correspondem ao endereço informado.';
+    }catch(err){toast(err.message);return;}
+  } else {
+    const address=bprNewEventAddress(),city=$('new-city').value.trim(),uf=$('new-state').value.trim();
+    if($('new-address').value.trim().length<4||!$('new-number').value.trim()||city.length<2||uf.length!==2)return toast('Informe rua, número, cidade e UF antes de localizar.');
     button.disabled=true;
-    try {
+    try{
       const query=encodeURIComponent(`${address}, ${city}, ${uf}, Brasil`);
-      const response=await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=br&q=${query}`,{headers:{'Accept':'application/json'}});
-      if(!response.ok) throw Error('Serviço de localização indisponível.');
-      const candidates=await response.json();
-      if(!candidates.length) throw Error('Não foi possível localizar este endereço. Confira rua, número e cidade.');
-      coords={lat:Number(candidates[0].lat),lng:Number(candidates[0].lon)};
-      $('picker-location').textContent=`Local encontrado: ${candidates[0].display_name}. Confira a prévia.`;
-    } catch(err) { state.pickedCoords=null; return toast(err.message||'Não foi possível localizar.'); }
-    finally {button.disabled=false;}
+      const res=await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=br&q=${query}`,{headers:{Accept:'application/json'}});
+      if(!res.ok)throw Error('O serviço de localização não respondeu. Tente novamente mais tarde.');
+      const places=await res.json();if(!places.length)throw Error('Endereço não localizado. Confira o número ou use o Google Maps.');
+      coords={lat:Number(places[0].lat),lng:Number(places[0].lon)};
+      label=`Resultado: ${places[0].display_name}. Confirme antes de publicar.`;
+    }catch(err){$('bpr-map-guide').hidden=false;toast(err.message);return;}
+    finally{button.disabled=false;}
   }
-  state.pickedCoords=coords;
-  if(state.pickerMap){
+  state.pickedCoords=coords;$('bpr-confirm-location').checked=false;
+  $('bpr-map-preview').hidden=false;
+  if(window.L){
+    if(!state.pickerMap){state.pickerMap=L.map('map-picker',{scrollWheelZoom:false}).setView([coords.lat,coords.lng],16);
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap contributors'}).addTo(state.pickerMap);
+      state.pickerMap.getContainer().setAttribute('aria-label','Mapa de confirmação, sem edição por toque');
+    }
     state.pickerMap.setView([coords.lat,coords.lng],16);
-    if(state.pickerMarker) state.pickerMarker.setLatLng([coords.lat,coords.lng]);
+    if(state.pickerMarker)state.pickerMarker.setLatLng([coords.lat,coords.lng]);
     else state.pickerMarker=L.marker([coords.lat,coords.lng]).addTo(state.pickerMap);
+    setTimeout(()=>state.pickerMap?.invalidateSize(),120);
   }
-  $('picker-location').textContent=`📍 Local encontrado (${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}). Confira se corresponde ao endereço informado.`;
-  toast('Local encontrado. Confira o endereço e o mapa antes de publicar.');
+  $('picker-location').textContent=label;
+  toast('Local encontrado. Confira o endereço e marque a confirmação.');
 }
 
 async function compressWebp(file, maxBytes = 314572) {
@@ -1183,48 +1299,60 @@ async function compressWebp(file, maxBytes = 314572) {
 
 async function submitEvent(event) {
   event.preventDefault();
-  if (!state.pickedCoords) return toast('Localize e confirme o endereço antes de publicar.');
-  const start = new Date($('new-start').value);
-  const end = new Date($('new-end').value);
-  if (!(start > new Date()) || !(end > start)) return toast('Confira as datas: o término precisa ocorrer após o início.');
-  const ticket = $('new-ticket').value.trim();
-  if (ticket && !safeHttps(ticket)) return toast('O link de ingresso precisa começar com https://');
-  const playlist = $('new-playlist').value.trim();
-  if (playlist && !spotifyId(playlist,'playlist')) return toast('Cole um link de playlist válido do Spotify.');
-  const button = event.submitter;
-  button.disabled = true;
+  if (!state.pickedCoords || !$('bpr-confirm-location').checked) return toast('Confirme a localização no mapa antes de publicar.');
+  const start=new Date($('new-start').value), end=new Date($('new-end').value);
+  if(!(start>new Date())||!(end>start))return toast('Confira as datas e horários do rolê.');
+  const ticket=$('new-ticket').value.trim(),playlist=$('new-playlist').value.trim();
+  if(ticket&&!safeHttps(ticket))return toast('O ingresso precisa usar https://');
+  if(playlist&&!spotifyId(playlist,'playlist'))return toast('Informe uma playlist válida do Spotify.');
+  const button=event.submitter||$('bpr-step-submit');button.disabled=true;
   try {
-    const uid = crypto.randomUUID();
-    const row = {id: uid, creator_id: state.user.id,
-      title: $('new-title').value.trim(), category: $('new-category').value,
-      description: $('new-description').value.trim(), starts_at: start.toISOString(),
-      ends_at: end.toISOString(), venue_name: $('new-venue').value.trim() || null,
-      address: $('new-address').value.trim(), city: $('new-city').value.trim(),
-      state_code: $('new-state').value.trim().toUpperCase(),
-      latitude: state.pickedCoords.lat, longitude: state.pickedCoords.lng,
-      venue_instagram: $('new-insta').value.trim() || null,
-      ticket_url: ticket || null, spotify_playlist_url: playlist || null,
+    const row={creator_id:state.user.id,title:$('new-title').value.trim(),category:$('new-category').value,
+      description:$('new-description').value.trim(),starts_at:start.toISOString(),ends_at:end.toISOString(),
+      venue_name:$('new-venue').value.trim()||null,address:bprNewEventAddress(),
+      city:$('new-city').value.trim(),state_code:$('new-state').value.trim().toUpperCase(),
+      latitude:state.pickedCoords.lat,longitude:state.pickedCoords.lng,
+      venue_instagram:$('new-insta').value.trim()||null,ticket_url:ticket||null,
+      spotify_playlist_url:playlist||null,
       estimated_spend_brl:$('new-spend').value===''?null:Number($('new-spend').value),
-      spend_notes:$('new-spend-notes').value.trim() || null,
-      venue_checks_id: $('new-verified').checked,audience:$('new-audience').value,
-      requires_verified_age:false};
-    await assertOk(db.from('events').insert(row));
-    const file = $('new-cover').files?.[0];
-    if (file) {
-      try {
-        const blob = await compressWebp(file, 524288);
-        const path = `${uid}/cover.webp`;
-        await assertOk(db.storage.from('event-covers').upload(path, blob, {contentType: 'image/webp', upsert: true}));
-        await assertOk(db.from('events').update({cover_path: path}).eq('id', uid));
-      } catch (err) { toast(`Rolê criado, mas a capa não foi salva: ${err.message}`); }
+      spend_notes:$('new-spend-notes').value.trim()||null,
+      venue_checks_id:$('new-verified').checked,audience:$('new-audience').value,requires_verified_age:false};
+    // Validar/comprimir imagem ANTES de inserir o evento evita rascunhos por imagens inválidas.
+    const file=$('new-cover').files?.[0];
+    const skipCover=!!$('bpr-publish-no-cover')?.checked;
+    const blob=file&&!skipCover&&!state.eventDraftCoverUploaded?await state.prepareEventCover?.():null;
+    if(file&&!skipCover&&!state.eventDraftCoverUploaded&&!blob)throw Error('Escolha uma imagem compatível ou publique sem foto.');
+    let uid=state.eventDraftPendingId;
+    if(!uid){
+      uid=crypto.randomUUID();
+      await assertOk(db.from('events').insert({...row,id:uid}));
+      state.eventDraftPendingId=uid;
+    } else {
+      // Reaproveita o evento pending em nova tentativa, sem criar duplicatas.
+      await assertOk(db.from('events').update(row).eq('id',uid).eq('creator_id',state.user.id).eq('status','pending'));
     }
-    // A capa é enviada ANTES de publicar, por causa das permissões no Storage.
-    await assertOk(db.rpc('bora_publish_event', {_event: uid}));
-    closeModal();
-    await loadEvents();
-    toast('Seu rolê já está publicado! 🎉');
-  } catch (err) { toast(`Não foi possível criar o rolê: ${err.message}`); }
-  finally { button.disabled = false; }
+    if(file&&!skipCover){
+      try{
+        const path=`${uid}/cover.webp`;
+        if(!state.eventDraftCoverUploaded){
+          // Um arquivo novo usa apenas a política INSERT; não exige UPDATE/SELECT de upsert.
+          await assertOk(db.storage.from('event-covers').upload(path,blob,{contentType:'image/webp',upsert:false}));
+          state.eventDraftCoverUploaded=true;
+        }
+        await assertOk(db.from('events').update({cover_path:path}).eq('id',uid).eq('creator_id',state.user.id).eq('status','pending'));
+      } catch(err){
+        $('bpr-event-cover-error').hidden=false;
+        $('bpr-event-cover-error-text').textContent=`Não foi possível salvar a capa: ${friendlyError(err)}. O evento ficou pendente e não foi publicado.`;
+        button.textContent='Tentar novamente';
+        return;
+      }
+    }
+    // Publicação continua delegada à função existente; NÃO alterar seu backend.
+    await assertOk(db.rpc('bora_publish_event',{_event:uid}));
+    state.eventDraftPendingId=null;state.eventDraftCoverUploaded=false;state.prepareEventCover=null;
+    closeModal();await loadEvents();toast('Seu rolê foi publicado! 🎉');
+  } catch(err){toast(`Não foi possível publicar: ${friendlyError(err)}`);}
+  finally{button.disabled=false;}
 }
 
 function hydrateProfile() {
@@ -3002,7 +3130,7 @@ else {
 
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   // Atualização explícita do worker: evita manter uma instalação antiga do PWA.
-  navigator.serviceWorker.register('./service-worker.js?v=20261119-refinamentos-v22', {updateViaCache:'none'}).catch(() => {});
+  navigator.serviceWorker.register('./service-worker.js?v=20261120-criar-v56a', {updateViaCache:'none'}).catch(() => {});
 }
 
 async function inviteNickname(event, squadId) {

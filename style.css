@@ -728,3 +728,29 @@ body.bpr-game-active{overflow:hidden!important}
 .bpr-person-style-view[data-vibe="nature"]{border-top:2px solid #7fb86d;padding-top:7px}
 @media(max-width:460px){#screen-perfil .bpr-profile-hub>summary{padding:13px}#screen-perfil .bpr-hub-content{padding-inline:8px}#screen-perfil .bpr-hub-drawer-body{padding-inline:10px}#screen-perfil .bpr-cover-options{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(prefers-reduced-motion:reduce){#screen-perfil .bpr-profile-hub,#screen-perfil .bpr-hub-drawer{scroll-behavior:auto}}
+
+/* V5.6A — Criação progressiva de rolês; não altera formulários existentes de edição. */
+.bpr-create-wizard{display:grid;gap:16px;min-width:0}
+.bpr-create-wizard .bpr-create-step{min-width:0;display:grid;gap:15px}
+.bpr-create-wizard .bpr-create-step[hidden],.bpr-create-wizard [hidden]{display:none!important}
+.bpr-create-wizard .bpr-create-step h3{font-size:21px;font-weight:850;line-height:1.25;margin:4px 0 2px}
+.bpr-wizard-progress{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}
+.bpr-wizard-progress span{height:7px;border-radius:999px;font-size:0;background:var(--line)}
+.bpr-wizard-progress span.active{background:var(--lime)}
+.bpr-wizard-hint{margin:0}
+.bpr-wizard-actions{display:flex;gap:10px;align-items:center;justify-content:flex-end;padding-top:9px;border-top:1px solid var(--line)}
+.bpr-wizard-actions button{min-height:46px;min-width:0;flex:1;white-space:normal}
+.bpr-create-wizard input:not([type="checkbox"]):not([type="range"]):not([type="file"]),.bpr-create-wizard textarea,.bpr-create-wizard select{min-width:0;max-width:100%;width:100%}
+.bpr-map-fallback{border:1px solid var(--line);background:var(--surface2);padding:15px;border-radius:15px;display:grid;gap:11px}
+.bpr-map-fallback h4{margin:0;font-size:16px}
+.bpr-map-fallback ol{padding-left:22px;margin:0;line-height:1.65;font-size:13px;color:var(--muted)}
+.bpr-map-help{border:0;background:none;padding:10px 0;cursor:pointer;text-align:left;color:var(--lime);font:700 13px inherit;text-decoration:underline;text-underline-offset:3px;min-height:44px}
+#bpr-map-preview{display:grid;gap:10px}
+#bpr-map-preview .map-picker{min-height:245px;height:245px;max-height:275px;border-radius:16px;overflow:hidden}
+.bpr-event-cover-editor{display:grid;gap:8px;border:1px solid var(--line);border-radius:15px;background:var(--surface2);padding:12px}
+.bpr-event-cover-editor canvas{width:100%;aspect-ratio:16/9;height:auto;display:block;object-fit:contain;border-radius:11px;background:#0b1922;touch-action:none;cursor:grab}
+.bpr-event-cover-editor canvas:active{cursor:grabbing}
+.bpr-event-cover-editor input[type="range"]{accent-color:var(--lime)}
+.bpr-cover-recovery{padding:14px;border:1px solid #f3b27b;background:color-mix(in srgb,#a85820 17%,var(--surface));border-radius:14px;display:grid;gap:10px}
+.bpr-cover-recovery p{margin:0;line-height:1.5}
+@media(max-width:410px){.bpr-create-wizard .fields{grid-template-columns:1fr}.bpr-wizard-actions{flex-wrap:wrap}}
