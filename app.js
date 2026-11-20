@@ -604,6 +604,10 @@ async function syncSession() {
 function showModal(title, body) {
   const alreadyOpen = !$('modal').classList.contains('hidden');
   state.lastFocus = document.activeElement;
+  if(!state.bprOpeningRoom && state.activeRoom?.type==='squad' && $('dialog-body').classList.contains('room-panel')) {
+    const activeTab=document.querySelector('.bpr-v65-room-navigation [data-room-tab].active')?.dataset.roomTab||'chat';
+    state.bprReturnRoom={type:'squad',id:state.activeRoom.id,tab:activeTab};
+  }
   $('dialog-title').textContent = title;
   $('dialog-body').className = 'dialog-content';
   $('dialog-body').innerHTML = body;
@@ -666,8 +670,9 @@ window.addEventListener('popstate', (event) => {
   const destination = event.state?.[BORA_HISTORY_KEY];
   if (!destination) return; // permite sair normalmente ao chegar ao histórico anterior ao app
   if (!$('modal').classList.contains('hidden')) {
-    leaveRoom();
-    closeModal(true);
+    const backToRoom=state.bprReturnRoom;state.bprReturnRoom=null;
+    leaveRoom();closeModal(true);
+    if(backToRoom){void openRoom(backToRoom.type,backToRoom.id).then(()=>changeRoomTab(backToRoom.tab));return;}
   }
   if (destination.screen !== activeScreen()) navigate(destination.screen, true);
 });
@@ -1040,6 +1045,7 @@ async function saveEvent(id) {
   if (!event) return;
   try {
     if (state.saved.has(id)) {
+      if (!await appConfirm('Retirar este rolê da sua lista de salvos?',{title:'Remover dos salvos',confirmLabel:'Retirar',danger:true}))return;
       await assertOk(db.from('personal_saves').delete().eq('id', state.saved.get(id)));
       state.saved.delete(id);
       toast('Removido dos salvos.');
@@ -1063,16 +1069,18 @@ function renderMine() {
     const target = $(`bpr-count-${kind}`);
     if (target) target.textContent = String(count);
   }
-  const item = (event) => `<div class="list-row"><div class="icon-disc">${categories.find((c) => c[0] === event.category)?.[1] || '✨'}</div>
+  const item = (event, kind='joined') => `<div class="list-row bpr-v66-my-row"><div class="icon-disc">${categories.find((c) => c[0] === event.category)?.[1] || '✨'}</div>
     <div class="grow"><strong>${html(event.title)}</strong><p>${html(shortDate(event.date))} · ${html(event.address)}</p></div>
     <button class="btn btn-ghost btn-small" data-event="${html(event.id)}">Ver</button>
-    ${state.joined.has(event.id) && new Date(event.endsAt) <= new Date() && new Date(event.endsAt) > new Date(Date.now() - 7 * 86400000)
+    ${kind==='saved' ? `<button type="button" class="bpr-v66-small-x" data-unsave="${html(event.id)}" aria-label="Retirar ${html(event.title)} dos salvos" title="Retirar dos salvos">×</button>` : ''}
+    ${kind==='created' && event.status==='published'?`<button type="button" class="bpr-v66-small-x" data-action="cancel-event" data-id="${html(event.id)}" aria-label="Cancelar o rolê ${html(event.title)}" title="Cancelar o rolê">×</button>`:''}
+    ${kind==='joined' && state.joined.has(event.id) && new Date(event.endsAt) <= new Date() && new Date(event.endsAt) > new Date(Date.now() - 7 * 86400000)
       ? `<button class="btn btn-pink btn-small" data-action="create-squad" data-id="${html(event.id)}">Criar SQUAD</button>` : ''}</div>`;
   $('joined-list').innerHTML = state.events.filter((event) => state.joined.has(event.id)).map(item).join('') ||
     '<p class="small-muted">Ainda não confirmou nenhum rolê.</p>';
-  $('saved-list').innerHTML = state.events.filter((event) => state.saved.has(event.id)).map(item).join('') ||
+  $('saved-list').innerHTML = state.events.filter((event) => state.saved.has(event.id)).map(event=>item(event,'saved')).join('') ||
     '<p class="small-muted">Salve eventos pelo coração para encontrá-los aqui.</p>';
-  $('created-list').innerHTML = state.events.filter(event=>event.creatorId===state.user.id).map(item).join('') ||
+  $('created-list').innerHTML = state.events.filter(event=>event.creatorId===state.user.id).map(event=>item(event,'created')).join('') ||
     '<p class="small-muted">Você ainda não publicou um rolê.</p>';
 }
 
@@ -1423,6 +1431,22 @@ function hydrateProfile() {
       <button class="btn btn-ghost hidden" id="moderation-entry" data-action="moderation">🛡️ Painel de moderação</button>`;
     document.querySelector('#bpr-account-panel').append(options);
   }
+  // Convites são opt-in: a política do banco só permite convidar quem autorizou.
+  if(!$('bpr-allow-squad-invites')){
+    const row=document.createElement('div');row.className='switch-line bpr-v66-invite-opt-in';
+    row.innerHTML='<label for="bpr-allow-squad-invites"><strong>💌 Permitir convites para Squads</strong><small>Você decide se quer receber convites. Mesmo autorizado, ninguém entra em um Squad sem aceitar.</small></label><input id="bpr-allow-squad-invites" type="checkbox" aria-label="Permitir convites de Squads">';
+    $('bpr-account-panel')?.appendChild(row);
+    row.querySelector('input')?.addEventListener('change',async(event)=>{
+      const toggle=event.target, desired=toggle.checked;toggle.disabled=true;
+      try{
+        const value=await assertOk(db.from('profiles').update({allow_squad_invites:desired}).eq('id',state.user.id).select('allow_squad_invites').single());
+        state.profile.allow_squad_invites=value.allow_squad_invites;
+        toast(value.allow_squad_invites?'Convites para Squads permitidos.':'Convites para Squads desativados.');
+      }catch(err){toggle.checked=!desired;toast('Não foi possível atualizar a preferência. '+friendlyError(err));}
+      finally{toggle.disabled=false;}
+    });
+  }
+  if($('bpr-allow-squad-invites'))$('bpr-allow-squad-invites').checked=Boolean(profile.allow_squad_invites);
   if (!$('friend-form')) {
     const finder = document.createElement('section');
     finder.className = 'panel friend-discovery';
@@ -2335,7 +2359,9 @@ async function bprV6SaveSquadTheme(theme,button){
   document.querySelectorAll('.bpr-v6-theme-choice[data-squad-theme]').forEach(el=>el.setAttribute('aria-pressed',String(el.dataset.squadTheme===bprSquadThemeCurrent)));
 }
 function bprV65ManagerMarkup(room){
-  return `<details class="bpr-v65-management" id="bpr-v65-management"><summary>⚙️ Administração e configurações <span>Somente responsáveis</span></summary><div class="bpr-v65-management-inner"><h3>⚙️ Gestão do Squad</h3><p class="small-muted">Os comandos existentes continuam sujeitos às permissões do banco de dados.</p><div class="bpr-squad-settings-actions">
+  return `<details class="bpr-v65-management" id="bpr-v65-management"><summary>⚙️ Gestão do Squad <span>Somente responsáveis</span></summary><div class="bpr-v65-management-inner"><p class="small-muted">Estas ferramentas aparecem apenas para responsáveis. As permissões continuam validadas pelo Supabase.</p>
+      <details class="bpr-v67-pin-drawer"><summary>📌 Fixar novo aviso no mural <span>Expandir</span></summary><div class="bpr-v67-pin-body"><form id="pin-form" class="pin-form"><label>Título do aviso<input name="title" maxlength="90" required placeholder="Ex.: Ponto de encontro"></label><label>Descrição ou combinado<textarea name="body" maxlength="900" placeholder="Informações importantes do grupo"></textarea></label><label>Link (opcional)<input name="link_url" type="url" placeholder="https://..."></label><button class="btn btn-ghost" type="submit">📌 Fixar informação</button></form></div></details>
+      <h3>Outros controles</h3><div class="bpr-squad-settings-actions">
       <button class="btn btn-ghost" data-action="rename-squad" data-id="${html(room.id)}">Renomear Squad</button>
       <button class="btn btn-ghost" data-action="edit-album-link" data-id="${html(room.id)}">Configurar álbum</button>
       <button class="btn btn-ghost" data-action="squad-join-requests" data-id="${html(room.id)}">Pedidos de entrada</button>
@@ -2373,6 +2399,7 @@ async function openRoom(type, id) {
       <div class="bpr-v65-room-faq-panel"><strong>Como funciona?</strong><p>Somente integrantes participam dos chats e ferramentas do grupo. O mural guarda recados e calendário; apenas gestores veem comandos de gestão. Convites exigem aceitação.</p><p>Em caso de abuso, use Denunciar e escolha o conteúdo correto. Dados privados permanecem protegidos.</p></div></details>
     <button type="button" class="bpr-v65-report-link" data-action="report" data-kind="squad" data-id="${html(id)}" aria-label="Denunciar este Squad">⚑ <span>Denunciar</span></button>
   </div>` : '';
+  state.bprOpeningRoom=true;
   showModal(`${title || 'Grupo'} 💬`, `<div class="room-topline bpr-v6-room-head bpr-v65-room-head"><span>🔒 Conversa e ferramentas exclusivas de integrantes.</span>${squadTools}</div>
     ${isSquad ? `<nav class="bpr-v65-room-navigation" aria-label="Áreas do Squad">
       <button class="active" type="button" data-room-tab="chat">💬 <span>Conversa</span></button>
@@ -2383,6 +2410,7 @@ async function openRoom(type, id) {
       <button type="button" data-room-tab="board">📌 <span>${isManager?'Mural e gestão':'Mural'}</span></button>
     </nav>` : `<div class="chat-tabs bpr-v6-room-tabs"><button class="active" data-room-tab="chat">Conversa</button><button data-room-tab="mural">Mural</button><button data-room-tab="polls">Enquetes 📊</button><button data-room-tab="music">Músicas 🎵</button></div>`}
     <div id="room-content" class="room-content"></div>`);
+  state.bprOpeningRoom=false;
   $('dialog-body').className = 'dialog-content room-panel';
   if(type==='squad')void bprV6LoadSquadTheme(id);
   await changeRoomTab('chat');
@@ -2410,21 +2438,38 @@ async function changeRoomTab(tab) {
     $('chat-form').addEventListener('submit', sendMessage);
     await refreshRoomChat();
   } else if (tab === 'mural' || (tab==='board'&&room.type==='squad')) {
-    target.innerHTML = `<p class="small-muted">Informações e links importantes ficam aqui, mesmo depois da limpeza do chat.</p><div id="mural-items"></div>
-      <form id="pin-form" class="pin-form"><input name="title" maxlength="90" required placeholder="Título do aviso"><textarea name="body" maxlength="900" placeholder="Descrição ou combinado"></textarea>
-      <input name="link_url" type="url" placeholder="Link https:// (opcional)"><button class="btn btn-ghost" type="submit">📌 Fixar informação</button></form>
-      ${room.type === 'squad' ? `<section class="bpr-room-calendar" aria-label="Calendário do Squad"><div class="calendar-head"><h3>🗓️ Calendário e aniversários</h3><input id="squad-month" type="month" aria-label="Mês do calendário"></div><p class="small-muted">Eventos do grupo e aniversários compartilhados com autorização.</p><div id="squad-calendar" role="status"></div></section>` : ''}`;
-    $('pin-form').addEventListener('submit', addPin);
-    await refreshRoomPins();
-    if(room.type === 'squad' && $('squad-month')) {
-      const d = new Date();
-      $('squad-month').value = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-      $('squad-month').addEventListener('change',()=>renderSquadCalendar(room.id));
-      await renderSquadCalendar(room.id);
-    }
-    if(room.type==='squad' && ['owner','moderator'].includes(state.squadRoles.get(room.id))){
-      target.insertAdjacentHTML('beforeend',bprV65ManagerMarkup(room));
-      bprV65BindManager(room);
+    const squadBoard=room.type==='squad';
+    const manager=squadBoard&&['owner','moderator'].includes(state.squadRoles.get(room.id));
+    if(squadBoard){
+      target.innerHTML=`<section class="bpr-room-calendar bpr-v67-calendar" aria-label="Calendário do Squad">
+        <div class="bpr-v67-section-heading"><h3>🗓️ Calendário e aniversários</h3><p class="small-muted">Encontros do grupo e aniversários que os integrantes autorizaram compartilhar.</p></div>
+        <div class="bpr-v67-calendar-toolbar"><button type="button" class="bpr-v67-calendar-shift" data-bpr-month-shift="-1" aria-label="Mês anterior">‹</button><label class="bpr-v67-month-label"><span>Mês</span><input id="squad-month" type="month" aria-label="Escolher mês do calendário"></label><button type="button" class="bpr-v67-calendar-shift" data-bpr-month-shift="1" aria-label="Próximo mês">›</button></div>
+        <div id="squad-calendar" role="status" aria-live="polite"><p class="small-muted">Carregando calendário…</p></div></section>
+        <section class="bpr-v67-pins" aria-label="Informações fixadas do Squad"><h3>📌 Mural do Squad</h3><p class="small-muted">Avisos importantes permanecem disponíveis para os integrantes.</p><div id="mural-items"></div></section>`;
+      if(manager){
+        target.insertAdjacentHTML('beforeend',bprV65ManagerMarkup(room));
+        bprV65BindManager(room);
+        $('pin-form')?.addEventListener('submit', addPin);
+      }
+      const monthInput=$('squad-month');
+      if(monthInput){
+        const d=new Date();
+        monthInput.value=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+        monthInput.addEventListener('change',()=>renderSquadCalendar(room.id));
+        target.querySelectorAll('[data-bpr-month-shift]').forEach(btn=>btn.addEventListener('click',()=>{
+          const [year,month]=monthInput.value.split('-').map(Number);
+          const next=new Date(year,month-1+Number(btn.dataset.bprMonthShift),1);
+          monthInput.value=`${next.getFullYear()}-${String(next.getMonth()+1).padStart(2,'0')}`;
+          renderSquadCalendar(room.id);
+        }));
+      }
+      await Promise.all([refreshRoomPins(),renderSquadCalendar(room.id)]);
+    } else {
+      // O mural de rolês permanece com o comportamento anterior.
+      target.innerHTML=`<p class="small-muted">Informações e links importantes ficam aqui, mesmo depois da limpeza do chat.</p><div id="mural-items"></div>
+        <form id="pin-form" class="pin-form"><input name="title" maxlength="90" required placeholder="Título do aviso"><textarea name="body" maxlength="900" placeholder="Descrição ou combinado"></textarea><input name="link_url" type="url" placeholder="Link https:// (opcional)"><button class="btn btn-ghost" type="submit">📌 Fixar informação</button></form>`;
+      $('pin-form').addEventListener('submit',addPin);
+      await refreshRoomPins();
     }
   } else if (tab === 'polls') {
     target.innerHTML = `<p class="small-muted">📊 Faça uma pergunta com 2 a 6 alternativas. Só integrantes votam; a identidade dos votantes não aparece.</p>
@@ -2550,7 +2595,7 @@ async function refreshRoomPins() {
     if (state.activeRoom?.id !== room.id || !$('mural-items')) return;
     target.innerHTML = rows.length ? rows.map((row) => `<div class="mural-item"><strong>${html(row.title)}</strong><p>${html(row.body)}</p>
       ${safeHttps(row.link_url) ? `<a href="${html(safeHttps(row.link_url))}" target="_blank" rel="noopener noreferrer">Abrir link ↗</a>` : ''}
-      ${row.author_id === state.user.id ? `<button class="inline-button" data-action="delete-pin" data-id="${html(row.id)}">Remover</button>` : ''}</div>`).join('') :
+      ${row.author_id === state.user.id && (room.type!=='squad' || ['owner','moderator'].includes(state.squadRoles.get(room.id))) ? `<button class="inline-button" data-action="delete-pin" data-id="${html(row.id)}">Remover</button>` : ''}</div>`).join('') :
       '<p class="small-muted">Ainda não há informações fixadas.</p>';
   } catch (err) { target.textContent = err.message; }
 }
@@ -2559,6 +2604,7 @@ async function addPin(event) {
   event.preventDefault();
   const room = state.activeRoom;
   if (!room) return;
+  if(room.type==='squad' && !['owner','moderator'].includes(state.squadRoles.get(room.id)))return toast('Somente responsáveis podem fixar informações no Squad.');
   const form = Object.fromEntries(new FormData(event.target));
   const link = String(form.link_url || '').trim();
   if (link && !safeHttps(link)) return toast('Use link iniciado por https://');
@@ -2568,6 +2614,7 @@ async function addPin(event) {
       body:form.body?.trim() || '',link_url:link || null}));
     event.target.reset();
     await refreshRoomPins();
+    event.target.closest('.bpr-v67-pin-drawer')?.removeAttribute('open');
   } catch (err) { toast(err.message); }
 }
 
@@ -2824,27 +2871,75 @@ function bprStartNotificationRefresh(){
   bprNotifPoll=setInterval(()=>{if(!document.hidden&&state.opened)void refreshNotificationBadge();},45000);
   document.addEventListener('visibilitychange',()=>{if(!document.hidden&&state.opened)void refreshNotificationBadge();});
 }
-function bprNotifKind(item){
+function bprV66NotifType(item){
   const payload=item.payload&&typeof item.payload==='object'?item.payload:{};
-  const source=String(payload.source||'');
-  const msg=String(item.message||'').toLowerCase();
-  if(source==='follow'||msg.includes('seguir')||msg.includes('segu')||msg.includes('amigos'))return '💚';
-  if(source.includes('squad')||msg.includes('squad')||msg.includes('convite')||msg.includes('entrada'))return '👥';
-  return '🔔';
+  const source=String(payload.source||'');const msg=String(item.message||'').toLowerCase();
+  if(item.kind==='invite'||payload.invite_id||msg.includes('convite para'))return 'invites';
+  if(source==='squad_join_request'||msg.includes('pediu para entrar'))return 'requests';
+  if(source==='follow'||payload.follower_id||msg.includes('começou a seguir')||msg.includes('marcaram como amigos'))return 'follows';
+  return 'other';
 }
+const bprV66NotifGroups={
+  invites:{name:'Convites para Squads',icon:'💌'},
+  requests:{name:'Pedidos de entrada',icon:'👥'},
+  follows:{name:'Pessoas e amizades',icon:'💚'},
+  other:{name:'Informações e avisos',icon:'🔔'}
+};
 async function openNotifications(){
   if(!state.user)return;
-  try {
-    const rows=await assertOk(db.from('notifications').select('id,kind,message,created_at,read_at,payload').eq('user_id',state.user.id)
-      .order('created_at',{ascending:false}).limit(60));
-    const controls=`<div class="bpr-notif-top"><p class="small-muted">Escolha quais notificações deseja ler ou apagar. Abrir esta tela não marca tudo como lido.</p><button type="button" class="btn btn-ghost btn-small" data-action="notif-read-all">✓ Marcar todas como lidas</button></div>`;
-    const content=(rows||[]).map(item=>`<article class="bpr-notif-item ${item.read_at?'is-read':'is-unread'}">
-      <span class="bpr-notif-icon" aria-hidden="true">${bprNotifKind(item)}</span><div class="bpr-notif-content"><strong>${html(item.message)}</strong><small>${html(displayDate(item.created_at))}</small><div class="bpr-notif-actions">
-      ${item.read_at?'':`<button type="button" class="btn btn-ghost btn-small" data-action="notif-read" data-id="${html(String(item.id))}">✓ Marcar lida</button>`}
-      <button type="button" class="btn btn-ghost btn-small" data-action="notif-delete" data-id="${html(String(item.id))}">🗑 Apagar</button></div></div></article>`).join('');
+  try{
+    const rows=await assertOk(db.from('notifications').select('id,kind,message,created_at,read_at,payload').eq('user_id',state.user.id).order('created_at',{ascending:false}).limit(100));
+    const controls='<div class="bpr-notif-top"><p class="small-muted">Avisos agrupados por assunto. Toque em um grupo para expandir. O contador no sino mostra somente os não lidos.</p><button type="button" class="btn btn-ghost btn-small" data-action="notif-read-all">✓ Marcar todas como lidas</button></div>';
+    const grouped=Object.groupBy ? Object.groupBy(rows||[],bprV66NotifType) : (rows||[]).reduce((res,item)=>{(res[bprV66NotifType(item)] ||= []).push(item);return res;},{});
+    const content=Object.entries(bprV66NotifGroups).filter(([kind])=>grouped[kind]?.length).map(([kind,config])=>{
+      const items=grouped[kind];const unread=items.filter(n=>!n.read_at).length;
+      const cards=items.map(item=>{
+        const p=item.payload&&typeof item.payload==='object'?item.payload:{};
+        const followId=(p.follower_id||p.friend_id||'').toString();
+        const inviteId=(p.invite_id||'').toString();
+        let actions='';
+        if(kind==='invites'&&inviteId&&/^[0-9a-f-]{36}$/i.test(inviteId)){
+          actions=`<button class="btn btn-ghost btn-small" data-action="notif-invite-view" data-id="${html(inviteId)}">Ver</button><button class="btn btn-ghost btn-small" data-action="notif-invite-accept" data-id="${html(inviteId)}">Aceitar</button><button class="btn btn-ghost btn-small" data-action="notif-invite-decline" data-id="${html(inviteId)}">Recusar</button>`;
+        }else if(kind==='follows'&&followId&&/^[0-9a-f-]{36}$/i.test(followId)){
+          actions=`<button class="btn btn-ghost btn-small" data-action="notif-follow-view" data-id="${html(followId)}">Ver perfil</button>${p.follower_id?`<button class="btn btn-pink btn-small" data-action="notif-follow-back" data-id="${html(followId)}">Seguir de volta</button>`:''}`;
+        }else if(kind==='requests'&&p.squad_id){
+          actions=`<button class="btn btn-ghost btn-small" data-action="notif-request-view" data-id="${html(String(p.squad_id))}">Ver pedidos</button>`;
+        }
+        return `<article class="bpr-notif-item bpr-v66-notif-item ${item.read_at?'is-read':'is-unread'}"><div class="bpr-notif-content"><strong>${html(item.message)}</strong><small>${html(displayDate(item.created_at))}</small><div class="bpr-notif-actions">${actions}
+          ${item.read_at?'':`<button class="btn btn-ghost btn-small" data-action="notif-read" data-id="${html(String(item.id))}">✓ Lida</button>`}
+          <button class="btn btn-ghost btn-small" data-action="notif-delete" data-id="${html(String(item.id))}">Apagar</button></div></div></article>`;
+      }).join('');
+      return `<details class="bpr-v66-notif-group" data-notif-type="${kind}" ${unread?'open':''}><summary><span class="bpr-v66-notif-symbol" aria-hidden="true">${config.icon}</span><strong>${config.name}</strong><span class="bpr-v66-notif-number" aria-label="${items.length} notificações">${items.length}</span>${unread?`<span class="bpr-v66-unread">${unread} novas</span>`:''}</summary><div class="bpr-v66-notif-items">${cards}</div></details>`;
+    }).join('');
     showModal('Suas notificações 🔔',controls+(content||'<p class="small-muted">Você está em dia! Nenhuma notificação por enquanto.</p>'));
     void refreshNotificationBadge();
   }catch(err){toast(friendlyError(err));}
+}
+async function bprV66NotificationLink(action,id){
+  if(action==='notif-invite-view'){
+    await loadSquads();const invite=state.squadInvites.find(item=>item.id===id);
+    if(!invite)return toast('Este convite não está mais pendente.');
+    showModal('Convite para Squad 💌',`<p>Você recebeu um convite para entrar em um Squad. Só terá acesso ao grupo após aceitar.</p><div class="dialog-actions"><button type="button" class="btn btn-pink" data-action="notif-invite-accept" data-id="${html(id)}">Aceitar convite</button><button type="button" class="btn btn-ghost" data-action="notif-invite-decline" data-id="${html(id)}">Recusar</button><button type="button" class="btn btn-ghost" data-action="notifications">Voltar às notificações</button></div>`);return;
+  }
+  if(['notif-invite-accept','notif-invite-decline'].includes(action)){
+    const ok=await respondInvite(id,action==='notif-invite-accept');
+    if(ok){
+      await db.from('notifications').update({read_at:new Date().toISOString()}).eq('user_id',state.user.id).contains('payload',{invite_id:id});
+      return await openNotifications();
+    }return;
+  }
+  if(action==='notif-follow-view')return await viewUserProfile(id);
+  if(action==='notif-follow-back'){
+    const before=await assertOk(db.from('follows').select('followed_id').eq('follower_id',state.user.id).eq('followed_id',id).limit(1));
+    if(before?.length)return toast('Você já segue essa pessoa.');
+    try{await assertOk(db.from('follows').insert({follower_id:state.user.id,followed_id:id}));toast('Você seguiu de volta!');await db.from('notifications').update({read_at:new Date().toISOString()}).eq('user_id',state.user.id).contains('payload',{follower_id:id});return await openNotifications();}
+    catch(err){return toast(friendlyError(err));}
+  }
+  if(action==='notif-request-view'){
+    if(!['owner','moderator'].includes(state.squadRoles.get(id)))await loadSquads();
+    if(!['owner','moderator'].includes(state.squadRoles.get(id)))return toast('Somente responsáveis podem consultar pedidos.');
+    return await openSquadJoinRequests(id);
+  }
 }
 async function bprNotificationAction(action,id){
   if(!state.user)return;
@@ -3158,7 +3253,14 @@ async function performModeration(action, el) {
   } catch (err) { toast(`Não foi possível concluir: ${err.message}`); }
 }
 
-function closeAndLeaveRoom() { leaveRoom(); closeModal(); }
+async function closeAndLeaveRoom(){
+  const destination=state.bprReturnRoom;
+  state.bprReturnRoom=null;
+  leaveRoom();closeModal();
+  if(destination && state.opened){
+    try {await openRoom(destination.type,destination.id);await changeRoomTab(destination.tab);}catch(err){toast('Não foi possível voltar ao Squad. '+friendlyError(err));}
+  }
+}
 
 async function handleAction(action, element) {
   const id = element.dataset.id;
@@ -3203,6 +3305,9 @@ async function handleAction(action, element) {
       case 'manage-blocks': return await manageBlockedNicknames();
       case 'unblock-found-user': return await unblockFoundNickname(element.dataset.nick);
       case 'notifications': return await openNotifications();
+      case 'notif-invite-view': case 'notif-invite-accept': case 'notif-invite-decline':
+      case 'notif-follow-view': case 'notif-follow-back': case 'notif-request-view':
+        return await bprV66NotificationLink(action,id);
       case 'squad-invite-member': return bprInviteMemberFromRoster(id);
       case 'notif-read': case 'notif-delete': case 'notif-read-all': return await bprNotificationAction(action,id);
       case 'account': return await openAccount();
@@ -3277,6 +3382,8 @@ document.addEventListener('click', (event) => {
   const authButton = event.target.closest('[data-auth]');
   if (authButton) { event.preventDefault(); return authAction(authButton.dataset.auth); }
 
+  const unsave=event.target.closest('[data-unsave]');
+  if(unsave){event.preventDefault();event.stopPropagation();return void saveEvent(unsave.dataset.unsave);}
   const save = event.target.closest('[data-save]');
   if (save) { event.preventDefault(); event.stopPropagation(); return saveEvent(save.dataset.save); }
   const squadThemeButton=event.target.closest('.bpr-v6-theme-choice');
@@ -3355,9 +3462,24 @@ document.addEventListener('keydown', (event) => {
   }
 });
 
+function bprV66SearchSuggestions(){
+  const box=$('bpr-v66-search-suggestions');if(!box)return;
+  const query=state.search;const hits=query?filteredEvents().sort((a,b)=>{
+    const sa=a.title.toLowerCase().startsWith(query)?0:1;
+    const sb=b.title.toLowerCase().startsWith(query)?0:1;
+    return sa-sb||new Date(a.date)-new Date(b.date);
+  }).slice(0,6):[];
+  box.hidden=!query;
+  box.innerHTML=!query?'':hits.length?hits.map(e=>`<button type="button" role="option" class="bpr-v66-search-item" data-event="${html(e.id)}"><strong>${html(e.title)}</strong><small>${html(e.venue||e.city)} · ${html(shortDate(e.date))}</small></button>`).join(''):'<p class="small-muted">Não encontramos rolês com esse trecho. Experimente parte do nome ou do bairro.</p>';
+}
 $('global-search').addEventListener('input', (event) => {
   state.search = event.target.value.trim().toLowerCase();
-  navigate('explorar'); renderEvents();
+  if(state.search) setView('lista');
+  renderEvents();bprV66SearchSuggestions();
+});
+$('global-search').addEventListener('keydown',event=>{
+  if(event.key==='Escape'){$('global-search').value='';state.search='';bprV66SearchSuggestions();renderEvents();}
+  if(event.key==='ArrowDown'){const target=$('bpr-v66-search-suggestions')?.querySelector('button');if(target){event.preventDefault();target.focus();}}
 });
 
 function applyTheme(theme) {
@@ -3447,7 +3569,7 @@ else {
 
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   // Atualização explícita do worker: evita manter uma instalação antiga do PWA.
-  navigator.serviceWorker.register('./service-worker.js?v=20261120-squad-invite-v64', {updateViaCache:'none'}).catch(() => {});
+  navigator.serviceWorker.register('./service-worker.js?v=20261120-v66', {updateViaCache:'none'}).catch(() => {});
 }
 
 function bprInviteMemberFromRoster(squadId){
@@ -3537,14 +3659,14 @@ function bprInviteMemberFromRoster(squadId){
     status.textContent='Enviando convite…';
     try{
       // invited_by precisa ser o usuário autenticado; INSERT permanece sujeito ao RLS.
-      await assertOk(db.from('squad_invitations').insert({squad_id:squadId,invitee_id:chosen.user_id,invited_by:state.user.id}));
+      await assertOk(db.rpc('bpr_v66_send_squad_invite',{p_squad:squadId,p_invitee:chosen.user_id}));
       status.textContent=`Convite enviado a @${chosen.username}. Aguarde a aceitação da pessoa.`;
       picked.textContent=`✓ Convite enviado para ${chosen.display_name||chosen.username} (@${chosen.username})`;
       toast(`Convite enviado a @${chosen.username}.`);
     }catch(err){
       disabled=false;send.disabled=false;input.disabled=false;
       const hint=err.code==='23505'?'Já existe um convite para esta pessoa.':
-        err.code==='42501'||/row.level security/i.test(err.message||'')?'O Supabase recusou o convite pela política do Squad. Confira a autorização do responsável e a política de INSERT.':friendlyError(err);
+        err.code==='42501'||/row.level security/i.test(err.message||'')?'Convite não autorizado. Confirme se o SQL V6.6 foi instalado, o Squad está ativo e a pessoa permite convites.':err.code==='PGRST202'||err.code==='42883'?'Instale a função de convites V6.6 no Supabase antes de enviar.':friendlyError(err);
       status.textContent=hint;
     }
   });
@@ -3556,30 +3678,63 @@ async function respondInvite(id, accepted) {
     await assertOk(db.rpc(accepted ? 'accept_squad_invitation' : 'decline_squad_invitation', {_invite: id}));
     await loadSquads();
     toast(accepted ? 'Você entrou no SQUAD!' : 'Convite recusado.');
-  } catch (err) { toast(err.message); }
+    return true;
+  } catch (err) { toast(err.message); return false; }
 }
 
 async function renderSquadCalendar(squadId) {
-  const target = $('squad-calendar');
-  if (!target) return;
-  const value = $('squad-month')?.value || new Date().toISOString().slice(0,7);
-  const [year, month] = value.split('-').map(Number);
-  if (!year || month < 1 || month > 12) return;
-  const from = new Date(Date.UTC(year,month-1,1)).toISOString();
-  const to = new Date(Date.UTC(year,month,1)).toISOString();
+  const target=$('squad-calendar');
+  if(!target || state.activeRoom?.id!==squadId || state.activeRoom?.type!=='squad')return;
+  const value=$('squad-month')?.value || `${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}`;
+  const [year,month]=value.split('-').map(Number);
+  if(!year || month<1 || month>12)return;
+  const from=new Date(year,month-1,1).toISOString();
+  const to=new Date(year,month,1).toISOString();
+  const heading=new Intl.DateTimeFormat('pt-BR',{month:'long',year:'numeric'}).format(new Date(year,month-1,1));
+  target.innerHTML='<p class="small-muted">Atualizando datas…</p>';
   try {
-    const [calendar, birthdays] = await Promise.all([
-      assertOk(db.from('squad_calendar').select('id,title,starts_at').eq('squad_id',squadId).gte('starts_at',from).lt('starts_at',to).limit(100)),
-      assertOk(db.rpc('get_squad_birthdays',{_squad: squadId,_month: month}))
+    const [calendar,birthdays]=await Promise.all([
+      assertOk(db.from('squad_calendar').select('id,title,starts_at').eq('squad_id',squadId).gte('starts_at',from).lt('starts_at',to).order('starts_at',{ascending:true}).limit(100)),
+      // Esta RPC aplica a regra de aniversário autorizado, sem expor data de nascimento.
+      assertOk(db.rpc('get_squad_birthdays',{_squad:squadId,_month:month}))
     ]);
-    if (!$('squad-calendar') || state.activeSquad !== squadId) return;
-    const items = [
-      ...(calendar || []).map((row) => ({day: new Date(row.starts_at).getDate(),text: row.title,icon:'📅'})),
-      ...(birthdays || []).map((row) => ({day: row.birthday_day,text: `Aniversário de @${row.username}`,icon:'🎂'}))
-    ].sort((a,b) => a.day-b.day);
-    target.innerHTML = items.length ? items.map((row) => `<div class="calendar-entry"><span class="calendar-day">${row.day}</span><div><strong>${row.icon} ${html(row.text)}</strong></div></div>`).join('') :
-      '<div class="empty" style="padding:16px">Nenhum evento ou aniversário autorizado neste mês.</div>';
-  } catch (err) { target.textContent = `Agenda indisponível: ${err.message}`; }
+    if(!$('squad-calendar') || state.activeRoom?.id!==squadId)return;
+    const daysInMonth=new Date(year,month,0).getDate();
+    const rows=[
+      ...(calendar||[]).map(row=>({day:new Date(row.starts_at).getDate(),text:String(row.title||'Encontro'),icon:'📅',kind:'event'})),
+      ...(birthdays||[]).map(row=>({day:Number(row.birthday_day),text:`Aniversário de @${row.username}`,icon:'🎂',kind:'birthday'}))
+    ].filter(item=>Number.isInteger(item.day)&&item.day>=1&&item.day<=daysInMonth).sort((a,b)=>a.day-b.day);
+    const byDay=new Map();
+    rows.forEach(item=>{if(!byDay.has(item.day))byDay.set(item.day,[]);byDay.get(item.day).push(item);});
+    const pad=(new Date(year,month-1,1).getDay()+6)%7; // Semana inicia na segunda-feira.
+    const now=new Date();
+    const currentMonth=year===now.getFullYear()&&month===now.getMonth()+1;
+    const selectedDay=currentMonth?now.getDate():1;
+    const cells=[...Array(pad).fill('<span class="bpr-v67-calendar-blank" aria-hidden="true"></span>')];
+    for(let day=1;day<=daysInMonth;day++){
+      const events=byDay.get(day)||[];
+      const labels=events.map(item=>`${item.icon} ${item.text}`).join('; ');
+      cells.push(`<button type="button" class="bpr-v67-calendar-day${currentMonth&&day===now.getDate()?' is-today':''}${events.length?' has-items':''}${day===selectedDay?' is-selected':''}" data-bpr-cal-day="${day}" aria-pressed="${day===selectedDay}" aria-label="Dia ${day} de ${heading}${labels?': '+html(labels):', sem registros'}"><strong>${day}</strong><span class="bpr-v67-calendar-symbols" aria-hidden="true">${events.some(e=>e.kind==='event')?'📅':''}${events.some(e=>e.kind==='birthday')?'🎂':''}</span></button>`);
+    }
+    while(cells.length%7!==0)cells.push('<span class="bpr-v67-calendar-blank" aria-hidden="true"></span>');
+    target.innerHTML=`<div class="bpr-v67-calendar-weeks" role="group" aria-label="Dias da semana">${['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'].map(d=>`<span>${d}</span>`).join('')}</div>
+      <div class="bpr-v67-calendar-grid" role="group" aria-label="${html(heading)}">${cells.join('')}</div>
+      <div class="bpr-v67-calendar-key"><span>📅 Encontros</span><span>🎂 Aniversários autorizados</span></div>
+      <div class="bpr-v67-day-details" id="bpr-v67-calendar-details" aria-live="polite"></div>
+      ${rows.length?`<details class="bpr-v67-month-list"><summary>Ver todos os compromissos do mês (${rows.length})</summary><div>${rows.map(item=>`<div class="bpr-v67-month-item"><strong>${String(item.day).padStart(2,'0')}/${String(month).padStart(2,'0')}</strong><span>${item.icon} ${html(item.text)}</span></div>`).join('')}</div></details>`:'<p class="small-muted bpr-v67-empty-month">Nenhum encontro ou aniversário autorizado neste mês.</p>'}`;
+    const showDay=day=>{
+      const details=$('bpr-v67-calendar-details');if(!details)return;
+      const selected=byDay.get(day)||[];
+      details.innerHTML=`<strong>${String(day).padStart(2,'0')}/${String(month).padStart(2,'0')} · ${html(heading)}</strong>${selected.length?selected.map(item=>`<p>${item.icon} ${html(item.text)}</p>`).join(''):'<p>Nenhum compromisso nessa data.</p>'}`;
+      target.querySelectorAll('[data-bpr-cal-day]').forEach(btn=>{const active=Number(btn.dataset.bprCalDay)===day;btn.classList.toggle('is-selected',active);btn.setAttribute('aria-pressed',String(active));});
+    };
+    target.querySelectorAll('[data-bpr-cal-day]').forEach(btn=>btn.addEventListener('click',()=>showDay(Number(btn.dataset.bprCalDay))));
+    showDay(selectedDay);
+  } catch(err) {
+    if($('squad-calendar')&&state.activeRoom?.id===squadId){
+      target.innerHTML='<p class="small-muted">Não foi possível carregar o calendário. Verifique a conexão ou tente selecionar o mês novamente.</p>';
+    }
+  }
 }
 
 function openCalendarForm(squadId) {
@@ -3597,8 +3752,8 @@ function openCalendarForm(squadId) {
     try {
       await assertOk(db.from('squad_calendar').insert({squad_id:squadId,title:data.title.trim(),
         starts_at:new Date(data.starts_at).toISOString(),description:data.description?.trim() || null}));
-      closeModal();
-      await renderSquadCalendar(squadId);
+      // Volta à sala de origem antes de recarregar a grade.
+      await closeAndLeaveRoom();
       toast('Encontro incluído no calendário.');
     } catch (err) { toast(err.message); }
   });
