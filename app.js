@@ -1438,9 +1438,20 @@ function hydrateProfile() {
       <form id="nickname-block-form" class="friend-finder"><input id="block-nick" placeholder="@user a bloquear" maxlength="24" aria-label="Bloquear pelo @user"><button class="btn btn-ghost" type="submit">Bloquear</button></form>
       <button class="inline-button" data-action="manage-blocks">Ver e gerenciar meus bloqueios</button>`;
     document.querySelector('#bpr-hub-privacy .bpr-hub-drawer-body').append(blocks);
+    const compact=$('bpr-squad-search-results');
+    if(compact){
+      finder.id='bpr-v6-squad-search-results-target';
+      compact.replaceChildren(finder);
+      finder.querySelector('.friend-discovery-title')?.classList.add('hidden');
+      finder.querySelector('#friend-form')?.classList.add('bpr-v6-visually-hidden');
+    }
     $('friend-form').addEventListener('submit', followNickname);
     $('nickname-block-form').addEventListener('submit', blockNicknameFromForm);
   }
+  bprV6ProfileLayout();
+  const targetAbout=$('bpr-v6-birthday-target');
+  const birthdaySwitch=$('birthday-consent')?.closest('.switch-line');
+  if(targetAbout && birthdaySwitch && !targetAbout.contains(birthdaySwitch))targetAbout.append(birthdaySwitch);
   $('birthday-consent').checked = Boolean(profile.share_birthday_to_squads);
   const birthConsent = $('birthday-consent');
   birthConsent.onchange = async () => {
@@ -1728,8 +1739,10 @@ async function viewUserProfile(userId,fromSquad='') {
         ${profile.bio?`<p class="bpr-guest-bio">${html(profile.bio)}</p>`:'<p class="small-muted">Este perfil não compartilhou uma bio.</p>'}
         ${profile.city?`<p class="small-muted">📍 ${html(profile.city)}</p>`:''}
         ${relationship}<p class="small-muted">As informações exibidas respeitam a privacidade escolhida pela pessoa.</p>
+        <div class="bpr-v6-guest-actions"><button type="button" class="btn btn-pink" data-action="follow-found-user" data-id="${html(userId)}" data-nick="${html(profile.username)}">Seguir</button><button type="button" class="btn btn-ghost" data-action="block-found-user" data-nick="${html(profile.username)}">Bloquear</button></div>
         ${fromSquad?`<button class="btn btn-ghost" type="button" data-action="squad-roster" data-id="${html(fromSquad)}">Voltar aos integrantes</button>`:''}
       </div></article>`);
+    void bprV6CheckFollowing(userId);
   }catch(err){toast('Não foi possível abrir este perfil. '+friendlyError(err));}
 }
 
@@ -1769,6 +1782,7 @@ async function followNickname(event) {
     // Complementos públicos são solicitados apenas para alguém já encontrado
     // pela busca que respeita as regras de visibilidade do perfil.
     if(person?.user_id) {
+      void bprV6CheckFollowing(person.user_id);
       const resultBox=target.querySelector('.bpr-person-style-view');
       const personId=person.user_id;
       db.rpc('bpr_profile_personalization_public',{p_user_id:personId}).then(({data,error})=>{
@@ -1785,11 +1799,43 @@ async function followNickname(event) {
   } catch (err) { target.textContent = `Não foi possível pesquisar: ${friendlyError(err)}`; }
 }
 
+function bprV6RefreshFollowButton(userId,following){
+  document.querySelectorAll('[data-action="follow-found-user"], [data-action="unfollow-found-user"]').forEach(btn=>{
+    if(btn.dataset.id!==userId)return;
+    btn.dataset.action=following?'unfollow-found-user':'follow-found-user';
+    btn.textContent=following?'✓ Seguindo':'Seguir';
+    btn.setAttribute('aria-pressed',String(following));
+    btn.classList.toggle('bpr-v6-following',following);
+  });
+}
+async function bprV6UnfollowFoundUser(userId,nickname){
+  if(!state.user||!userId)return;
+  try{await assertOk(db.from('follows').delete().eq('follower_id',state.user.id).eq('followed_id',userId));
+    bprV6RefreshFollowButton(userId,false);toast(`Você deixou de seguir @${nickname}.`);
+  }catch(err){toast(friendlyError(err));}
+}
+async function bprV6CheckFollowing(userId){
+  if(!state.user?.id || !userId)return;
+  try{const rows=await assertOk(db.from('follows').select('followed_id').eq('follower_id',state.user.id).eq('followed_id',userId).limit(1));
+    bprV6RefreshFollowButton(userId,Boolean(rows?.length));
+  }catch(err){ /* erro de rede não deve produzir um falso estado Seguindo */ }
+}
+async function bprV6SquadSearch(){
+  const query=$('friend-query-v6')?.value.trim() || '';
+  if(query.length<3)return toast('Digite pelo menos três caracteres.');
+  const original=$('friend-nick');
+  if(!original){toast('A busca ainda está carregando. Tente novamente.');return;}
+  original.value=query;
+  await followNickname({preventDefault(){}});
+  document.querySelector('#bpr-v6-squad-search-results-target')?.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth',block:'nearest'});
+}
+$('friend-query-v6')?.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();void bprV6SquadSearch();}});
+
 async function followFoundUser(userId,nickname) {
   if (!userId || userId===state.user?.id) return;
   try {
     await assertOk(db.from('follows').insert({follower_id:state.user.id,followed_id:userId}));
-    toast(`Agora você segue @${nickname}. A amizade é recíproca quando a pessoa também seguir você.`);
+    bprV6RefreshFollowButton(userId,true); toast(`Agora você segue @${nickname}. A amizade é recíproca quando a pessoa também seguir você.`);
   } catch(err) { toast(err.code==='23505'?'Você já segue esta pessoa.':friendlyError(err)); }
 }
 
@@ -1838,6 +1884,27 @@ async function loadSquads() {
   renderSquads();
 }
 
+
+// V6: uma gaveta contextual: dados privados, relacionamento e aniversário.
+function bprV6ProfileLayout(){
+  const edit=document.querySelector('#bpr-hub-edit .bpr-hub-drawer-body');
+  const style=$('bpr-style-form');
+  const rel=$('bpr-relationship')?.closest('.field');
+  const vis=$('bpr-show-relationship')?.closest('label');
+  if(!edit || !style || !rel || !vis || $('bpr-v6-about'))return;
+  const section=document.createElement('section');section.id='bpr-v6-about';section.className='bpr-v6-about';
+  section.innerHTML='<h3>🔐 Identificações privadas</h3><p class="small-muted">Dados de gênero e identificação LGBTQIA+ não são exibidos no perfil e só são utilizados para rolês direcionados com sua autorização.</p><button type="button" class="btn btn-ghost" data-action="audience-preferences">Editar identificações privadas</button><h3>💛 O que posso mostrar</h3>';
+  edit.prepend(section);
+  section.append(rel,vis);
+  // Esses elementos continuam salvos pelo formulário original, apesar da nova localização.
+  section.querySelectorAll('input,select').forEach(el=>el.setAttribute('form','bpr-style-form'));
+  $('bpr-relationship')?.addEventListener('change',ev=>{ $('bpr-show-relationship').disabled=!ev.target.value; if(!ev.target.value)$('bpr-show-relationship').checked=false; });
+  const birthday=document.createElement('div');birthday.className='bpr-v6-birthday-target';birthday.id='bpr-v6-birthday-target';
+  section.append(birthday);
+  const privacyButton=document.querySelector('#bpr-account-panel [data-action="audience-preferences"]');privacyButton?.remove();
+  document.querySelector('#bpr-hub-edit .bpr-hub-copy small').textContent='Bio, identificações, relacionamento e aniversário';
+  document.querySelector('#bpr-hub-vibe .bpr-hub-copy small').textContent='7 capas e tipos de rolê favoritos';
+}
 function renderSquads() {
   const inviteContainer = $('squad-invite');
   inviteContainer.classList.toggle('hidden', !state.squadInvites.length);
@@ -1848,8 +1915,7 @@ function renderSquads() {
   }
   const list = document.querySelector('#screen-squad .two-col');
   list.innerHTML = `<div class="panel"><div class="squad-extras-head"><h3>Meus SQUADs</h3><button class="btn btn-pink btn-small" data-action="create-independent-squad">+ Criar SQUAD</button></div>
-    ${state.squads.length ? state.squads.map((squad) => `<div class="list-row"><div class="icon-disc">🫶</div><div class="grow"><strong>${html(squad.name)}</strong><p>${html(squad.description || 'Comunidade de amigos')}</p></div>
-      <button class="btn btn-pink btn-small" data-action="open-squad" data-id="${html(squad.id)}">Abrir</button></div>`).join('') : '<p class="small-muted">Ainda não participa de SQUAD. Você já pode criar um, sem precisar ir a um rolê antes.</p>'}</div>
+    ${state.squads.length ? `<div class="bpr-v6-squad-grid">${state.squads.map((squad) => `<button type="button" class="bpr-v6-squad-tile" data-action="open-squad" data-id="${html(squad.id)}"><span class="bpr-v6-squad-symbol" aria-hidden="true">🫶</span><strong>${html(squad.name)}</strong><small>${html(squad.description || 'Comunidade de amigos')}</small><span class="bpr-v6-squad-open">Abrir grupo ↗</span></button>`).join('')}</div>` : '<p class="small-muted">Ainda não participa de SQUAD. Você já pode criar um, sem precisar ir a um rolê antes.</p>'}</div>
     <details class="panel bpr-squad-guide"><summary>O que é um SQUAD? <span>Ver orientações</span></summary><p class="small-muted">Uma galera organizada com chat, enquetes, álbum compartilhado no Google Drive, mural, convites por @user e até 3 administradores.</p>
       <div class="list-row"><div class="icon-disc">🔐</div><div class="grow"><strong>Entrada protegida</strong><p>Convites individuais precisam ser aceitos. Quem encontra o SQUAD pela busca solicita entrada e espera aprovação de um admin.</p></div></div>
       <div class="list-row"><div class="icon-disc">🛡️</div><div class="grow"><strong>Decisão em conjunto</strong><p>Excluir alguém do grupo exige concordância de 2 administradores, mesmo quando há 3.</p></div></div>
@@ -1892,7 +1958,7 @@ function refreshBprFeatures() {
   else {cardLink.hidden=true;cardLink.removeAttribute('href');}
   const visible=slides.filter(slide=>{
     const idx=Number(slide.dataset.slide);
-    const enabled=idx===0||(idx===1&&config.banner_enabled!==false)||idx===2||(idx===3&&!!bprSpotifyId)||(idx===4&&msg.length>0)||(idx===5&&!!card?.active);
+    const enabled=idx===0||(idx===1&&config.banner_enabled!==false)||idx===2||(idx===3&&!!bprSpotifyId)||(idx===4&&msg.length>0)||(idx===5&&!!card?.active)||(idx===6&&!!config.squad_games_enabled);
     slide.dataset.available=String(enabled);
     return enabled;
   });
@@ -1900,11 +1966,11 @@ function refreshBprFeatures() {
   bprFeatureIndex=Math.min(bprFeatureIndex,visible.length-1);
   slides.forEach(slide=>{slide.hidden=true;});
   visible[bprFeatureIndex].hidden=false;
-  $('bpr-feature-indicator').textContent=`${bprFeatureIndex+1} de ${visible.length}`;
+  $('bpr-feature-indicator').innerHTML=`<span aria-hidden="true">${visible.map((_,i)=>`<i class="bpr-feature-dot ${i===bprFeatureIndex?'is-active':''}"></i>`).join('')}</span><span class="bpr-sr">Próximo destaque, ${bprFeatureIndex+1} de ${visible.length}</span>`;
   const control=$('bpr-feature-toggle');
   if(control) {
     const paused=bprFeaturePaused||bprFeatureReducedMotion.matches;
-    control.textContent=paused?'▶ Reproduzir':'⏸ Pausar';
+    control.textContent=paused?'▶':'Ⅱ';control.title=paused?'Retomar':'Pausar';
     control.setAttribute('aria-pressed',String(paused));
     control.setAttribute('aria-label',paused?'Retomar a passagem automática dos destaques':'Pausar a passagem automática dos destaques');
   }
@@ -2239,6 +2305,33 @@ function leaveRoom() {
   state.photoUrls=[];
 }
 
+// Temas de Squad só persistem pelo Supabase após instalar SQL V6.
+const bprSquadThemes={neon:'Neon urbano',ocean:'Oceano',sunset:'Pôr do sol'};
+let bprSquadThemeCurrent='neon';
+function bprV6PaintSquad(theme){
+  bprSquadThemeCurrent=Object.hasOwn(bprSquadThemes,theme)?theme:'neon';
+  document.querySelector('.bpr-v6-room-head')?.setAttribute('data-squad-theme',bprSquadThemeCurrent);
+}
+async function bprV6LoadSquadTheme(id){
+  bprV6PaintSquad('neon');
+  const {data,error}=await db.rpc('bpr_squad_get_theme',{p_squad:id});
+  if(state.activeRoom?.id!==id)return;
+  if(!error && data?.theme)bprV6PaintSquad(data.theme);
+}
+async function bprV6SaveSquadTheme(theme,button){
+  const id=state.activeRoom?.id;
+  if(state.activeRoom?.type!=='squad'||!['owner','moderator'].includes(state.squadRoles.get(id)))return toast('Apenas gestores do Squad podem alterar o tema.');
+  if(!Object.hasOwn(bprSquadThemes,theme))return;
+  const prev=bprSquadThemeCurrent;
+  button.disabled=true;
+  bprV6PaintSquad(theme);
+  const {data,error}=await db.rpc('bpr_squad_set_theme',{p_squad:id,p_theme:theme});
+  button.disabled=false;
+  if(error){bprV6PaintSquad(prev);toast('O tema não foi salvo. Confira a migração SQL V6 e suas permissões.');return;}
+  bprV6PaintSquad(data?.theme||theme);
+  toast('Tema do Squad salvo para todos os integrantes.');
+  document.querySelectorAll('.bpr-v6-theme-choice[data-squad-theme]').forEach(el=>el.setAttribute('aria-pressed',String(el.dataset.squadTheme===bprSquadThemeCurrent)));
+}
 async function openRoom(type, id) {
   if (type === 'event' && !state.joined.has(id)) return toast('Confirme participação antes de entrar no chat.');
   if (type === 'squad' && !state.squadRoles.has(id)) return toast('Você não participa desse SQUAD.');
@@ -2246,14 +2339,12 @@ async function openRoom(type, id) {
   const title = type === 'event' ? state.events.find((row) => row.id === id)?.title : state.squads.find((row) => row.id === id)?.name;
   state.activeRoom = {type,id};
   if (type === 'squad') state.activeSquad = id;
-  showModal(`${title || 'Grupo'} 💬`, `<div class="room-topline"><span>🔒 Apenas integrantes têm acesso a esta conversa.</span><button class="btn btn-ghost btn-small" data-action="room-members">Integrantes</button></div>
-    <div class="chat-tabs"><button class="active" data-room-tab="chat">Chat</button><button data-room-tab="mural">Informações 📌</button>
-    <button data-room-tab="polls">Enquetes 📊</button>
-    ${type === 'event' ? '<button data-room-tab="music">Músicas 🎵</button>' : ''}
-    ${type === 'squad' ? `<button data-room-tab="games" ${bprControl.settings?.squad_games_enabled ? '' : 'hidden'}>Jogos 🎲</button><button data-room-tab="album">Álbum 📸</button><button data-room-tab="members">Integrantes</button>${['owner','moderator'].includes(state.squadRoles.get(id))?'<button data-room-tab="settings">⚙️ Gestão</button>':''}` : ''}
-    <button data-action="report" data-kind="${type}" data-id="${html(id)}">Denunciar</button></div>
+  showModal(`${title || 'Grupo'} 💬`, `<div class="room-topline bpr-v6-room-head"><span>🔒 Apenas integrantes têm acesso a esta conversa.</span>${type==='squad' && ['owner','moderator'].includes(state.squadRoles.get(id))?`<button type="button" class="bpr-v6-room-manage" data-room-tab="settings" aria-label="Gerenciar este Squad" title="Gestão do Squad">⚙️ <span>Gestão</span></button>`:''}</div>
+    <div class="chat-tabs bpr-v6-room-tabs"><button class="active" data-room-tab="chat">Conversa</button><button data-room-tab="mural">Mural</button>
+    ${type === 'event' ? '<button data-room-tab="polls">Enquetes 📊</button><button data-room-tab="music">Músicas 🎵</button>' : `<button data-room-tab="games" ${bprControl.settings?.squad_games_enabled ? '' : 'hidden'}>Jogos 🎲</button><button data-room-tab="more">Mais ▦</button>`}</div>
     <div id="room-content" class="room-content"></div>`);
   $('dialog-body').className = 'dialog-content room-panel';
+  if(type==='squad')void bprV6LoadSquadTheme(id);
   await changeRoomTab('chat');
   const table = type === 'event' ? 'event_messages' : 'squad_messages';
   const foreignKey = type === 'event' ? 'event_id' : 'squad_id';
@@ -2266,7 +2357,7 @@ async function openRoom(type, id) {
 async function changeRoomTab(tab) {
   const room = state.activeRoom;
   if (!room) return;
-  document.querySelectorAll('[data-room-tab]').forEach((button) => button.classList.toggle('active', button.dataset.roomTab === tab));
+  document.querySelectorAll('.bpr-v6-room-tabs [data-room-tab],.bpr-v6-room-head [data-room-tab]').forEach((button) => { const b=button.dataset.roomTab;button.classList.toggle('active', b===tab || (b==='more' && ['polls','album','members'].includes(tab)));});
   const target = $('room-content');
   target.innerHTML = '<div class="room-loading">Carregando…</div>';
   if (tab === 'chat') {
@@ -2298,6 +2389,8 @@ async function changeRoomTab(tab) {
     } else {
       target.innerHTML=`<h3>Jogos da galera 🎲</h3><p class="small-muted">Cartas para brincar juntos no chat ou pessoalmente, sem registrar respostas ou placar.</p><div class="bpr-room-games">${bprGamesTiles()}</div>`;
     }
+  } else if(tab === 'more' && room.type === 'squad') {
+    target.innerHTML=`<div class="bpr-v6-room-more"><h3>Outras ferramentas</h3><div class="bpr-v6-room-tool-grid"><button type="button" data-room-tab="polls">📊 Enquetes</button><button type="button" data-room-tab="album">📸 Álbum</button><button type="button" data-room-tab="members">👥 Integrantes</button><button type="button" data-action="report" data-kind="squad" data-id="${html(room.id)}">🚩 Denunciar</button></div><p class="small-muted">A gestão é exclusiva dos administradores e fica no cabeçalho do Squad.</p></div>`;
   } else if (tab === 'members' && room.type === 'squad') {
     target.innerHTML='<h3>Integrantes do Squad</h3><p>Consulte os participantes e os cargos autorizados.</p><button type="button" class="btn btn-ghost" data-action="squad-roster" data-id="'+html(room.id)+'">Ver integrantes</button>';
   } else if (tab === 'settings' && room.type === 'squad') {
@@ -2310,6 +2403,8 @@ async function changeRoomTab(tab) {
       <button class="btn btn-ghost" data-action="squad-removals" data-id="${html(room.id)}">Votos de remoção</button>
       <button class="btn btn-ghost" data-action="squad-roster" data-id="${html(room.id)}">Integrantes e cargos</button>
       <button class="btn btn-ghost" data-action="add-calendar" data-id="${html(room.id)}">📅 Adicionar ao calendário</button></div>
+      <div class="bpr-v6-theme-panel"><h4>🎨 Tema deste Squad</h4><p class="small-muted">Escolha uma capa visual para a sala. Somente responsáveis podem salvar; os integrantes apenas visualizam.</p><div class="bpr-v6-theme-grid">
+      ${Object.entries(bprSquadThemes).map(([value,label])=>`<button type="button" class="bpr-v6-theme-choice" data-squad-theme="${value}" aria-pressed="${value===bprSquadThemeCurrent}"><span class="bpr-v6-theme-sample" data-squad-theme="${value}"></span><strong>${label}</strong></button>`).join('')}</div><small id="bpr-v6-theme-message">As escolhas precisam da migração SQL V6 para persistir.</small></div>
       ${state.squadRoles.get(room.id) === 'owner' ? `<label class="squad-discovery-switch bpr-room-visibility"><input type="checkbox" id="squad-discoverable" ${state.squads.find(s=>s.id===room.id)?.is_discoverable?'checked':''}> Permitir que encontrem este Squad na busca pelo nome (entrada sempre mediante aprovação)</label>` : ''}
       <form id="squad-invite-form" class="bpr-room-invite-form"><label for="squad-nick">Convidar uma pessoa pelo @user</label><div class="friend-finder"><input id="squad-nick" placeholder="@user" maxlength="24" autocomplete="off" required><button type="submit" class="btn btn-ghost">Convidar</button></div><p id="squad-invite-result" class="small-muted" role="status"></p></form>`;
     $('squad-invite-form')?.addEventListener('submit',(ev)=>inviteNickname(ev,room.id));
@@ -2887,6 +2982,8 @@ async function handleAction(action, element) {
       case 'avatar-crop-cancel': releaseAvatarCrop();return openAvatarOptions();
       case 'view-user-profile': return await viewUserProfile(id,element.dataset.squad||'');
       case 'follow-found-user': return await followFoundUser(id,element.dataset.nick);
+      case 'unfollow-found-user': return await bprV6UnfollowFoundUser(id,element.dataset.nick);
+      case 'squad-search-v6': return await bprV6SquadSearch();
       case 'block-found-user': return await blockFoundNickname(element.dataset.nick);
       case 'manage-blocks': return await manageBlockedNicknames();
       case 'unblock-found-user': return await unblockFoundNickname(element.dataset.nick);
@@ -2965,6 +3062,8 @@ document.addEventListener('click', (event) => {
 
   const save = event.target.closest('[data-save]');
   if (save) { event.preventDefault(); event.stopPropagation(); return saveEvent(save.dataset.save); }
+  const squadThemeButton=event.target.closest('.bpr-v6-theme-choice');
+  if(squadThemeButton){event.preventDefault();return void bprV6SaveSquadTheme(squadThemeButton.dataset.squadTheme,squadThemeButton);}
   const actionButton = event.target.closest('[data-action]');
   if (actionButton) { event.preventDefault(); return handleAction(actionButton.dataset.action, actionButton); }
   const myTab = event.target.closest('[data-my-tab]');
@@ -2986,7 +3085,8 @@ document.addEventListener('click', (event) => {
   const screenLink = event.target.closest('[data-screen-link]');
   if (screenLink) { event.preventDefault(); return navigate(screenLink.dataset.screenLink); }
   const category = event.target.closest('[data-category]');
-  if (category) { state.category = category.dataset.category; renderChips(); return renderEvents(); }
+  if (category) { state.category = category.dataset.category; renderChips(); const label=categories.find(c=>c[0]===state.category)?.[2]||'Todas'; if($('bpr-category-current'))$('bpr-category-current').textContent=label; $('bpr-category-drawer')?.setAttribute('hidden',''); $('bpr-category-toggle')?.setAttribute('aria-expanded','false'); return renderEvents(); }
+  const categoryToggle=event.target.closest('#bpr-category-toggle'); if(categoryToggle){const d=$('bpr-category-drawer');d.hidden=!d.hidden;categoryToggle.setAttribute('aria-expanded',String(!d.hidden));return;}
   const view = event.target.closest('[data-view]');
   if (view) return setView(view.dataset.view);
   const tab = event.target.closest('[data-room-tab]');
@@ -3130,7 +3230,7 @@ else {
 
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   // Atualização explícita do worker: evita manter uma instalação antiga do PWA.
-  navigator.serviceWorker.register('./service-worker.js?v=20261120-criar-v56a', {updateViaCache:'none'}).catch(() => {});
+  navigator.serviceWorker.register('./service-worker.js?v=20261120-integrada-v60', {updateViaCache:'none'}).catch(() => {});
 }
 
 async function inviteNickname(event, squadId) {
@@ -3200,3 +3300,6 @@ function openCalendarForm(squadId) {
 
 // Iniciar carrossel com valores padrão, até a configuração remota ser consultada.
 refreshBprFeatures();
+
+// Opção B V6, montada sem modificar funções existentes de salvamento.
+bprV6ProfileLayout();

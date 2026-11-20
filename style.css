@@ -754,3 +754,127 @@ body.bpr-game-active{overflow:hidden!important}
 .bpr-cover-recovery{padding:14px;border:1px solid #f3b27b;background:color-mix(in srgb,#a85820 17%,var(--surface));border-radius:14px;display:grid;gap:10px}
 .bpr-cover-recovery p{margin:0;line-height:1.5}
 @media(max-width:410px){.bpr-create-wizard .fields{grid-template-columns:1fr}.bpr-wizard-actions{flex-wrap:wrap}}
+
+/* =========================================================
+   Bora Pro Rolê V6.0 — integração visual aprovada.
+   CSS aditivo: preserva seletores/fluxos legados para reversão.
+   ========================================================= */
+/* Destaques: navegação discreta sobre a imagem; não cobrir o CTA */
+.bpr-feature-carousel{position:relative;isolation:isolate;margin-bottom:22px}
+.bpr-feature-carousel .bpr-feature-track{min-width:0}
+.bpr-feature-carousel .bpr-feature-slide{min-width:0;overflow:hidden;border-radius:22px}
+.bpr-feature-carousel .bpr-feature-controls{position:absolute;right:10px;top:10px;z-index:10;display:flex;align-items:center;gap:6px;padding:0;min-height:0;width:auto;background:transparent}
+.bpr-feature-carousel .bpr-feature-controls #bpr-feature-toggle,
+.bpr-feature-carousel .bpr-feature-controls #bpr-feature-indicator{display:grid;place-items:center;margin:0;min-width:44px;width:auto;height:44px;padding:0 9px;background:rgba(9,16,34,.69);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.37);border-radius:20px;color:#fff;font-size:17px;line-height:1;font-weight:800;cursor:pointer}
+.bpr-feature-carousel .bpr-feature-controls #bpr-feature-indicator{min-width:67px}
+.bpr-feature-dot{display:inline-block;width:6px;height:6px;margin:0 3px;border-radius:50%;vertical-align:middle;background:rgba(255,255,255,.52)}
+.bpr-feature-dot.is-active{background:#48edcf;box-shadow:0 0 8px #46e8c7}
+.bpr-sr{position:absolute;width:1px;height:1px;clip-path:inset(50%);overflow:hidden;white-space:nowrap}
+.bpr-feature-carousel .bpr-feature-controls button:focus-visible{outline:3px solid #3ee9c9;outline-offset:3px}
+.bpr-feature-social{background:linear-gradient(125deg,#311049 0%,#7e1f79 45%,#f06e64 95%)!important;box-shadow:inset 0 0 70px rgba(253,58,157,.14);border-color:rgba(251,110,211,.45)!important;min-height:190px}
+.bpr-feature-social::before{content:'✦';position:absolute;right:11%;bottom:4%;color:#ff9ccd;font-size:100px;opacity:.15;pointer-events:none}
+.bpr-feature-social .bpr-social-logo{display:grid;place-items:center;font-size:56px!important;width:92px;height:92px;flex:none;border-radius:25px;background:linear-gradient(145deg,rgba(255,185,57,.45),rgba(251,33,173,.5),rgba(108,64,226,.5));border:1px solid #ffffff6e;box-shadow:0 8px 25px #10062066}
+.bpr-feature-social .bpr-social-copy b{display:inline-flex;width:max-content;max-width:100%;background:#fff2;padding:8px 13px;border-radius:20px}
+.bpr-feature-music{background:linear-gradient(115deg,#0b3e3d,#106868 58%,#473478)!important;border-color:#3be2c564!important;min-height:190px;box-shadow:inset 0 0 55px rgba(23,214,151,.12)}
+.bpr-feature-music::before{content:'♫';position:absolute;right:5%;top:1%;font-size:110px;opacity:.12;color:#8bffe0;pointer-events:none}
+.bpr-feature-music .bpr-music-mark{display:grid;place-items:center;font-size:54px!important;flex:none;width:90px;height:90px;border-radius:25px;background:#43efc324;border:1px solid #57eec877}
+.bpr-music-actions .bpr-music-action{min-height:42px;border-radius:12px;white-space:normal}
+.bpr-feature-games{background:linear-gradient(115deg,#073d45,#15314c 60%,#684076)!important;border-color:#3be2c56b!important;min-height:205px}
+.bpr-feature-game-symbol{display:grid;place-items:center;width:100px;height:100px;min-width:80px;border-radius:24px;background:#ffffff17;font-size:64px;box-shadow:0 0 15px #55f5d52a}
+.bpr-feature-game-copy{display:grid;gap:8px;min-width:0}
+.bpr-feature-game-copy small{color:#ff9290;letter-spacing:.08em;font-weight:900}
+.bpr-feature-game-copy strong{color:#fff;font-size:clamp(23px,4vw,38px);line-height:1.08}
+.bpr-feature-game-copy span{font-size:14px;color:#e2f3f2;line-height:1.5}
+.bpr-feature-game-cta{width:max-content;min-height:44px;padding:10px 18px;border:0;border-radius:16px;background:#3ce3c2;color:#0a2532;font-weight:900;font-family:inherit;cursor:pointer}
+/* Central de Jogos agora é destaque do carrossel e item de navegação, não cartão extra */
+#screen-explorar>.bpr-game-entry-card{display:none!important}
+/* Map/Calendário/Lista/Categoria: apenas uma barra */
+.bpr-v6-discovery{margin:12px 0 11px;align-items:center}
+.bpr-v6-view{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;align-items:stretch;padding:5px;margin:0 0 15px;width:100%;max-width:100%;border:1px solid var(--line);border-radius:18px;background:var(--surface2);overflow:visible;flex-wrap:nowrap!important}
+.bpr-v6-view button{display:flex!important;flex-direction:row;align-items:center;justify-content:center;gap:5px;min-height:48px;min-width:0;width:100%;padding:8px 4px!important;border:0;border-radius:14px;background:transparent;color:var(--muted);font-size:clamp(10px,2.5vw,14px)!important;font-family:inherit;font-weight:750;white-space:normal}
+.bpr-v6-view button svg{width:17px;min-width:17px;height:17px}
+.bpr-v6-view button.active,.bpr-v6-view #bpr-category-toggle[aria-expanded="true"]{background:var(--surface3);color:var(--text)}
+.bpr-category-current{display:none}
+.bpr-category-drawer{padding:16px;margin:0 0 18px;border:1px solid var(--line);border-radius:20px;background:var(--surface);min-width:0}
+.bpr-category-drawer[hidden]{display:none!important}
+.bpr-category-drawer>strong{display:block;margin:0 0 14px;font-size:15px}
+.bpr-category-drawer .pill-line{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:9px;white-space:normal;overflow:visible;margin:0}
+.bpr-category-drawer .chip{width:100%;min-height:46px;padding:9px 6px;font-size:13px;white-space:normal;justify-content:center}
+/* Squads: busca primeiro, cartões compactos, instruções ao final */
+#screen-squad>.page-heading{margin-bottom:17px}
+.bpr-v6-squad-finder{border:1px solid var(--line);border-radius:18px;background:var(--surface);padding:14px;margin-bottom:18px;min-width:0}
+.bpr-v6-squad-finder>label{display:block;margin-bottom:9px;font-size:15px;font-weight:800}
+.bpr-v6-squad-search{display:flex;gap:8px;align-items:center;min-width:0}
+.bpr-v6-squad-search input{flex:1;min-width:0;width:100%;height:48px;background:var(--surface2);border:1px solid var(--line);border-radius:13px;padding:0 12px;color:var(--text);font:inherit;font-size:14px}
+.bpr-v6-squad-search button{display:flex;gap:6px;align-items:center;justify-content:center;min-height:48px;padding:0 14px;border:0;border-radius:13px;background:var(--pink);color:#10212a;font-family:inherit;font-weight:850;cursor:pointer}
+.bpr-v6-visually-hidden{position:absolute!important;width:1px!important;height:1px!important;clip-path:inset(50%);overflow:hidden;pointer-events:none}
+#bpr-v6-squad-search-results-target{border:0;box-shadow:none;background:transparent;padding:0;min-width:0;margin:10px 0 0}
+#bpr-v6-squad-search-results-target .friend-results{min-width:0}
+#bpr-v6-squad-search-results-target .friend-discovery-title{display:none!important}
+.bpr-v6-squad-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(156px,1fr));gap:11px;margin-top:13px}
+.bpr-v6-squad-tile{display:flex;min-width:0;min-height:170px;flex-direction:column;text-align:left;padding:15px;gap:8px;border-radius:19px;background:linear-gradient(145deg,#0b51568a,var(--surface2) 78%);color:var(--text);border:1px solid var(--line);cursor:pointer;font-family:inherit}
+.bpr-v6-squad-symbol{font-size:27px}
+.bpr-v6-squad-tile strong{font-size:17px;overflow-wrap:anywhere}
+.bpr-v6-squad-tile small{color:var(--muted);line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.bpr-v6-squad-open{margin-top:auto;color:var(--lime);font-size:12px;font-weight:850}
+#screen-squad>.two-col{display:block!important;margin-top:10px!important}
+#screen-squad>.two-col>.panel:first-child{margin:0 0 16px}
+#screen-squad>.two-col>.bpr-squad-guide{margin-top:16px}
+#screen-squad .squad-extras-head{align-items:center}
+#screen-squad .squad-extras-head h3{margin:0}
+/* Dentro do Squad: 4 guias, gestão no topo, conteúdo não sobreposto */
+.bpr-v6-room-head{min-height:54px;gap:10px}
+.bpr-v6-room-head[data-squad-theme="neon"]{background:linear-gradient(120deg,#30234d,#79416a)!important;color:white}
+.bpr-v6-room-head[data-squad-theme="ocean"]{background:linear-gradient(120deg,#0e4c57,#15948a)!important;color:white}
+.bpr-v6-room-head[data-squad-theme="sunset"]{background:linear-gradient(120deg,#773c69,#cf786b)!important;color:white}
+.bpr-v6-room-manage{display:flex;gap:7px;align-items:center;justify-content:center;min-width:48px;min-height:46px;border:1px solid #ffffff55;border-radius:12px;background:#07182633;color:inherit;font:inherit;font-weight:800;cursor:pointer}
+.room-panel .bpr-v6-room-tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;padding:8px;flex-wrap:nowrap!important;max-width:100%}
+.room-panel .bpr-v6-room-tabs button{display:flex;align-items:center;justify-content:center;text-align:center;width:100%;min-width:0;min-height:48px;padding:8px 3px!important;font-size:clamp(10px,2.6vw,13px)!important;line-height:1.2;white-space:normal}
+.bpr-v6-room-more{display:grid;gap:13px}
+.bpr-v6-room-tool-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.bpr-v6-room-tool-grid button{min-height:80px;padding:12px 8px;font-family:inherit;font-weight:850;font-size:14px;border:1px solid var(--line);background:var(--surface2);border-radius:14px;color:var(--text);cursor:pointer}
+.bpr-v6-theme-panel{border:1px solid var(--line);background:var(--surface2);border-radius:16px;padding:16px;margin:14px 0}
+.bpr-v6-theme-panel h4{margin:0 0 7px}
+.bpr-v6-theme-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+.bpr-v6-theme-choice{min-width:0;padding:6px;background:var(--surface);color:var(--text);border:1px solid var(--line);border-radius:12px;font-family:inherit;font-size:12px;cursor:pointer}
+.bpr-v6-theme-choice[aria-pressed="true"]{border:2px solid var(--lime)}
+.bpr-v6-theme-sample{display:block;height:55px;border-radius:8px;margin-bottom:8px}
+.bpr-v6-theme-sample[data-squad-theme="neon"]{background:linear-gradient(125deg,#192744,#743960,#fa7268)}
+.bpr-v6-theme-sample[data-squad-theme="ocean"]{background:linear-gradient(125deg,#103449,#157981,#4addc0)}
+.bpr-v6-theme-sample[data-squad-theme="sunset"]{background:linear-gradient(125deg,#35294c,#b65d76,#f9a377)}
+.bpr-v6-theme-choice strong{font-size:11px;overflow-wrap:anywhere}
+/* Opção B: informações confidenciais separadas de visibilidade pública */
+.bpr-v6-about{display:grid;gap:11px;border:1px solid var(--line);border-radius:16px;background:var(--surface2);padding:14px;margin-bottom:16px;min-width:0}
+.bpr-v6-about h3{font-size:16px!important;margin:6px 0 0}
+.bpr-v6-about>.field{min-width:0}
+.bpr-v6-about .bpr-private-switch{display:flex;align-items:center;gap:10px;min-height:48px}
+.bpr-v6-about .switch-line{margin:0!important;max-width:100%;min-width:0;overflow-wrap:break-word}
+.bpr-v6-about .btn{white-space:normal}
+.bpr-v6-following{background:var(--surface2)!important;color:var(--lime)!important;border:1px solid var(--lime)!important}
+/* Navegação com seis áreas enquanto a Central ativa os jogos */
+@media(max-width:820px){
+ .mobile-nav{display:flex;align-items:stretch;gap:1px;justify-content:space-around;padding-inline:3px}
+ .mobile-nav .nav-link{flex:1 1 0;min-width:0;width:auto;padding:8px 1px;font-size:10px;gap:4px;min-height:56px}
+ .mobile-nav .nav-link svg{width:22px;height:22px}
+}
+@media(max-width:440px){
+ .bpr-feature-social .bpr-social-logo,.bpr-feature-music .bpr-music-mark{width:58px;height:58px;font-size:36px!important}
+ .bpr-feature-social .bpr-social-copy strong,.bpr-feature-music .bpr-music-copy strong{font-size:19px!important}
+ .bpr-feature-games{padding:14px!important;gap:12px}
+ .bpr-feature-game-symbol{width:68px;min-width:68px;height:68px;font-size:42px}
+ .bpr-feature-game-copy strong{font-size:22px}
+ .bpr-feature-game-copy span{font-size:12px}
+ .bpr-v6-view button svg{width:14px;min-width:14px}
+ .bpr-v6-view button{font-size:10px!important;gap:3px}
+ .bpr-v6-squad-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .bpr-v6-squad-search button{padding-inline:11px}
+ .bpr-v6-theme-grid{gap:5px}
+ .bpr-v6-theme-choice{font-size:10px}
+ .room-panel .bpr-v6-room-tabs button{font-size:11px!important}
+ .mobile-nav .nav-link{font-size:9px}
+ .mobile-nav .nav-link svg{width:20px;height:20px}
+}
+@media(prefers-reduced-motion:reduce){.bpr-feature-carousel,.bpr-v6-squad-tile,.bpr-v6-room-tool-grid button{transition:none!important;animation:none!important}}
+.bpr-v6-guest-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:13px 0}
+.bpr-v6-guest-actions .btn{min-width:0;min-height:48px}
+.bpr-feature-social,.bpr-feature-music,.bpr-feature-games{position:relative;overflow:hidden}

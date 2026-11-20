@@ -48,6 +48,23 @@
         'Memes da internet 😂':['Nazaré fazendo contas','Cachorro caramelo fugindo','Gato digitando no computador','Pessoa tentando não rir','Gatinho assustado','Dancinha viral','Cachorro dando entrevista','Pessoa fazendo drama na janela','Alguém fingindo surpresa','Criança sorrindo para a câmera','Alguém procurando Wi-Fi','Pessoa escorregando devagar','Gato derrubando um copo','Narrador esportivo empolgado','Pessoa fazendo pose para foto','Alguém fugindo da câmera','Dramática reação ao boleto','Pessoa se escondendo atrás da porta','Gato julgando a galera','Pessoa tentando explicar um meme']
       }
     },
+    stop:{
+      title:'Stop!',icon:'📝',description:'Temas e letras para um Stop rápido com a galera.',
+      help:'Uma pessoa sorteia a letra e todo mundo anota respostas para nome, lugar, comida e objeto. Quem terminar grita STOP! Combine as regras antes. Não salvamos as rodadas.',
+      categories:{
+        'Letras da rodada':['Letra A · nome, cidade, comida e objeto','Letra B · nome, cidade, comida e objeto','Letra C · nome, cidade, comida e objeto','Letra D · nome, cidade, comida e objeto','Letra E · nome, cidade, comida e objeto','Letra F · nome, cidade, comida e objeto','Letra G · nome, cidade, comida e objeto','Letra H · nome, cidade, comida e objeto','Letra J · nome, cidade, comida e objeto','Letra L · nome, cidade, comida e objeto','Letra M · nome, cidade, comida e objeto','Letra N · nome, cidade, comida e objeto','Letra P · nome, cidade, comida e objeto','Letra R · nome, cidade, comida e objeto','Letra S · nome, cidade, comida e objeto','Letra T · nome, cidade, comida e objeto','Letra V · nome, cidade, comida e objeto'],
+        'Stop dos rolês':['Letra A · música, filme, artista e lugar para sair','Letra B · música, filme, artista e lugar para sair','Letra C · música, filme, artista e lugar para sair','Letra F · música, filme, artista e lugar para sair','Letra M · música, filme, artista e lugar para sair','Letra P · música, filme, artista e lugar para sair','Letra R · música, filme, artista e lugar para sair','Letra S · música, filme, artista e lugar para sair','Letra T · música, filme, artista e lugar para sair']
+      }
+    },
+    verdade:{
+      title:'Verdade ou Desafio',icon:'💬',description:'Perguntas e tarefas leves, sem constranger ninguém.',
+      help:'Escolha uma categoria, revele uma carta e faça somente se estiver confortável. Todo mundo pode passar sem justificar. Nunca peça fotos, senhas ou exposição de terceiros.',
+      categories:{
+        'Verdade':['Qual foi seu rolê mais memorável?','Qual música descreve seu humor hoje?','Qual passeio você ainda quer fazer?','Já riu em um momento totalmente errado?','Que talento escondido você tem?','Que filme faz você chorar?','Qual foi sua melhor viagem?','Qual foi o último desafio que você superou?','Que comida você sempre recomenda?','Que lugar você gostaria de conhecer?','Qual amizade começou por acaso?','Qual mico hoje te faz rir?'],
+        'Desafio leve':['Faça uma imitação de um personagem por 10 segundos.','Invente o nome de um festival.','Crie um comercial para um objeto da sala.','Faça três poses de foto diferentes.','Diga um elogio gentil para alguém que aceitar.','Conte uma história em dez palavras.','Invente um passo de dança.','Desenhe um gato sem levantar o lápis.','Imite um narrador de futebol.','Cante uma frase cotidiana como ópera.','Dê nome a um drink imaginário.','Faça a melhor risada de vilão.'],
+        'Paquera respeitosa 🔥':['Qual qualidade faz alguém chamar sua atenção?','Qual seria um encontro perfeito pra você?','Qual música escolheria para um date?','Você prefere iniciativa ou surpresa combinada?','Conte um elogio criativo sem mencionar aparência.','Qual foi a cantada mais engraçada que já ouviu?','Seu melhor conselho para um primeiro encontro?','Qual foi o encontro mais inesperado que já teve?']
+      }
+    },
     desafio:{
       title:'Desafio Relâmpago',icon:'🚀',description:'Missões rápidas e leves, sem humilhar ninguém.',
       help:'Escolha uma missão e faça se estiver confortável. É sempre permitido pular; não registre nem exponha outras pessoas sem autorização.',
