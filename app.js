@@ -2334,6 +2334,31 @@ async function bprV6SaveSquadTheme(theme,button){
   toast('Tema do Squad salvo para todos os integrantes.');
   document.querySelectorAll('.bpr-v6-theme-choice[data-squad-theme]').forEach(el=>el.setAttribute('aria-pressed',String(el.dataset.squadTheme===bprSquadThemeCurrent)));
 }
+function bprV65ManagerMarkup(room){
+  return `<details class="bpr-v65-management" id="bpr-v65-management"><summary>⚙️ Administração e configurações <span>Somente responsáveis</span></summary><div class="bpr-v65-management-inner"><h3>⚙️ Gestão do Squad</h3><p class="small-muted">Os comandos existentes continuam sujeitos às permissões do banco de dados.</p><div class="bpr-squad-settings-actions">
+      <button class="btn btn-ghost" data-action="rename-squad" data-id="${html(room.id)}">Renomear Squad</button>
+      <button class="btn btn-ghost" data-action="edit-album-link" data-id="${html(room.id)}">Configurar álbum</button>
+      <button class="btn btn-ghost" data-action="squad-join-requests" data-id="${html(room.id)}">Pedidos de entrada</button>
+      <button class="btn btn-ghost" data-action="squad-removals" data-id="${html(room.id)}">Votos de remoção</button>
+      <button class="btn btn-ghost" data-action="squad-roster" data-id="${html(room.id)}">Integrantes e cargos</button>
+      <button class="btn btn-ghost" data-action="add-calendar" data-id="${html(room.id)}">📅 Adicionar ao calendário</button></div>
+      <div class="bpr-v6-theme-panel"><h4>🎨 Tema deste Squad</h4><p class="small-muted">Escolha uma capa visual para a sala. Somente responsáveis podem salvar; os integrantes apenas visualizam.</p><div class="bpr-v6-theme-grid">
+      ${Object.entries(bprSquadThemes).map(([value,label])=>`<button type="button" class="bpr-v6-theme-choice" data-squad-theme="${value}" aria-pressed="${value===bprSquadThemeCurrent}"><span class="bpr-v6-theme-sample" data-squad-theme="${value}"></span><strong>${label}</strong></button>`).join('')}</div><small id="bpr-v6-theme-message">As escolhas precisam da migração SQL V6 para persistir.</small></div>
+      ${state.squadRoles.get(room.id) === 'owner' ? `<label class="squad-discovery-switch bpr-room-visibility"><input type="checkbox" id="squad-discoverable" ${state.squads.find(s=>s.id===room.id)?.is_discoverable?'checked':''}> Permitir que encontrem este Squad na busca pelo nome (entrada sempre mediante aprovação)</label>` : ''}
+      <button type="button" class="btn btn-ghost bpr-invite-from-management" data-action="squad-invite-member" data-id="${html(room.id)}">💌 Convidar integrante</button></div></details>`;
+}
+function bprV65BindManager(room){
+  $('squad-discoverable')?.addEventListener('change',async(ev)=>{
+      const checkbox=ev.target;
+      try {
+        await assertOk(db.rpc('bora_set_squad_discovery',{_squad:room.id,_enabled:checkbox.checked}));
+        const item=state.squads.find(s=>s.id===room.id);
+        if(item) item.is_discoverable=checkbox.checked;
+        toast('Visibilidade da busca atualizada. A entrada continua exigindo aprovação.');
+      } catch(err){checkbox.checked=!checkbox.checked;toast(friendlyError(err));}
+    });
+}
+
 async function openRoom(type, id) {
   if (type === 'event' && !state.joined.has(id)) return toast('Confirme participação antes de entrar no chat.');
   if (type === 'squad' && !state.squadRoles.has(id)) return toast('Você não participa desse SQUAD.');
@@ -2341,9 +2366,22 @@ async function openRoom(type, id) {
   const title = type === 'event' ? state.events.find((row) => row.id === id)?.title : state.squads.find((row) => row.id === id)?.name;
   state.activeRoom = {type,id};
   if (type === 'squad') state.activeSquad = id;
-  showModal(`${title || 'Grupo'} 💬`, `<div class="room-topline bpr-v6-room-head"><span>🔒 Apenas integrantes têm acesso a esta conversa.</span>${type==='squad' && ['owner','moderator'].includes(state.squadRoles.get(id))?`<button type="button" class="bpr-v6-room-manage" data-room-tab="settings" aria-label="Gerenciar este Squad" title="Gestão do Squad">⚙️ <span>Gestão</span></button>`:''}</div>
-    <div class="chat-tabs bpr-v6-room-tabs"><button class="active" data-room-tab="chat">Conversa</button><button data-room-tab="mural">Mural</button>
-    ${type === 'event' ? '<button data-room-tab="polls">Enquetes 📊</button><button data-room-tab="music">Músicas 🎵</button>' : `<button data-room-tab="games" ${bprControl.settings?.squad_games_enabled ? '' : 'hidden'}>Jogos 🎲</button><button data-room-tab="more">Mais ▦</button>`}</div>
+  const isSquad=type==='squad';
+  const isManager=isSquad&&['owner','moderator'].includes(state.squadRoles.get(id));
+  const squadTools=isSquad ? `<div class="bpr-v65-room-head-tools">
+    <details class="bpr-v65-room-faq"><summary aria-label="Ajuda sobre o Squad" title="Ajuda sobre o Squad">❔ <span>Ajuda</span></summary>
+      <div class="bpr-v65-room-faq-panel"><strong>Como funciona?</strong><p>Somente integrantes participam dos chats e ferramentas do grupo. O mural guarda recados e calendário; apenas gestores veem comandos de gestão. Convites exigem aceitação.</p><p>Em caso de abuso, use Denunciar e escolha o conteúdo correto. Dados privados permanecem protegidos.</p></div></details>
+    <button type="button" class="bpr-v65-report-link" data-action="report" data-kind="squad" data-id="${html(id)}" aria-label="Denunciar este Squad">⚑ <span>Denunciar</span></button>
+  </div>` : '';
+  showModal(`${title || 'Grupo'} 💬`, `<div class="room-topline bpr-v6-room-head bpr-v65-room-head"><span>🔒 Conversa e ferramentas exclusivas de integrantes.</span>${squadTools}</div>
+    ${isSquad ? `<nav class="bpr-v65-room-navigation" aria-label="Áreas do Squad">
+      <button class="active" type="button" data-room-tab="chat">💬 <span>Conversa</span></button>
+      <button type="button" data-room-tab="members">👥 <span>Integrantes</span></button>
+      <button type="button" data-room-tab="album">📸 <span>Álbum</span></button>
+      <button type="button" data-room-tab="polls">📊 <span>Enquetes</span></button>
+      <button type="button" data-room-tab="games" ${bprControl.settings?.squad_games_enabled ? '' : 'hidden'}>🎲 <span>Jogos</span></button>
+      <button type="button" data-room-tab="board">📌 <span>${isManager?'Mural e gestão':'Mural'}</span></button>
+    </nav>` : `<div class="chat-tabs bpr-v6-room-tabs"><button class="active" data-room-tab="chat">Conversa</button><button data-room-tab="mural">Mural</button><button data-room-tab="polls">Enquetes 📊</button><button data-room-tab="music">Músicas 🎵</button></div>`}
     <div id="room-content" class="room-content"></div>`);
   $('dialog-body').className = 'dialog-content room-panel';
   if(type==='squad')void bprV6LoadSquadTheme(id);
@@ -2361,7 +2399,8 @@ async function changeRoomTab(tab) {
   if (!room) return;
   // A lista de integrantes abre diretamente, sem uma tela intermediária.
   if (tab === 'members' && room.type === 'squad') return showSquadRoster(room.id);
-  document.querySelectorAll('.bpr-v6-room-tabs [data-room-tab],.bpr-v6-room-head [data-room-tab]').forEach((button) => { const b=button.dataset.roomTab;button.classList.toggle('active', b===tab || (b==='more' && ['polls','album','members'].includes(tab)));});
+  if (room.type==='squad' && ['mural','settings','more'].includes(tab)) tab='board';
+  document.querySelectorAll('.bpr-v6-room-tabs [data-room-tab],.bpr-v65-room-navigation [data-room-tab]').forEach(button=>{const active=button.dataset.roomTab===tab;button.classList.toggle('active',active);button.setAttribute('aria-current',active?'page':'false');});
   const target = $('room-content');
   target.innerHTML = '<div class="room-loading">Carregando…</div>';
   if (tab === 'chat') {
@@ -2370,7 +2409,7 @@ async function changeRoomTab(tab) {
       <form class="chat-form" id="chat-form"><input id="chat-text" maxlength="800" placeholder="Converse com respeito (até 800 caracteres)…" aria-label="Mensagem" required><button class="btn btn-pink" aria-label="Enviar mensagem"><i data-lucide="send"></i></button></form>`;
     $('chat-form').addEventListener('submit', sendMessage);
     await refreshRoomChat();
-  } else if (tab === 'mural') {
+  } else if (tab === 'mural' || (tab==='board'&&room.type==='squad')) {
     target.innerHTML = `<p class="small-muted">Informações e links importantes ficam aqui, mesmo depois da limpeza do chat.</p><div id="mural-items"></div>
       <form id="pin-form" class="pin-form"><input name="title" maxlength="90" required placeholder="Título do aviso"><textarea name="body" maxlength="900" placeholder="Descrição ou combinado"></textarea>
       <input name="link_url" type="url" placeholder="Link https:// (opcional)"><button class="btn btn-ghost" type="submit">📌 Fixar informação</button></form>
@@ -2383,6 +2422,10 @@ async function changeRoomTab(tab) {
       $('squad-month').addEventListener('change',()=>renderSquadCalendar(room.id));
       await renderSquadCalendar(room.id);
     }
+    if(room.type==='squad' && ['owner','moderator'].includes(state.squadRoles.get(room.id))){
+      target.insertAdjacentHTML('beforeend',bprV65ManagerMarkup(room));
+      bprV65BindManager(room);
+    }
   } else if (tab === 'polls') {
     target.innerHTML = `<p class="small-muted">📊 Faça uma pergunta com 2 a 6 alternativas. Só integrantes votam; a identidade dos votantes não aparece.</p>
       <button class="btn btn-ghost btn-small" data-action="create-poll">+ Criar enquete</button><div id="poll-list"></div>`;
@@ -2393,31 +2436,6 @@ async function changeRoomTab(tab) {
     } else {
       target.innerHTML=`<h3>Jogos da galera 🎲</h3><p class="small-muted">Cartas para brincar juntos no chat ou pessoalmente, sem registrar respostas ou placar.</p><div class="bpr-room-games">${bprGamesTiles()}</div>`;
     }
-  } else if(tab === 'more' && room.type === 'squad') {
-    target.innerHTML=`<div class="bpr-v6-room-more"><h3>Outras ferramentas</h3><div class="bpr-v6-room-tool-grid"><button type="button" data-room-tab="polls">📊 Enquetes</button><button type="button" data-room-tab="album">📸 Álbum</button><button type="button" data-action="squad-roster" data-id="${html(room.id)}">👥 Integrantes</button><button type="button" data-action="report" data-kind="squad" data-id="${html(room.id)}">🚩 Denunciar</button></div><p class="small-muted">A gestão é exclusiva dos administradores e fica no cabeçalho do Squad.</p></div>`;
-  } else if (tab === 'settings' && room.type === 'squad') {
-    const manager=['owner','moderator'].includes(state.squadRoles.get(room.id));
-    if(!manager) { target.textContent='Acesso reservado aos responsáveis pelo Squad.'; return; }
-    target.innerHTML=`<h3>⚙️ Gestão deste Squad</h3><p class="small-muted">Os comandos existentes continuam sujeitos às permissões do banco de dados.</p><div class="bpr-squad-settings-actions">
-      <button class="btn btn-ghost" data-action="rename-squad" data-id="${html(room.id)}">Renomear Squad</button>
-      <button class="btn btn-ghost" data-action="edit-album-link" data-id="${html(room.id)}">Configurar álbum</button>
-      <button class="btn btn-ghost" data-action="squad-join-requests" data-id="${html(room.id)}">Pedidos de entrada</button>
-      <button class="btn btn-ghost" data-action="squad-removals" data-id="${html(room.id)}">Votos de remoção</button>
-      <button class="btn btn-ghost" data-action="squad-roster" data-id="${html(room.id)}">Integrantes e cargos</button>
-      <button class="btn btn-ghost" data-action="add-calendar" data-id="${html(room.id)}">📅 Adicionar ao calendário</button></div>
-      <div class="bpr-v6-theme-panel"><h4>🎨 Tema deste Squad</h4><p class="small-muted">Escolha uma capa visual para a sala. Somente responsáveis podem salvar; os integrantes apenas visualizam.</p><div class="bpr-v6-theme-grid">
-      ${Object.entries(bprSquadThemes).map(([value,label])=>`<button type="button" class="bpr-v6-theme-choice" data-squad-theme="${value}" aria-pressed="${value===bprSquadThemeCurrent}"><span class="bpr-v6-theme-sample" data-squad-theme="${value}"></span><strong>${label}</strong></button>`).join('')}</div><small id="bpr-v6-theme-message">As escolhas precisam da migração SQL V6 para persistir.</small></div>
-      ${state.squadRoles.get(room.id) === 'owner' ? `<label class="squad-discovery-switch bpr-room-visibility"><input type="checkbox" id="squad-discoverable" ${state.squads.find(s=>s.id===room.id)?.is_discoverable?'checked':''}> Permitir que encontrem este Squad na busca pelo nome (entrada sempre mediante aprovação)</label>` : ''}
-      <button type="button" class="btn btn-ghost bpr-invite-from-management" data-action="squad-invite-member" data-id="${html(room.id)}">💌 Convidar integrante</button>`;
-    $('squad-discoverable')?.addEventListener('change',async(ev)=>{
-      const checkbox=ev.target;
-      try {
-        await assertOk(db.rpc('bora_set_squad_discovery',{_squad:room.id,_enabled:checkbox.checked}));
-        const item=state.squads.find(s=>s.id===room.id);
-        if(item) item.is_discoverable=checkbox.checked;
-        toast('Visibilidade da busca atualizada. A entrada continua exigindo aprovação.');
-      } catch(err){checkbox.checked=!checkbox.checked;toast(friendlyError(err));}
-    });
   } else if (tab === 'album' && room.type === 'squad') {
     const squad=state.squads.find(item=>item.id===room.id);
     const album=safeDriveFolder(squad?.album_url);

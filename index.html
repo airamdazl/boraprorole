@@ -18,7 +18,7 @@
   <script defer src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   
-  <link rel="stylesheet" href="./style.css?v=20261120-squad-invite-v64">
+  <link rel="stylesheet" href="./style.css?v=20261120-squad-game-v65">
 </head>
 <body>
   <div class="auth-gate" id="auth-gate" role="region" aria-label="Acesso ao Bora Pro Rolê">
@@ -216,9 +216,12 @@
         <button type="button" class="bpr-game-secondary bpr-v63-sound-btn" data-game-control="sound" aria-pressed="false">🔊 Sons dos jogos: ligados</button><p class="bpr-game-note">Os jogos não salvam suas respostas, partidas ou pontuações. Pular é sempre permitido.</p>
       </div>
       <div id="bpr-game-play" class="bpr-game-play hidden">
-        <div class="bpr-game-play-meta"><span id="bpr-game-progress" aria-live="polite">Carta 1</span></div><div id="bpr-game-clock" class="bpr-v63-clock hidden" role="timer" aria-label="Cronômetro" aria-live="off"><div class="bpr-v63-clock-ring"><strong id="bpr-v63-clock-number">60</strong><small>SEGUNDOS</small></div><span id="bpr-v63-clock-label">Preparando a rodada</span></div>
+        <div class="bpr-game-play-meta"><span id="bpr-game-progress" aria-live="polite">Carta 1</span></div>
         <div id="bpr-game-mode" class="bpr-v61-mode hidden" role="group" aria-label="Modo da rodada"><button type="button" data-game-mode="truth" aria-pressed="true" class="is-selected">✓ Verdade</button><button type="button" data-game-mode="challenge" aria-pressed="false">⚡ Desafio</button><span id="bpr-game-mode-hint" class="bpr-v61-mode-hint"></span></div>
-        <div id="bpr-forehead-card" class="bpr-forehead-card bpr-v61-stage" role="status" aria-live="polite" aria-atomic="true"><strong id="bpr-game-word">Sua próxima carta aparece aqui</strong></div>
+        <div class="bpr-v65-stage-layout">
+          <div id="bpr-forehead-card" class="bpr-forehead-card bpr-v61-stage" role="status" aria-live="polite" aria-atomic="true"><strong id="bpr-game-word">Sua próxima carta aparece aqui</strong></div>
+          <div id="bpr-game-clock" class="bpr-v63-clock hidden" role="timer" aria-label="Cronômetro" aria-live="off"><div class="bpr-v63-clock-ring"><strong id="bpr-v63-clock-number">60</strong><small>SEGUNDOS</small></div><span id="bpr-v63-clock-label">Preparando a rodada</span></div>
+        </div>
         <div id="bpr-game-vote" class="bpr-v61-vote hidden" role="group" aria-label="Sua resposta nesta rodada"><button type="button" data-game-vote="fiz" aria-pressed="false">✓ Já fiz</button><button type="button" data-game-vote="nunca" aria-pressed="false">✕ Nunca fiz</button></div>
         <p id="bpr-game-play-hint" class="bpr-game-play-hint"></p>
         <div class="bpr-v61-primary-action"><button type="button" class="bpr-game-primary" id="bpr-game-next" data-game-control="next">🎲 Sortear carta</button></div>
@@ -230,7 +233,7 @@
   
 
 
-  <script defer src="./app.js?v=20261120-squad-invite-v64"></script>
-  <script defer src="./games.js?v=20261120-jogos-v63"></script>
+  <script defer src="./app.js?v=20261120-squad-game-v65"></script>
+  <script defer src="./games.js?v=20261120-squad-game-v65"></script>
 </body>
 </html>

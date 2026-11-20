@@ -701,22 +701,43 @@
       osc.connect(gain);gain.connect(a.destination);osc.start(at);osc.stop(at+seconds+.025);
     }catch{}
   }
-  function gameSound(type){
+  function gameSound(type,remaining=0){
     if(!soundOn)return;
-    if(type==='card'){gameTone(580,.09);gameTone(780,.11,.085);}
-    if(type==='start'){gameTone(500,.11);gameTone(680,.11,.13);gameTone(880,.16,.27);}
-    if(type==='tick')gameTone(600,.075,0,'triangle',.018);
-    if(type==='end'){
-      // Explosão arcade curta: queda de frequência + ruído sintetizado em volume moderado.
+    if(type==='card'){
+      gameTone(440,.10,0,'sine',.025);
+      gameTone(660,.11,.09,'triangle',.029);
+      gameTone(880,.13,.18,'sine',.02);
+    } else if(type==='start'){
+      [420,560,840].forEach((freq,i)=>gameTone(freq,.11,i*.12,'triangle',.035));
+    } else if(type==='tick'){
+      // Tiques de contagem acelerados no final, suaves e variados.
+      gameTone(720+(5-Math.min(5,remaining))*55,.07,0,'triangle',.028);
+      if(remaining<=3)gameTone(390,.045,.075,'sine',.022);
+    } else if(type==='end'){
+      // Explosão cômica arcade: queda de tom + ruído filtrado + brilho final.
       const a=audioReady();if(!a)return;
-      try {const t=a.currentTime, duration=.65, o=a.createOscillator(),g=a.createGain();
-        o.type='sawtooth';o.frequency.setValueAtTime(230,t);o.frequency.exponentialRampToValueAtTime(42,t+duration);
-        g.gain.setValueAtTime(.001,t);g.gain.exponentialRampToValueAtTime(.09,t+.035);g.gain.exponentialRampToValueAtTime(.001,t+duration);
-        o.connect(g);g.connect(a.destination);o.start(t);o.stop(t+duration+.02);
-        const count=Math.floor(a.sampleRate*.42),buffer=a.createBuffer(1,count,a.sampleRate),arr=buffer.getChannelData(0);
-        for(let i=0;i<count;i++)arr[i]=(Math.random()*2-1)*(1-i/count);
-        const src=a.createBufferSource(),noiseGain=a.createGain();src.buffer=buffer;noiseGain.gain.setValueAtTime(.045,t);
-        noiseGain.gain.exponentialRampToValueAtTime(.001,t+.42);src.connect(noiseGain);noiseGain.connect(a.destination);src.start(t);src.stop(t+.43);
+      try{
+        const now=a.currentTime;
+        const master=a.createDynamicsCompressor();
+        master.threshold.value=-18;master.ratio.value=5;
+        const vol=a.createGain();vol.gain.value=.13;
+        master.connect(vol);vol.connect(a.destination);
+        const sweep=a.createOscillator(),sweepGain=a.createGain();
+        sweep.type='sawtooth';sweep.frequency.setValueAtTime(290,now);
+        sweep.frequency.exponentialRampToValueAtTime(42,now+.65);
+        sweepGain.gain.setValueAtTime(.001,now);
+        sweepGain.gain.exponentialRampToValueAtTime(.42,now+.045);
+        sweepGain.gain.exponentialRampToValueAtTime(.001,now+.7);
+        sweep.connect(sweepGain);sweepGain.connect(master);
+        sweep.start(now);sweep.stop(now+.71);
+        const length=Math.floor(a.sampleRate*.48),buff=a.createBuffer(1,length,a.sampleRate),data=buff.getChannelData(0);
+        for(let i=0;i<length;i++){const env=Math.pow(1-i/length,2);data[i]=(Math.random()*2-1)*env;}
+        const src=a.createBufferSource(),filter=a.createBiquadFilter(),ng=a.createGain();
+        src.buffer=buff;filter.type='lowpass';filter.frequency.setValueAtTime(3300,now);
+        filter.frequency.exponentialRampToValueAtTime(280,now+.45);
+        ng.gain.setValueAtTime(.24,now);ng.gain.exponentialRampToValueAtTime(.001,now+.47);
+        src.connect(filter);filter.connect(ng);ng.connect(master);src.start(now);src.stop(now+.49);
+        [0,.12,.24].forEach((delay,i)=>gameTone(650+i*150,.08,.67+delay,'triangle',.023));
       }catch{}
     }
   }
@@ -748,14 +769,14 @@
     clock.style.setProperty('--clock-progress',`${Math.max(0,state.remaining/state.duration)*100}%`);
     clock.classList.toggle('is-ending',state.remaining<=10);
     clock.classList.toggle('is-finished',state.remaining===0);
-    label.textContent=state.remaining===0?'💥 TEMPO ESGOTADO!':state.timer?'⏱ Rodada em andamento':'⏸ Cronômetro pausado';
+    label.textContent=state.remaining===0?'💥 TEMPO ESGOTADO!':state.timer?'⏱ Rodada em andamento':state.remaining===state.duration?'▶ Pronto para começar':'⏸ Cronômetro pausado';
     $('bpr-game-timer').textContent=state.timer?'⏸ Pausar':state.remaining===0?`↻ Reiniciar ${state.duration}s`:`▶ ${state.remaining===state.duration?'Iniciar':'Continuar'} ${state.remaining}s`;
   }
   function tick(){
     if(!permitted()){void close();return;}
     if(!state.deadline)return;
     const next=Math.max(0,Math.ceil((state.deadline-Date.now())/1000));
-    if(next!==state.remaining){state.remaining=next;clockUpdate();if(next>0&&next<=5)gameSound('tick');}
+    if(next!==state.remaining){state.remaining=next;clockUpdate();if(next>0&&next<=5)gameSound('tick',next);}
     if(!next){stopTimer();clockUpdate();gameSound('end');$('bpr-game-play-hint').textContent='💥 Tempo! Escolha outra carta ou recomece a rodada.';}
   }
   function resetTimer(){stopTimer();state.remaining=state.duration;state.lastTick=-1;$('bpr-game-clock').classList.add('hidden');$('bpr-game-clock').classList.remove('is-ending','is-finished');$('bpr-game-timer').textContent=`▶ Iniciar ${state.duration}s`;}
@@ -834,7 +855,7 @@
     setCategory(names[0]); resetTimer();
     $('bpr-game-setup').classList.remove('hidden');$('bpr-game-play').classList.add('hidden');
     $('bpr-game-setup').classList.toggle('bpr-v61-has-modes',kind==='verdade');
-    overlay.classList.remove('bpr-v61-forehead','bpr-v61-who');
+    overlay.classList.remove('bpr-v61-forehead','bpr-v61-who','bpr-v65-immersive');
     overlay.classList.remove('hidden');overlay.setAttribute('aria-hidden','false');document.body.classList.add('bpr-game-active');
     if(!state.gameHistory){history.pushState({...history.state,__bprGame:true},'',location.href);state.gameHistory=true;}
     $('bpr-game-category').focus();
@@ -844,16 +865,26 @@
     state.gameHistory=false;stopTimer();
     try{if(document.fullscreenElement===overlay)await document.exitFullscreen();}catch{}
     try{screen.orientation?.unlock?.();}catch{}
-    overlay.classList.add('hidden');overlay.setAttribute('aria-hidden','true');overlay.classList.remove('bpr-v61-forehead','bpr-v61-who');document.body.classList.remove('bpr-game-active');
+    overlay.classList.add('hidden');overlay.setAttribute('aria-hidden','true');overlay.classList.remove('bpr-v61-forehead','bpr-v61-who','bpr-v65-immersive');document.body.classList.remove('bpr-game-active');
     state.focus?.focus?.();state.kind=null;state.category=null;
   }
   async function fullscreen(landscape=false){
     try {
       if(document.fullscreenElement===overlay){await document.exitFullscreen();try{screen.orientation?.unlock?.();}catch{};return;}
+      // Mostrar o relógio na tela especial, sem iniciar a contagem automaticamente.
+      if($('bpr-game-clock')?.classList.contains('hidden'))clockUpdate();
+      overlay.classList.add('bpr-v65-immersive');
       if(overlay.requestFullscreen) await overlay.requestFullscreen();
-      if(landscape){try{await screen.orientation?.lock?.('landscape');}catch{$('bpr-game-play-hint').textContent='Gire o celular na horizontal. Seu navegador pode não permitir a rotação automática.';}}
-    } catch {$('bpr-game-play-hint').textContent='Tela cheia indisponível neste navegador. Gire o celular na horizontal para usar a carta.';}
+      if(landscape){try{await screen.orientation?.lock?.('landscape');}catch{$('bpr-game-play-hint').textContent='Gire o celular na horizontal. A carta e o cronômetro ficam juntos.';}}
+    } catch {
+      // O layout continua compacto mesmo quando o navegador bloqueia fullscreen.
+      overlay.classList.add('bpr-v65-immersive');
+      $('bpr-game-play-hint').textContent='Modo de jogo ampliado. Se possível, gire o celular na horizontal.';
+    }
   }
+  document.addEventListener('fullscreenchange',()=>{
+    if(document.fullscreenElement!==overlay && !state.forehead)overlay.classList.remove('bpr-v65-immersive');
+  });
   window.addEventListener('popstate',e=>{if(state.gameHistory&&!overlay.classList.contains('hidden')&&!e.state?.__bprGame){e.stopImmediatePropagation();void close(true);}},true);
   document.addEventListener('click',event=>{
     const filter=event.target.closest('[data-games-filter]');if(filter){state.filter=filter.dataset.gamesFilter;document.querySelectorAll('[data-games-filter]').forEach(b=>{const active=b===filter;b.classList.toggle('is-selected',active);b.setAttribute('aria-pressed',String(active));});updateLibrary();return;}
@@ -868,7 +899,7 @@
       case 'start':chooseCategory();break;
       case 'next':next();break;
       case 'categories':stopTimer();overlay.classList.remove('bpr-v61-forehead');$('bpr-game-setup').classList.remove('hidden');$('bpr-game-play').classList.add('hidden');$('bpr-game-category').focus();break;
-      case 'forehead':state.forehead=!state.forehead;overlay.classList.toggle('bpr-v61-forehead',state.forehead);btn.setAttribute('aria-pressed',String(state.forehead));btn.textContent=state.forehead?'↩ Sair do modo testa':'📱 Modo testa horizontal';$('bpr-game-play-hint').textContent=state.forehead?'Gire o celular para o modo paisagem e mostre a carta para a galera. A palavra nunca fica invertida.':'Modo normal: compartilhe a tela para quem vai dar as pistas.';if(state.forehead)void fullscreen(true);break;
+      case 'forehead':state.forehead=!state.forehead;overlay.classList.toggle('bpr-v61-forehead',state.forehead);if(!state.forehead&&document.fullscreenElement!==overlay)overlay.classList.remove('bpr-v65-immersive');btn.setAttribute('aria-pressed',String(state.forehead));btn.textContent=state.forehead?'↩ Sair do modo testa':'📱 Modo testa horizontal';$('bpr-game-play-hint').textContent=state.forehead?'Gire o celular para o modo paisagem e mostre a carta para a galera. A palavra nunca fica invertida.':'Modo normal: compartilhe a tela para quem vai dar as pistas.';if(state.forehead)void fullscreen(true);break;
       case 'timer':if(state.timer){const remain=Math.max(0,Math.ceil((state.deadline-Date.now())/1000));stopTimer();state.remaining=remain;clockUpdate();}else{if(!state.remaining)state.remaining=state.duration;state.deadline=Date.now()+state.remaining*1000;state.timer=setInterval(tick,120);gameSound('start');clockUpdate();}break;
       case 'sound':soundOn=!soundOn;try{localStorage.setItem('bpr-games-sound',soundOn?'on':'off');}catch{}soundButtons();if(soundOn)gameSound('card');break;
       case 'fullscreen':void fullscreen(state.kind==='quem');break;

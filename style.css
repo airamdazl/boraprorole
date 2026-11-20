@@ -1067,3 +1067,61 @@ body.bpr-game-active{overflow:hidden!important}
 .bpr-v64-invite-send:disabled{opacity:.52;cursor:not-allowed}
 #bpr-v64-invite-status{margin:0;overflow-wrap:anywhere}
 @media(max-width:350px){.bpr-v64-invite-option{gap:8px;padding:8px}.bpr-v64-invite-avatar{width:43px;height:43px;flex-basis:43px}.bpr-v64-invite-check{font-size:11px}}
+
+/* V6.5 — navegação unificada e contextual do Squad */
+.room-panel .bpr-v65-room-head{display:flex;align-items:center;gap:10px;justify-content:space-between;flex-wrap:wrap;padding:12px;position:relative}
+.bpr-v65-room-head>span{font-size:13px;line-height:1.35;flex:1 1 190px}
+.bpr-v65-room-head-tools{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-left:auto}
+.bpr-v65-room-head-tools .bpr-v65-report-link,.bpr-v65-room-faq summary{display:inline-flex;align-items:center;justify-content:center;gap:5px;min-height:44px;padding:9px 11px;border:1px solid #ffffff45;border-radius:12px;background:#041a2233;color:inherit;font:inherit;font-size:12px;font-weight:750;cursor:pointer}
+.bpr-v65-room-faq{position:relative}
+.bpr-v65-room-faq summary{list-style:none}
+.bpr-v65-room-faq summary::-webkit-details-marker{display:none}
+.bpr-v65-room-faq-panel{position:absolute;right:0;top:calc(100% + 4px);z-index:5;width:min(300px,80vw);padding:14px;background:var(--surface2);border:1px solid var(--line);border-radius:14px;box-shadow:0 16px 30px #0005;color:var(--text);font-size:13px;line-height:1.5}
+.bpr-v65-room-faq-panel p{margin:8px 0 0}
+.room-panel .bpr-v65-room-navigation{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding:12px 4px;border-bottom:1px solid var(--line);width:100%;min-width:0}
+.room-panel .bpr-v65-room-navigation button{display:flex;align-items:center;justify-content:center;gap:6px;flex-direction:column;min-width:0;min-height:59px;max-width:100%;padding:7px 5px;border:1px solid var(--line);border-radius:13px;background:var(--surface2);color:var(--text);font-size:19px;line-height:1.1;cursor:pointer}
+.room-panel .bpr-v65-room-navigation button span{font-size:clamp(11px,2.9vw,13px);font-weight:800;line-height:1.2;text-align:center;overflow-wrap:break-word}
+.room-panel .bpr-v65-room-navigation button.active{border-color:#30ccb5;background:color-mix(in srgb,var(--surface2),#25c7b3 17%);box-shadow:inset 0 0 0 1px #30ccb555}
+.room-panel .bpr-v65-room-navigation button[hidden]{display:none!important}
+.room-panel .bpr-v65-room-navigation button:focus-visible,.bpr-v65-room-head-tools :focus-visible{outline:3px solid #ff8479;outline-offset:2px}
+.bpr-v65-management{border:1px solid var(--line);border-radius:15px;margin:22px 0 12px;background:var(--surface2);overflow:hidden}
+.bpr-v65-management summary{display:flex;align-items:center;gap:10px;justify-content:space-between;min-height:52px;padding:13px;font-weight:800;cursor:pointer;list-style:none}
+.bpr-v65-management summary::-webkit-details-marker{display:none}
+.bpr-v65-management summary span{font-size:11px;font-weight:500;color:var(--muted)}
+.bpr-v65-management-inner{padding:15px;border-top:1px solid var(--line)}
+.bpr-v65-management-inner .bpr-squad-settings-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.bpr-v65-management-inner .bpr-squad-settings-actions button{min-width:0;white-space:normal;line-height:1.3;min-height:48px}
+@media(max-width:380px){.bpr-v65-room-head-tools .bpr-v65-report-link span,.bpr-v65-room-faq summary span{display:none}.bpr-v65-management-inner .bpr-squad-settings-actions{grid-template-columns:1fr}}
+@media(min-width:660px){.room-panel .bpr-v65-room-navigation{grid-template-columns:repeat(6,minmax(0,1fr))}.room-panel .bpr-v65-room-navigation button{min-height:66px}}
+/* V6.5 — palco de jogo com carta e cronômetro simultâneos */
+.bpr-v65-stage-layout{display:flex;flex-direction:column-reverse;gap:12px;align-items:stretch;min-width:0}
+.bpr-v65-stage-layout .bpr-v61-stage{width:100%;max-width:100%;min-width:0}
+.bpr-v65-stage-layout .bpr-v63-clock{align-self:center}
+.bpr-v65-immersive .bpr-game-shell{width:100%;max-width:unset;min-height:100dvh;max-height:none;overflow:auto;padding:14px;box-sizing:border-box}
+.bpr-v65-immersive .bpr-game-play{display:flex;flex-direction:column;gap:8px;max-width:1200px;margin:0 auto}
+.bpr-v65-immersive .bpr-v65-stage-layout{display:grid;grid-template-columns:minmax(0,1fr) clamp(104px,22vw,160px);align-items:center;gap:12px}
+.bpr-v65-immersive .bpr-v65-stage-layout .bpr-v61-stage{min-height: min(45dvh,380px);height:100%;aspect-ratio:auto;max-height:none;display:flex;align-items:center;justify-content:center}
+.bpr-v65-immersive .bpr-v65-stage-layout .bpr-v61-stage strong{font-size:clamp(26px,5vw,80px);line-height:1.08;overflow-wrap:anywhere;text-align:center}
+.bpr-v65-immersive .bpr-v65-stage-layout #bpr-game-clock.bpr-v63-clock{margin:0 auto!important;align-self:center;min-width:0;max-width:100%}
+.bpr-v65-immersive .bpr-v63-clock-ring{width:clamp(96px,20vw,154px);max-width:100%;box-sizing:border-box}
+.bpr-v65-immersive .bpr-v63-clock-ring strong{font-size:clamp(34px,8vw,65px)}
+.bpr-v65-immersive .bpr-v63-clock>span{font-size:10px;max-width:155px;text-align:center}
+.bpr-v65-immersive .bpr-v61-utility-actions{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.bpr-v65-immersive .bpr-v61-utility-actions .bpr-game-secondary{min-height:41px;font-size:12px}
+@media (orientation:landscape) and (max-height:650px){
+ .bpr-v65-immersive .bpr-game-shell{padding:8px max(12px,env(safe-area-inset-right)) 8px max(12px,env(safe-area-inset-left));height:100dvh;overflow:auto}
+ .bpr-v65-immersive .bpr-game-top{padding:0 0 2px}
+ .bpr-v65-immersive .bpr-game-top h2{font-size:18px}
+ .bpr-v65-immersive .bpr-game-play-meta{padding:0}
+ .bpr-v65-immersive .bpr-v65-stage-layout{grid-template-columns:minmax(0,1fr) clamp(105px,22vw,155px);gap:10px}
+ .bpr-v65-immersive .bpr-v65-stage-layout .bpr-v61-stage{min-height:38dvh;max-height:58dvh;padding:10px}
+ .bpr-v65-immersive .bpr-v65-stage-layout .bpr-v61-stage strong{font-size:clamp(27px,5vw,65px)}
+ .bpr-v65-immersive .bpr-v63-clock-ring{width:clamp(82px,15vw,124px)}
+ .bpr-v65-immersive .bpr-v63-clock-ring strong{font-size:clamp(31px,6vw,51px)}
+ .bpr-v65-immersive .bpr-v61-primary-action .bpr-game-primary{min-height:39px}
+ .bpr-v65-immersive .bpr-v61-utility-actions{grid-template-columns:repeat(6,minmax(0,1fr))}
+ .bpr-v65-immersive .bpr-v61-utility-actions .bpr-game-secondary{padding:4px;min-height:39px;font-size:11px}
+ .bpr-v65-immersive .bpr-game-play-hint{display:none}
+}
+@media(max-width:345px){.bpr-v65-immersive .bpr-v65-stage-layout{grid-template-columns:minmax(0,1fr) 92px;gap:7px}.bpr-v65-immersive .bpr-v63-clock-ring{width:88px}.bpr-v65-immersive .bpr-v61-utility-actions{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(prefers-reduced-motion:reduce){.bpr-v65-stage-layout,.bpr-v65-room-navigation button{animation:none!important;transition:none!important}}
