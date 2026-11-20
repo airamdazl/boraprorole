@@ -1046,3 +1046,24 @@ body.bpr-game-active{overflow:hidden!important}
 .bpr-v63-sound-btn[aria-pressed="false"]{opacity:.84}
 @media(max-width:360px){.bpr-notif-actions .btn{padding:9px 10px}}
 @media(prefers-reduced-motion:reduce){.bpr-v63-clock-ring{animation:none!important;transition:none!important}}
+
+/* V6.4 — pesquisa assistida e convite selecionado, preservando o tema global. */
+.bpr-v64-invite{width:100%;min-width:0}
+.bpr-v64-invite form{display:grid;gap:12px;min-width:0}
+.bpr-v64-invite label{font-weight:800}
+#bpr-v64-invite-query{width:100%;min-width:0;min-height:52px;border:1px solid var(--line);border-radius:14px;padding:12px 14px;font:inherit;color:var(--text);background:var(--surface2)}
+.bpr-v64-invite small{color:var(--muted)}
+.bpr-v64-invite-results{display:grid;gap:9px;min-width:0;max-height:min(45vh,370px);overflow:auto;overscroll-behavior:contain}
+.bpr-v64-invite-option{display:flex;gap:12px;align-items:center;min-width:0;width:100%;padding:10px;border:1px solid var(--line);border-radius:15px;background:var(--surface2);color:var(--text);cursor:pointer;font:inherit;text-align:left;min-height:74px}
+.bpr-v64-invite-option[aria-pressed="true"]{border:2px solid var(--lime);background:var(--surface3)}
+.bpr-v64-invite-option:focus-visible,#bpr-v64-invite-query:focus-visible{outline:3px solid var(--lime);outline-offset:2px}
+.bpr-v64-invite-avatar{width:52px;height:52px;flex:0 0 52px;border-radius:50%;display:grid;place-items:center;background:var(--surface3);overflow:hidden}
+.bpr-v64-invite-avatar img{display:block;width:100%;height:100%;object-fit:cover}
+.bpr-v64-invite-identity{flex:1;min-width:0;display:grid;gap:3px}
+.bpr-v64-invite-identity strong,.bpr-v64-invite-identity small{overflow-wrap:anywhere}
+.bpr-v64-invite-check{flex:0 0 auto;font-size:12px;color:var(--lime);font-weight:800}
+.bpr-v64-invite-picked{font-size:14px;font-weight:700;color:var(--lime)}
+.bpr-v64-invite-send{width:100%;min-height:52px}
+.bpr-v64-invite-send:disabled{opacity:.52;cursor:not-allowed}
+#bpr-v64-invite-status{margin:0;overflow-wrap:anywhere}
+@media(max-width:350px){.bpr-v64-invite-option{gap:8px;padding:8px}.bpr-v64-invite-avatar{width:43px;height:43px;flex-basis:43px}.bpr-v64-invite-check{font-size:11px}}

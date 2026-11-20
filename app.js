@@ -2359,6 +2359,8 @@ async function openRoom(type, id) {
 async function changeRoomTab(tab) {
   const room = state.activeRoom;
   if (!room) return;
+  // A lista de integrantes abre diretamente, sem uma tela intermediária.
+  if (tab === 'members' && room.type === 'squad') return showSquadRoster(room.id);
   document.querySelectorAll('.bpr-v6-room-tabs [data-room-tab],.bpr-v6-room-head [data-room-tab]').forEach((button) => { const b=button.dataset.roomTab;button.classList.toggle('active', b===tab || (b==='more' && ['polls','album','members'].includes(tab)));});
   const target = $('room-content');
   target.innerHTML = '<div class="room-loading">Carregando…</div>';
@@ -2392,9 +2394,7 @@ async function changeRoomTab(tab) {
       target.innerHTML=`<h3>Jogos da galera 🎲</h3><p class="small-muted">Cartas para brincar juntos no chat ou pessoalmente, sem registrar respostas ou placar.</p><div class="bpr-room-games">${bprGamesTiles()}</div>`;
     }
   } else if(tab === 'more' && room.type === 'squad') {
-    target.innerHTML=`<div class="bpr-v6-room-more"><h3>Outras ferramentas</h3><div class="bpr-v6-room-tool-grid"><button type="button" data-room-tab="polls">📊 Enquetes</button><button type="button" data-room-tab="album">📸 Álbum</button><button type="button" data-room-tab="members">👥 Integrantes</button><button type="button" data-action="report" data-kind="squad" data-id="${html(room.id)}">🚩 Denunciar</button></div><p class="small-muted">A gestão é exclusiva dos administradores e fica no cabeçalho do Squad.</p></div>`;
-  } else if (tab === 'members' && room.type === 'squad') {
-    target.innerHTML='<h3>Integrantes do Squad</h3><p>Consulte os participantes e os cargos autorizados.</p><button type="button" class="btn btn-ghost" data-action="squad-roster" data-id="'+html(room.id)+'">Ver integrantes</button>';
+    target.innerHTML=`<div class="bpr-v6-room-more"><h3>Outras ferramentas</h3><div class="bpr-v6-room-tool-grid"><button type="button" data-room-tab="polls">📊 Enquetes</button><button type="button" data-room-tab="album">📸 Álbum</button><button type="button" data-action="squad-roster" data-id="${html(room.id)}">👥 Integrantes</button><button type="button" data-action="report" data-kind="squad" data-id="${html(room.id)}">🚩 Denunciar</button></div><p class="small-muted">A gestão é exclusiva dos administradores e fica no cabeçalho do Squad.</p></div>`;
   } else if (tab === 'settings' && room.type === 'squad') {
     const manager=['owner','moderator'].includes(state.squadRoles.get(room.id));
     if(!manager) { target.textContent='Acesso reservado aos responsáveis pelo Squad.'; return; }
@@ -2408,8 +2408,7 @@ async function changeRoomTab(tab) {
       <div class="bpr-v6-theme-panel"><h4>🎨 Tema deste Squad</h4><p class="small-muted">Escolha uma capa visual para a sala. Somente responsáveis podem salvar; os integrantes apenas visualizam.</p><div class="bpr-v6-theme-grid">
       ${Object.entries(bprSquadThemes).map(([value,label])=>`<button type="button" class="bpr-v6-theme-choice" data-squad-theme="${value}" aria-pressed="${value===bprSquadThemeCurrent}"><span class="bpr-v6-theme-sample" data-squad-theme="${value}"></span><strong>${label}</strong></button>`).join('')}</div><small id="bpr-v6-theme-message">As escolhas precisam da migração SQL V6 para persistir.</small></div>
       ${state.squadRoles.get(room.id) === 'owner' ? `<label class="squad-discovery-switch bpr-room-visibility"><input type="checkbox" id="squad-discoverable" ${state.squads.find(s=>s.id===room.id)?.is_discoverable?'checked':''}> Permitir que encontrem este Squad na busca pelo nome (entrada sempre mediante aprovação)</label>` : ''}
-      <form id="squad-invite-form" class="bpr-room-invite-form"><label for="squad-nick">Convidar uma pessoa pelo @user</label><div class="friend-finder"><input id="squad-nick" placeholder="@user" maxlength="24" autocomplete="off" required><button type="submit" class="btn btn-ghost">Convidar</button></div><p id="squad-invite-result" class="small-muted" role="status"></p></form>`;
-    $('squad-invite-form')?.addEventListener('submit',(ev)=>inviteNickname(ev,room.id));
+      <button type="button" class="btn btn-ghost bpr-invite-from-management" data-action="squad-invite-member" data-id="${html(room.id)}">💌 Convidar integrante</button>`;
     $('squad-discoverable')?.addEventListener('change',async(ev)=>{
       const checkbox=ev.target;
       try {
@@ -3430,25 +3429,108 @@ else {
 
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   // Atualização explícita do worker: evita manter uma instalação antiga do PWA.
-  navigator.serviceWorker.register('./service-worker.js?v=20261120-notificacoes-v63', {updateViaCache:'none'}).catch(() => {});
+  navigator.serviceWorker.register('./service-worker.js?v=20261120-squad-invite-v64', {updateViaCache:'none'}).catch(() => {});
 }
 
 function bprInviteMemberFromRoster(squadId){
   if(!['owner','moderator'].includes(state.squadRoles.get(squadId)))return toast('Somente responsáveis podem convidar integrantes.');
-  showModal('Convidar para o Squad 💌',`<p class="small-muted">Convide pelo @user. A pessoa receberá o convite e decidirá se quer participar. Ninguém é adicionado automaticamente.</p><form id="squad-invite-form"><label for="squad-nick">@user da pessoa</label><div class="friend-finder"><input id="squad-nick" placeholder="@user" maxlength="24" autocomplete="off" required><button type="submit" class="btn btn-pink">Enviar convite</button></div><p id="squad-invite-result" class="small-muted" role="status"></p></form>`);
-  $('squad-invite-form')?.addEventListener('submit',(ev)=>inviteNickname(ev,squadId));
-}
-
-async function inviteNickname(event, squadId) {
-  event.preventDefault();
-  const nickname = $('squad-nick').value.trim().replace(/^@/, '').toLowerCase();
-  if (!/^[a-z0-9_.]{3,24}$/.test(nickname)) return toast('@user inválido.');
-  try {
-    const found = await assertOk(db.rpc('lookup_nickname', {_nickname: nickname}));
-    if (!found?.length) return $('squad-invite-result').textContent = 'Esse @user não foi encontrado.';
-    await assertOk(db.from('squad_invitations').insert({squad_id: squadId,invitee_id:found[0].user_id}));
-    $('squad-invite-result').textContent = `Convite enviado a @${found[0].username}. Ela(e) precisa aceitar.`;
-  } catch (err) { toast(err.message); }
+  showModal('Convidar para o Squad 💌',`<div class="bpr-v64-invite">
+    <p class="small-muted">Pesquise a pessoa, confira a foto e o @user e selecione quem deseja convidar. Ninguém entra automaticamente: o convite precisa ser aceito.</p>
+    <form id="bpr-v64-invite-form" novalidate>
+      <label for="bpr-v64-invite-query">Buscar pessoa pelo @user</label>
+      <input id="bpr-v64-invite-query" type="search" placeholder="Comece a digitar o @user" minlength="3" maxlength="25" autocomplete="off" spellcheck="false" aria-controls="bpr-v64-invite-results" aria-describedby="bpr-v64-invite-help" required>
+      <small id="bpr-v64-invite-help">A busca mostra apenas perfis que permitem ser encontrados.</small>
+      <div class="bpr-v64-invite-results" id="bpr-v64-invite-results" role="region" aria-label="Resultados da busca" aria-live="polite"><p class="small-muted">Digite pelo menos 3 caracteres.</p></div>
+      <div class="bpr-v64-invite-picked" id="bpr-v64-invite-picked" aria-live="polite"></div>
+      <button type="submit" class="btn btn-pink bpr-v64-invite-send" id="bpr-v64-invite-send" disabled>Enviar convite</button>
+      <p id="bpr-v64-invite-status" class="small-muted" role="status" aria-live="polite"></p>
+    </form>
+  </div>`);
+  const form=$('bpr-v64-invite-form');
+  const input=$('bpr-v64-invite-query');
+  const results=$('bpr-v64-invite-results');
+  const picked=$('bpr-v64-invite-picked');
+  const send=$('bpr-v64-invite-send');
+  const status=$('bpr-v64-invite-status');
+  let chosen=null;
+  let items=[];
+  let sequence=0;
+  let timer=null;
+  let disabled=false;
+  const validUser=(query)=>/^[a-z0-9_.]{3,24}$/.test(query);
+  async function draw(query){
+    const token=++sequence;
+    chosen=null;send.disabled=true;picked.textContent='';
+    if(!validUser(query)) {results.innerHTML='<p class="small-muted">Digite ao menos 3 caracteres do @user.</p>';return;}
+    results.innerHTML='<p class="small-muted">Procurando pessoas…</p>';
+    try {
+      // A pesquisa parcial só é permitida pela RPC com escopo de administrador e privacidade.
+      // Se a migração não existir, a busca exata anterior permanece disponível.
+      let data;
+      let limited=false;
+      const {data:rows,error}=await db.rpc('bpr_squad_invite_candidates',{p_squad:squadId,p_query:query});
+      if(error) {
+        if(!['42883','PGRST202'].includes(error.code) && !/Could not find the function|does not exist/i.test(error.message||'')) throw error;
+        limited=true;
+        data=await assertOk(db.rpc('bora_lookup_profile',{_nickname:query}));
+      } else data=rows;
+      if(token!==sequence || !$('bpr-v64-invite-form'))return;
+      items=(data||[]).filter(item=>item.user_id && item.user_id!==state.user?.id).slice(0,8);
+      if(!items.length) {results.innerHTML=`<p class="small-muted">Nenhuma pessoa encontrada${limited?' com esse @user':''}. Confira o nome ou a privacidade da conta.</p>`;return;}
+      const avatarUrls=await Promise.all(items.map(async(item)=>{
+        if(!item.avatar_path)return '';
+        const {data,error}=await db.storage.from('avatars').createSignedUrl(item.avatar_path,90);
+        return error?'':safeHttps(data?.signedUrl)||'';
+      }));
+      if(token!==sequence || !$('bpr-v64-invite-form'))return;
+      results.innerHTML=items.map((person,i)=>`<button type="button" class="bpr-v64-invite-option" data-bpr-invite-index="${i}" aria-pressed="false">
+        <span class="bpr-v64-invite-avatar">${avatarUrls[i]?`<img src="${html(avatarUrls[i])}" alt="">`:'👤'}</span>
+        <span class="bpr-v64-invite-identity"><strong>${html(person.display_name||person.username)}</strong><small>@${html(person.username)}</small></span>
+        <span class="bpr-v64-invite-check" aria-hidden="true">Selecionar</span></button>`).join('');
+      if(limited)status.textContent='Pesquisa exata disponível. Para sugestões por início do nome, execute o SQL de busca do patch.';
+      else status.textContent='Escolha a pessoa correta antes de enviar.';
+    }catch(err){
+      if(token!==sequence)return;
+      results.innerHTML='<p class="small-muted">Não foi possível pesquisar agora. Tente novamente.</p>';
+      status.textContent=friendlyError(err);
+    }
+  }
+  input.addEventListener('input',()=>{
+    if(disabled)return;
+    const query=input.value.trim().replace(/^@/,'').toLowerCase();
+    clearTimeout(timer);
+    sequence++;chosen=null;send.disabled=true;picked.textContent='';results.innerHTML='<p class="small-muted">Aguardando busca…</p>';
+    if(!validUser(query)){results.innerHTML='<p class="small-muted">Digite pelo menos 3 caracteres.</p>';status.textContent='';return;}
+    timer=setTimeout(()=>void draw(query),320);
+  });
+  results.addEventListener('click',event=>{
+    const button=event.target.closest('[data-bpr-invite-index]');
+    if(!button||disabled)return;
+    chosen=items[Number(button.dataset.bprInviteIndex)];
+    if(!chosen)return;
+    results.querySelectorAll('.bpr-v64-invite-option').forEach(el=>el.setAttribute('aria-pressed',String(el===button)));
+    picked.textContent=`Selecionado: ${chosen.display_name||chosen.username} (@${chosen.username})`;
+    send.disabled=false;status.textContent='Confira a pessoa selecionada e envie o convite.';
+  });
+  form.addEventListener('submit',async(event)=>{
+    event.preventDefault();
+    if(disabled||!chosen||!state.user?.id)return;
+    disabled=true;send.disabled=true;input.disabled=true;
+    status.textContent='Enviando convite…';
+    try{
+      // invited_by precisa ser o usuário autenticado; INSERT permanece sujeito ao RLS.
+      await assertOk(db.from('squad_invitations').insert({squad_id:squadId,invitee_id:chosen.user_id,invited_by:state.user.id}));
+      status.textContent=`Convite enviado a @${chosen.username}. Aguarde a aceitação da pessoa.`;
+      picked.textContent=`✓ Convite enviado para ${chosen.display_name||chosen.username} (@${chosen.username})`;
+      toast(`Convite enviado a @${chosen.username}.`);
+    }catch(err){
+      disabled=false;send.disabled=false;input.disabled=false;
+      const hint=err.code==='23505'?'Já existe um convite para esta pessoa.':
+        err.code==='42501'||/row.level security/i.test(err.message||'')?'O Supabase recusou o convite pela política do Squad. Confira a autorização do responsável e a política de INSERT.':friendlyError(err);
+      status.textContent=hint;
+    }
+  });
+  input.focus();
 }
 
 async function respondInvite(id, accepted) {
